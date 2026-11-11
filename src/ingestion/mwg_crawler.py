@@ -9,6 +9,7 @@ Incremental bằng manifest (data/_state/manifest.parquet, khóa là URL file).
 """
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import re
@@ -19,6 +20,7 @@ from pathlib import Path
 from urllib.parse import urlencode, urlsplit
 
 import polars as pl
+import requests
 import yaml
 
 from src.common.paths import BRONZE_DIR, CONFIG_DIR, ROOT, STATE_DIR
@@ -27,7 +29,10 @@ from src.ingestion.http_utils import get
 
 SOURCES_PATH = CONFIG_DIR / "sources.yaml"
 MANIFEST_PATH = STATE_DIR / "manifest.parquet"
+ERRORS_PATH = STATE_DIR / "download_errors.csv"
 BRONZE_ROOT = BRONZE_DIR / "source=mwg_ir"
+DEAD_LINK_STATUS = {404, 410}  # link chết trên nguồn: ghi lại rồi bỏ qua, không dừng cả lần chạy
+ERROR_FIELDS = ["url", "title", "doc_type", "period", "http_status", "first_seen", "last_seen"]
 _PLACEHOLDER = re.compile(r"<[^>]*>")
 
 MANIFEST_SCHEMA = {
@@ -218,6 +223,27 @@ def _rel(path: Path) -> str:
         return path.as_posix()
 
 
+def _log_download_error(doc: dict, doc_type: str, period: str, status: int) -> None:
+    """Ghi link tải lỗi vào download_errors.csv (một dòng mỗi URL, cập nhật last_seen).
+
+    Link lỗi không vào manifest, nên lần backfill sau vẫn thử lại phòng khi nguồn sửa link.
+    """
+    rows: dict[str, dict] = {}
+    if ERRORS_PATH.exists():
+        with ERRORS_PATH.open(encoding="utf-8", newline="") as f:
+            rows = {r["url"]: r for r in csv.DictReader(f)}
+    today = date.today().isoformat()
+    prev = rows.get(doc["url"], {})
+    rows[doc["url"]] = {"url": doc["url"], "title": doc["title"], "doc_type": doc_type,
+                        "period": period, "http_status": status,
+                        "first_seen": prev.get("first_seen", today), "last_seen": today}
+    ERRORS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with ERRORS_PATH.open("w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=ERROR_FIELDS)
+        w.writeheader()
+        w.writerows(rows.values())
+
+
 def _is_pdf_url(url: str) -> bool:
     return urlsplit(url).path.lower().endswith(".pdf")
 
@@ -233,7 +259,7 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
     seen_periods = {(r["doc_type"], r["period"]): r["sha256"] for r in mf.iter_rows(named=True)}
     max_years = None if backfill else cfg["incremental_years"]
     new_rows: list[dict] = []
-    skipped = 0
+    skipped = failed = 0
 
     for doc in list_documents(cfg, max_years):
         doc_type = classify(doc["title"])
@@ -260,7 +286,16 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
             new_rows.append({**doc, "doc_type": doc_type, "period": period})
             continue
 
-        r = get(doc["url"], referer=cfg["listing"]["referer"], kind="pdf")
+        try:
+            r = get(doc["url"], referer=cfg["listing"]["referer"], kind="pdf")
+        except requests.HTTPError as e:
+            status = e.response.status_code if e.response is not None else None
+            if status not in DEAD_LINK_STATUS:
+                raise
+            print(f"[crawl] Link chết (HTTP {status}), bỏ qua: {doc['title']} -> {doc['url']}")
+            _log_download_error(doc, doc_type, period, status)
+            failed += 1
+            continue
         content = r.content
         if not content.startswith(b"%PDF"):
             print(f"[crawl] Nội dung tải về không phải PDF, bỏ qua: {doc['url']}")
@@ -296,6 +331,8 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
         print(f"[bronze] {doc_type} {period} <- {doc['title']}")
 
     print(f"[crawl] Bỏ qua {skipped} tài liệu không thuộc loại cần lấy.")
+    if failed:
+        print(f"[crawl] Link chết: {failed} (xem {_rel(ERRORS_PATH)}).")
     if new_rows:
         print(f"[crawl] Tài liệu mới: {len(new_rows)}" + (" (dry-run, chưa tải)" if dry_run else ""))
     else:

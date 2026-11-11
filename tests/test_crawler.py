@@ -4,6 +4,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import polars as pl
 import pytest
+import requests
 
 from src.ingestion import mwg_crawler
 
@@ -22,20 +23,26 @@ def _post(pid, title, link, quarter=3, active=True):
 
 
 class FakeResp:
-    def __init__(self, url, body=None, content=b""):
-        self.url, self._body, self.content, self.status_code = url, body, content, 200
+    def __init__(self, url, body=None, content=b"", status_code=200):
+        self.url, self._body, self.content, self.status_code = url, body, content, status_code
 
     def json(self):
         return self._body
 
 
 class FakeApi:
-    def __init__(self, years, posts, pdf_content=b"%PDF-1.4 fake"):
+    def __init__(self, years, posts, pdf_content=b"%PDF-1.4 fake", errors=None):
         self.years, self.posts, self.pdf_content = years, posts, pdf_content
+        self.errors = errors or {}  # url -> HTTP status hoặc exception
         self.calls = []
 
     def __call__(self, url, referer=None, *, kind="page", stream=False):
         self.calls.append((url, kind))
+        err = self.errors.get(url)
+        if isinstance(err, Exception):
+            raise err
+        if err:
+            raise requests.HTTPError(f"{err}", response=FakeResp(url, status_code=err))
         q = {k: v[0] for k, v in parse_qs(urlsplit(url).query).items()}
         if "CategoryAPI" in url:
             data = self.years
@@ -55,6 +62,7 @@ class FakeApi:
 def env(tmp_path, monkeypatch):
     monkeypatch.setattr(mwg_crawler, "MANIFEST_PATH", tmp_path / "_state" / "manifest.parquet")
     monkeypatch.setattr(mwg_crawler, "BRONZE_ROOT", tmp_path / "bronze" / "source=mwg_ir")
+    monkeypatch.setattr(mwg_crawler, "ERRORS_PATH", tmp_path / "_state" / "download_errors.csv")
 
     def install(api):
         monkeypatch.setattr(mwg_crawler, "get", api)
@@ -150,3 +158,37 @@ def test_ban_dieu_chinh_cung_ky_duoc_danh_dau(env):
     install(api)
     rows = mwg_crawler.crawl()
     assert [(r["period"], r["is_restatement"]) for r in rows] == [("2026-Q3", True)]
+
+
+DEAD = "https://cdn.test/a/q3.pdf"
+
+
+@pytest.mark.parametrize("status", [404, 410])
+def test_link_chet_ghi_lai_va_tai_tiep(env, status):
+    _, install = env
+    api = install(_sample_api(errors={DEAD: status}))
+    rows = mwg_crawler.crawl()
+
+    assert DEAD in api.downloads()
+    assert {r["url"] for r in rows} == {"https://cdn.test/a/m9.pdf", "https://cdn.test/b/y.pdf"}
+    errors = mwg_crawler.ERRORS_PATH.read_text(encoding="utf-8")
+    assert DEAD in errors and str(status) in errors
+    # link chết không vào manifest, lần sau vẫn thử lại; file lỗi không bị nhân dòng
+    api2 = install(_sample_api(errors={DEAD: status}))
+    mwg_crawler.crawl()
+    assert api2.downloads() == [DEAD]
+    assert mwg_crawler.ERRORS_PATH.read_text(encoding="utf-8").count(DEAD) == 1
+
+
+def test_403_van_dung_ca_lan_chay(env):
+    _, install = env
+    install(_sample_api(errors={DEAD: PermissionError(f"403 Forbidden: {DEAD}")}))
+    with pytest.raises(PermissionError):
+        mwg_crawler.crawl()
+
+
+def test_loi_http_khac_van_dung(env):
+    _, install = env
+    install(_sample_api(errors={DEAD: 401}))
+    with pytest.raises(requests.HTTPError):
+        mwg_crawler.crawl()
