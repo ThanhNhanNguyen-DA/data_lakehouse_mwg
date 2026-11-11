@@ -17,3 +17,6 @@ data/_state/http_cache.sqlite
 data/bronze/**/*.pdf
 data/bronze/**/*.jpg
 data/bronze/**/*.png
+
+# Cache OCR theo sha256 + trang (tạo lại được)
+data/_cache/
