@@ -334,21 +334,76 @@ def _api_with_shared_url():
     return api
 
 
-def test_url_dung_chung_giua_hai_ky_ghi_link_anomalies(env):
+def _anomalies():
+    with mwg_crawler.ANOMALIES_PATH.open(encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
+def test_url_dung_chung_giua_hai_ky_tai_mot_lan_voi_pending(env):
     _, install = env
-    install(_api_with_shared_url())
+    api = install(_api_with_shared_url())
     rows = mwg_crawler.crawl()
 
-    assert [r["period"] for r in rows if r["url"] == f"{CDN}/vi/m9.pdf"] == ["2026-M09"]  # không lưu trùng
-    with mwg_crawler.ANOMALIES_PATH.open(encoding="utf-8") as f:
-        anomalies = list(csv.DictReader(f))
-    assert list(anomalies[0]) == mwg_crawler.ANOMALY_FIELDS
-    assert [(a["title"], a["period_from_title"], a["url"], a["period_in_manifest"]) for a in anomalies] == [
-        ("Cập Nhật Tình Hình Kinh Doanh 7 Tháng 2026", "2026-M07", f"{CDN}/vi/m9.pdf", "2026-M09")]
+    assert api.downloads().count("/vi/m9.pdf") == 1
+    shared = [r for r in rows if r["url"] == f"{CDN}/vi/m9.pdf"]
+    assert [(r["period"], r["doc_type"], r["period_ambiguous"], r["period_candidates"]) for r in shared] == [
+        ("pending", "MONTHLY_RESULT", True, "MONTHLY_RESULT:2026-M07;MONTHLY_RESULT:2026-M09")]
+    assert shared[0]["path"].split("/")[-1].startswith("MWG_pending_")
+    # tháng 9 chưa có bản vi-VN chắc chắn -> lấy bản en-US dự phòng
+    assert ("en-US", "2026-M09") in {(r["lang"], r["period"]) for r in rows}
 
+    a = _anomalies()
+    assert list(a[0]) == mwg_crawler.ANOMALY_FIELDS
+    assert sorted((x["title"], x["period_from_title"], x["period_in_manifest"]) for x in a) == [
+        ("Cập Nhật Tình Hình Kinh Doanh 7 Tháng 2026", "2026-M07", "pending"),
+        ("Cập Nhật Tình Hình Kinh Doanh 9 Tháng 2026", "2026-M09", "pending")]
+
+    api2 = install(_api_with_shared_url())
+    mwg_crawler.crawl()  # chạy lại: không tải lại, không nhân dòng
+    assert api2.downloads() == []
+    assert len(_anomalies()) == 2
+
+
+def test_hai_ky_khac_loai_tai_lieu_thi_doc_type_pending(env):
+    _, install = env
+    api = _sample_api()
+    # giống lỗi thật: "1H17" trỏ tới file Q3
+    api.posts[433].append(_post(29, "Audited Consolidated FS Q3/2026", f"{CDN}/en/1h2026.pdf"))
+    install(api)
+    row = next(r for r in mwg_crawler.crawl() if r["url"] == f"{CDN}/en/1h2026.pdf")
+    assert (row["doc_type"], row["period"]) == ("PENDING", "pending")
+    assert row["period_candidates"] == "FS_CONSOLIDATED_H:2026-H1;FS_CONSOLIDATED_Q:2026-Q3"
+
+
+def test_file_da_luu_bi_danh_dau_pending_roi_gan_ky_that(env):
+    _, install = env
+    install(_sample_api())
+    mwg_crawler.crawl()  # m9.pdf lưu với kỳ 2026-M09
     install(_api_with_shared_url())
-    mwg_crawler.crawl()  # chạy lại: không nhân dòng
-    assert mwg_crawler.ANOMALIES_PATH.read_text(encoding="utf-8").count("7 Tháng 2026") == 1
+    mwg_crawler.crawl()  # nguồn giờ trỏ thêm "7 tháng" vào cùng URL
+    m9 = mwg_crawler.load_manifest().filter(pl.col("url") == f"{CDN}/vi/m9.pdf").row(0, named=True)
+    assert (m9["period"], m9["period_ambiguous"]) == ("pending", True)
+
+    mwg_crawler.resolve_period(f"{CDN}/vi/m9.pdf", "MONTHLY_RESULT", "2026-M09")
+    install(_api_with_shared_url())
+    mwg_crawler.crawl()  # đã gán kỳ: không đánh dấu pending lại
+    m9 = mwg_crawler.load_manifest().filter(pl.col("url") == f"{CDN}/vi/m9.pdf").row(0, named=True)
+    assert (m9["period"], m9["period_ambiguous"]) == ("2026-M09", True)
+    with pytest.raises(ValueError):
+        mwg_crawler.resolve_period(f"{CDN}/vi/m9.pdf", "MONTHLY_RESULT", "2026-M09")
+
+
+def test_fill_text_layer_cho_dong_cu(env, monkeypatch):
+    _, install = env
+    install(_sample_api())
+    mwg_crawler.crawl()
+    mf = mwg_crawler.load_manifest().with_columns(pl.lit(None, pl.Boolean).alias("has_text_layer"))
+    mwg_crawler._save_manifest(mf)
+    monkeypatch.setattr(mwg_crawler, "has_text_layer", lambda path: False)
+    n = mwg_crawler.fill_text_layer()
+    mf = mwg_crawler.load_manifest()
+    assert n == mf.filter(pl.col("file_type") == "pdf").height
+    assert mf.filter(pl.col("file_type") == "pdf")["has_text_layer"].to_list() == [False] * n
 
 
 def test_url_da_biet_cung_ky_khong_phai_bat_thuong(env):

@@ -53,11 +53,16 @@ MANIFEST_SCHEMA = {
     "period": pl.Utf8, "published": pl.Utf8, "category_year": pl.Int32,
     "assurance_level": pl.Int8, "sha256": pl.Utf8, "size": pl.Int64,
     "http_status": pl.Int16, "is_restatement": pl.Boolean, "path": pl.Utf8,
-    "fetched_at": pl.Utf8,
+    "fetched_at": pl.Utf8, "period_ambiguous": pl.Boolean, "period_candidates": pl.Utf8,
 }
 # Giá trị cho các cột chưa có ở manifest cũ (trước khi có nguồn en-US, chỉ có bản vi-VN PDF)
 _MANIFEST_DEFAULTS = {"lang": "vi-VN", "fetch_reason": "primary", "file_type": "pdf",
-                      "has_text_layer": None}
+                      "has_text_layer": None, "period_ambiguous": False, "period_candidates": None}
+# Một URL được nguồn gắn cho nhiều kỳ: tải một lần với kỳ chờ xác định, gán kỳ thật sau khi
+# đối chiếu ngày báo cáo trong PDF (resolve_period).
+PENDING = "pending"
+PENDING_DOC_TYPE = "PENDING"  # khi các kỳ ứng viên còn khác cả loại tài liệu (vd. 1H17 và 3Q17)
+_REASON_RANK = {"primary": 0, "cross_check": 1, "fallback": 2}
 
 
 @lru_cache(maxsize=None)
@@ -355,30 +360,10 @@ def _fetch_reason(lang: str, primary_lang: str, doc_type: str, period: str,
     return "fallback"
 
 
-def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
-    cfg = load_config()
-    missing = unfilled_fields(cfg)
-    if missing:
-        raise SystemExit(f"[crawl] sources.yaml thiếu: {', '.join(missing)}")
-
-    languages = cfg["listing"]["languages"]
-    primary_lang = languages[0]["lang_id"]
-    cross_check = {(c["lang_id"], c["doc_type"], str(c["period"]))
-                   for c in cfg["listing"].get("cross_check") or []}
-    mf = load_manifest()
-    known = dict(zip(mf["url"], mf["period"]))  # url -> kỳ đã lưu
-    dead = {u for u, r in _load_download_errors().items()
-            if str(r.get("http_status")) in {str(s) for s in DEAD_LINK_STATUS}}
-    seen_periods = {(r["lang"], r["doc_type"], r["period"]): r["sha256"] for r in mf.iter_rows(named=True)}
-    # Các kỳ đã có bản chính: bản dự phòng của các kỳ này không cần tải
-    have_primary = {(r["doc_type"], r["period"]) for r in mf.iter_rows(named=True)
-                    if r["lang"] == primary_lang}
-    max_years = None if backfill else cfg["incremental_years"]
-    new_rows: list[dict] = []
-    skipped = failed = covered = 0
-
-    for lang_cfg in languages:  # bản chính trước, để biết kỳ nào đã có khi xét bản dự phòng
-        lang = lang_cfg["lang_id"]
+def _collect_listing(cfg: dict, max_years: int | None) -> tuple[list[dict], int]:
+    """Bước 1: lấy toàn bộ danh sách (mọi ngôn ngữ), giữ các mục cần lấy kèm doc_type và kỳ."""
+    entries, skipped = [], 0
+    for lang_cfg in cfg["listing"]["languages"]:  # bản chính trước
         for doc in list_documents(cfg, lang_cfg, max_years):
             doc_type = classify(doc["title"])
             if doc_type is None:
@@ -390,80 +375,186 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
             if _url_ext(doc["url"]) not in DOWNLOAD_EXTS:
                 print(f"[crawl] Bỏ qua định dạng chưa hỗ trợ: {doc['title']} -> {doc['url'][-40:]}")
                 continue
-
             period = parse_period(doc["title"], doc_type, default_year=doc["category_year"])
             if period and period[:4] != str(doc["category_year"]):
                 print(f"[crawl] Lưu ý: kỳ {period} theo tiêu đề khác năm danh mục {doc['category_year']}: "
                       f"{doc['title']}")
-            period = period or "unknown"
+            entries.append({**doc, "doc_type": doc_type, "period": period or "unknown",
+                            "referer": lang_cfg["referer"]})
+    return entries, skipped
 
-            if doc["url"] in known:
-                if known[doc["url"]] != period:  # nguồn trỏ nhầm: một URL cho hai kỳ khác nhau
-                    _log_link_anomaly(doc, period, known[doc["url"]])
-                continue
-            reason = _fetch_reason(lang, primary_lang, doc_type, period, have_primary, cross_check)
-            if reason is None:
-                covered += 1
-                continue
-            if dry_run:
-                note = "  [link đã 404, sẽ thử lại]" if doc["url"] in dead else ""
-                print(f"[crawl] (dry-run) {lang} {reason:<11} {doc_type:<18} {period:<8} "
-                      f"{doc['published']}  {doc['title']}{note}")
-                if reason == "primary" and doc["url"] not in dead:
-                    have_primary.add((doc_type, period))
-                new_rows.append({**doc, "doc_type": doc_type, "period": period,
-                                 "fetch_reason": reason, "known_dead": doc["url"] in dead})
-                continue
 
-            try:
-                r = get(doc["url"], referer=lang_cfg["referer"], kind="pdf")
-            except requests.HTTPError as e:
-                status = e.response.status_code if e.response is not None else None
-                if status not in DEAD_LINK_STATUS:
-                    raise
-                print(f"[crawl] Link chết (HTTP {status}), bỏ qua: {doc['title']} -> {doc['url']}")
-                _log_download_error(doc, doc_type, period, status)
-                failed += 1
-                continue
-            content = r.content
-            file_type = detect_file_type(content)
-            if file_type is None:
-                print(f"[crawl] Nội dung tải về không phải PDF/ảnh, bỏ qua: {doc['url']}")
-                continue
+def _candidates(group: list[dict]) -> str:
+    return ";".join(sorted({f"{e['doc_type']}:{e['period']}" for e in group}))
 
-            sha = hashlib.sha256(content).hexdigest()
-            out_dir = BRONZE_ROOT / f"doc_type={doc_type}" / f"ingestion_date={date.today().isoformat()}"
-            out_dir.mkdir(parents=True, exist_ok=True)
-            file_path = out_dir / f"{cfg['symbol']}_{period.replace('-', '')}_{sha[:8]}.{file_type}"
-            if not file_path.exists():  # Bronze append-only: không ghi đè
-                file_path.write_bytes(content)
 
-            prev_sha = seen_periods.get((lang, doc_type, period))
-            meta = {
-                "url": doc["url"], "post_id": doc["post_id"], "lang": lang, "fetch_reason": reason,
-                "title": doc["title"], "doc_type": doc_type, "file_type": file_type,
-                "has_text_layer": has_text_layer(file_path) if file_type == "pdf" else False,
-                "period": period, "published": doc["published"],
-                "category_year": doc["category_year"],
-                "assurance_level": assurance_level(doc["title"], doc_type, cfg, lang),
-                "sha256": sha, "size": len(content), "http_status": r.status_code,
-                "is_restatement": prev_sha is not None and prev_sha != sha,
-                "fetched_at": datetime.now().isoformat(timespec="seconds"),
-            }
-            meta_path = file_path.with_name(file_path.name + ".meta.json")
-            if not meta_path.exists():
-                meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+def _pending_doc_type(group: list[dict]) -> str:
+    types = {e["doc_type"] for e in group}
+    return types.pop() if len(types) == 1 else PENDING_DOC_TYPE
 
-            row = {**meta, "path": _rel(file_path)}
-            mf = pl.concat([mf, pl.DataFrame([row], schema=MANIFEST_SCHEMA)])
-            _save_manifest(mf)  # lưu sau mỗi file để dừng giữa chừng không mất trạng thái
-            known[doc["url"]] = period
+
+def _mark_pending(mf: pl.DataFrame, url: str, doc_type: str, candidates: str) -> pl.DataFrame:
+    hit = pl.col("url") == url
+    return mf.with_columns(
+        pl.when(hit).then(pl.lit(PENDING)).otherwise(pl.col("period")).alias("period"),
+        pl.when(hit).then(pl.lit(doc_type)).otherwise(pl.col("doc_type")).alias("doc_type"),
+        pl.when(hit).then(True).otherwise(pl.col("period_ambiguous")).alias("period_ambiguous"),
+        pl.when(hit).then(pl.lit(candidates)).otherwise(pl.col("period_candidates")).alias("period_candidates"),
+    )
+
+
+def resolve_period(url: str, doc_type: str, period: str) -> None:
+    """Gán kỳ thật cho file period=pending sau khi đối chiếu ngày báo cáo trong PDF.
+
+    Giữ period_ambiguous = true để crawler không đánh dấu pending lại và để còn dấu vết.
+    """
+    mf = load_manifest()
+    row = mf.filter(pl.col("url") == url)
+    if row.height != 1 or row["period"][0] != PENDING:
+        raise ValueError(f"[crawl] Không có file pending với URL {url}")
+    hit = pl.col("url") == url
+    _save_manifest(mf.with_columns(
+        pl.when(hit).then(pl.lit(period)).otherwise(pl.col("period")).alias("period"),
+        pl.when(hit).then(pl.lit(doc_type)).otherwise(pl.col("doc_type")).alias("doc_type"),
+    ))
+    print(f"[crawl] Gán kỳ {doc_type} {period} cho {url}")
+
+
+def fill_text_layer() -> int:
+    """Điền has_text_layer cho các PDF trong manifest còn null (file tải trước khi có cột này)."""
+    mf = load_manifest()
+    todo = mf.filter(pl.col("has_text_layer").is_null() & (pl.col("file_type") == "pdf")
+                     & pl.col("path").is_not_null())
+    if todo.height == 0:
+        return 0
+    values = {r["url"]: has_text_layer(ROOT / r["path"]) for r in todo.iter_rows(named=True)}
+    _save_manifest(mf.with_columns(
+        pl.col("url").replace_strict(values, default=pl.col("has_text_layer"), return_dtype=pl.Boolean)
+        .alias("has_text_layer")))
+    print(f"[crawl] Điền has_text_layer cho {len(values)} file.")
+    return len(values)
+
+
+def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
+    cfg = load_config()
+    missing = unfilled_fields(cfg)
+    if missing:
+        raise SystemExit(f"[crawl] sources.yaml thiếu: {', '.join(missing)}")
+
+    primary_lang = cfg["listing"]["languages"][0]["lang_id"]
+    cross_check = {(c["lang_id"], c["doc_type"], str(c["period"]))
+                   for c in cfg["listing"].get("cross_check") or []}
+    mf = load_manifest()
+    known = {r["url"]: r for r in mf.iter_rows(named=True)}
+    dead = {u for u, r in _load_download_errors().items()
+            if str(r.get("http_status")) in {str(s) for s in DEAD_LINK_STATUS}}
+    seen_periods = {(r["lang"], r["doc_type"], r["period"]): r["sha256"]
+                    for r in mf.iter_rows(named=True) if r["period"] != PENDING}
+    # Các kỳ đã có bản chính: bản dự phòng của các kỳ này không cần tải
+    have_primary = {(r["doc_type"], r["period"]) for r in mf.iter_rows(named=True)
+                    if r["lang"] == primary_lang}
+    max_years = None if backfill else cfg["incremental_years"]
+    new_rows: list[dict] = []
+    failed = covered = 0
+
+    entries, skipped = _collect_listing(cfg, max_years)
+    groups: dict[str, list[dict]] = {}
+    for e in entries:  # bước 2: nhóm theo URL (giữ thứ tự: bản chính trước)
+        groups.setdefault(e["url"], []).append(e)
+
+    for url, group in groups.items():  # bước 3: mỗi URL xử lý một lần
+        ambiguous = len({e["period"] for e in group}) > 1  # nguồn trỏ một URL cho nhiều kỳ
+        old = known.get(url)
+        if ambiguous:
+            for e in group:
+                _log_link_anomaly(e, e["period"], old["period"] if old else PENDING)
+        if old is not None:
+            if ambiguous and not old["period_ambiguous"]:
+                print(f"[crawl] Đánh dấu period=pending cho file đã lưu: {url}")
+                if not dry_run:
+                    mf = _mark_pending(mf, url, _pending_doc_type(group), _candidates(group))
+                    _save_manifest(mf)
+            elif not ambiguous and old["period"] not in (group[0]["period"], PENDING) \
+                    and not old["period_ambiguous"]:
+                _log_link_anomaly(group[0], group[0]["period"], old["period"])
+            continue
+
+        reasons = [r for e in group
+                   if (r := _fetch_reason(e["lang"], primary_lang, e["doc_type"], e["period"],
+                                          have_primary, cross_check))]
+        if not reasons:
+            covered += 1
+            continue
+        reason = min(reasons, key=_REASON_RANK.get)
+        doc = next(e for e in group if _fetch_reason(e["lang"], primary_lang, e["doc_type"], e["period"],
+                                                     have_primary, cross_check) == reason)
+        lang = doc["lang"]
+        doc_type, period = (_pending_doc_type(group), PENDING) if ambiguous else (doc["doc_type"], doc["period"])
+        candidates = _candidates(group) if ambiguous else None
+
+        if dry_run:
+            note = "  [link đã 404, sẽ thử lại]" if url in dead else ""
+            note += f"  [nhiều kỳ: {candidates}]" if ambiguous else ""
+            print(f"[crawl] (dry-run) {lang} {reason:<11} {doc_type:<18} {period:<8} "
+                  f"{doc['published']}  {doc['title']}{note}")
+            if reason == "primary" and url not in dead and not ambiguous:
+                have_primary.add((doc_type, period))
+            new_rows.append({**doc, "doc_type": doc_type, "period": period, "fetch_reason": reason,
+                             "known_dead": url in dead, "period_ambiguous": ambiguous})
+            continue
+
+        try:
+            r = get(url, referer=doc["referer"], kind="pdf")
+        except requests.HTTPError as e:
+            status = e.response.status_code if e.response is not None else None
+            if status not in DEAD_LINK_STATUS:
+                raise
+            print(f"[crawl] Link chết (HTTP {status}), bỏ qua: {doc['title']} -> {url}")
+            _log_download_error(doc, doc_type, period, status)
+            failed += 1
+            continue
+        content = r.content
+        file_type = detect_file_type(content)
+        if file_type is None:
+            print(f"[crawl] Nội dung tải về không phải PDF/ảnh, bỏ qua: {url}")
+            continue
+
+        sha = hashlib.sha256(content).hexdigest()
+        out_dir = BRONZE_ROOT / f"doc_type={doc_type}" / f"ingestion_date={date.today().isoformat()}"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        file_path = out_dir / f"{cfg['symbol']}_{period.replace('-', '')}_{sha[:8]}.{file_type}"
+        if not file_path.exists():  # Bronze append-only: không ghi đè
+            file_path.write_bytes(content)
+
+        prev_sha = seen_periods.get((lang, doc_type, period))
+        meta = {
+            "url": url, "post_id": doc["post_id"], "lang": lang, "fetch_reason": reason,
+            "title": doc["title"], "doc_type": doc_type, "file_type": file_type,
+            "has_text_layer": has_text_layer(file_path) if file_type == "pdf" else False,
+            "period": period, "period_ambiguous": ambiguous, "period_candidates": candidates,
+            "published": doc["published"], "category_year": doc["category_year"],
+            "assurance_level": assurance_level(doc["title"], doc["doc_type"], cfg, lang),
+            "sha256": sha, "size": len(content), "http_status": r.status_code,
+            "is_restatement": not ambiguous and prev_sha is not None and prev_sha != sha,
+            "fetched_at": datetime.now().isoformat(timespec="seconds"),
+        }
+        meta_path = file_path.with_name(file_path.name + ".meta.json")
+        if not meta_path.exists():
+            meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+
+        row = {**meta, "path": _rel(file_path)}
+        mf = pl.concat([mf, pl.DataFrame([row], schema=MANIFEST_SCHEMA)])
+        _save_manifest(mf)  # lưu sau mỗi file để dừng giữa chừng không mất trạng thái
+        known[url] = row
+        if not ambiguous:
             seen_periods[(lang, doc_type, period)] = sha
             if reason == "primary":
                 have_primary.add((doc_type, period))
-            new_rows.append(row)
-            print(f"[bronze] {lang} {reason} {doc_type} {period} <- {doc['title']}")
+        new_rows.append(row)
+        print(f"[bronze] {lang} {reason} {doc_type} {period} <- {doc['title']}")
 
+    if not dry_run:
+        fill_text_layer()
     print(f"[crawl] Bỏ qua {skipped} tài liệu không thuộc loại cần lấy; "
           f"{covered} bản dự phòng không cần vì đã có bản chính.")
     if failed:

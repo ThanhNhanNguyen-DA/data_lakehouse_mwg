@@ -45,11 +45,12 @@ mwg-lakehouse/
 │   ├── bronze/source=mwg_ir/doc_type=<TYPE>/ingestion_date=YYYY-MM-DD/
 │   ├── bronze/source=vnstock_kbs/...   # chỉ dùng để đối soát
 │   ├── silver/               # fs_extracted_raw/, fin_statement_long/, chain_kpi/ (Delta)
-│   └── gold/                 # mwg.duckdb, dim_*/, fact_financial/ (Delta, partition fiscal_year)
+│   ├── gold/                 # mwg.duckdb, dim_*/, fact_financial/ (Delta, partition fiscal_year)
+│   └── _cache/ocr/           # cache OCR theo sha256 + trang (không commit)
 ├── src/
 │   ├── common/               # text.py (norm), paths.py
 │   ├── ingestion/            # http_utils.py, mwg_crawler.py, vnstock_check.py
-│   ├── extraction/           # pdf_extractor.py
+│   ├── extraction/           # ocr.py, pdf_extractor.py, run_extraction.py
 │   ├── transform/            # bronze_to_silver.py, silver_to_gold.py
 │   └── quality/              # checks.py
 ├── dashboard/app.py
@@ -73,6 +74,7 @@ python run_pipeline.py               # incremental: chỉ tài liệu mới
 python run_pipeline.py --force       # chạy lại Silver/Gold dù không có tài liệu mới
 
 python -m src.ingestion.mwg_crawler          # chỉ crawl
+python -m src.extraction.run_extraction      # bóc B01/B02/B03 (OCR) + DQ -> silver/fs_extracted_raw, docs/dq_report.md
 python -m src.transform.bronze_to_silver     # chỉ Bronze -> Silver
 python -m src.transform.silver_to_gold       # chỉ Silver -> Gold
 
@@ -90,7 +92,7 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
   Đã khảo sát (11/11/2026): `mwg.vn/bao-cao` lấy danh sách từ JSON API `api.bhxwork.vn/gw/ir-api`
   (`CategoryAPI` → danh mục theo năm, `PostAPI` → tài liệu). Cấu hình nằm trong `sources.yaml > listing`.
 - **Hai ngôn ngữ, cùng do MWG công bố:** `vi-VN` (danh mục gốc 7) là nguồn chính, luôn tải. `en-US` (danh mục gốc 61, nhóm BCTC và nhóm báo cáo tháng "YTD … report") là nguồn dự phòng: một tài liệu en-US chỉ được tải khi kỳ `(doc_type, period)` chưa có bản vi-VN tải được (link vi-VN chết hoặc không đăng), hoặc khi kỳ đó nằm trong `listing.cross_check` (hiện là Q3/2020 và FY2020, để đối chiếu hai bản trong `docs/dq_report.md`). Manifest ghi `lang` và `fetch_reason` (`primary` / `fallback` / `cross_check`).
-- Mục có URL đã lưu cho kỳ khác (nguồn trỏ nhầm link) ghi vào `data/_state/link_anomalies.csv` (`title, period_from_title, url, period_in_manifest, detected_at`) và vào `docs/dq_report.md`; không tải trùng, không lưu thêm kỳ.
+- Crawler gom **toàn bộ listing trước** (mọi ngôn ngữ), rồi nhóm theo URL. URL được nguồn gắn cho nhiều kỳ khác nhau (nguồn trỏ nhầm link): mọi mục của URL đó có `period_ambiguous = true`, file tải **một lần** với `period = pending` (tên file `MWG_pending_…`, `doc_type = PENDING` nếu các kỳ ứng viên khác loại tài liệu), `period_candidates` liệt kê các cặp `doc_type:kỳ`, và mỗi mục ghi một dòng vào `data/_state/link_anomalies.csv` (`title, period_from_title, url, period_in_manifest, detected_at`) + `docs/dq_report.md`. File đã lưu trước đó với một kỳ cụ thể thì manifest được chuyển sang `pending` (không sửa Bronze). Kỳ thật được gán sau bước đối chiếu ngày báo cáo trong PDF bằng `mwg_crawler.resolve_period()`.
 - Link chết (404/410) ghi vào `data/_state/download_errors.csv` rồi đi tiếp; lần backfill sau vẫn thử lại. **Không dùng Wayback Machine** hay bản lưu của bên thứ ba; kỳ không lấy lại được ghi vào `docs/limitations.md`.
 - Mọi request đi qua `src/ingestion/http_utils.get()`:
   - Session dùng chung, header trình duyệt thật (User-Agent xoay vòng, `Accept-Language: vi-VN`, `Referer`).
@@ -103,21 +105,27 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 
 ### Bronze
 - **Append-only.** Không sửa, không xóa file đã tải.
-- Mỗi file có `<tên>.meta.json`: `url, lang, fetch_reason, title, doc_type, file_type, has_text_layer, period, published, assurance_level, sha256, size, fetched_at, http_status`. File tải trước khi có các trường mới thì thiếu chúng; manifest coi là `lang=vi-VN`, `fetch_reason=primary`, `file_type=pdf`, `has_text_layer=null`.
+- Mỗi file có `<tên>.meta.json`: `url, lang, fetch_reason, title, doc_type, file_type, has_text_layer, period, period_ambiguous, period_candidates, published, assurance_level, sha256, size, fetched_at, http_status`. File tải trước khi có các trường mới thì thiếu chúng; manifest coi là `lang=vi-VN`, `fetch_reason=primary`, `file_type=pdf`, `has_text_layer=null`.
 - `has_text_layer`: PDF có lớp text đọc được bằng `pdfplumber` (True) hay là bản scan cần OCR (False); ảnh luôn là False; null = không mở được file.
 - `assurance_level` (dùng làm `source_priority` ở Silver) theo ngôn ngữ: vi-VN dùng từ khóa "kiểm toán"/"soát xét"; en-US FY = 3, 1H = 2, còn "Audited" trên BCTC quý chỉ tính 2 vì bản vi-VN cùng kỳ ghi "Soát Xét".
-- Tên file: `MWG_{kỳ}_{sha256[:8]}.{pdf|jpg|png}` (kỳ dạng `2026Q3`, `2026H1`, `2025`, `2017M08`). `file_type` lấy theo magic bytes của nội dung, không theo đuôi URL. Ảnh (báo cáo tháng 2017–01/2018) cần OCR ở bước bóc tách.
+- Tên file: `MWG_{kỳ}_{sha256[:8]}.{pdf|jpg|png}` (kỳ dạng `2026Q3`, `2026H1`, `2025`, `2017M08`, hoặc `pending`). Với file `pending`, kỳ đúng nằm trong manifest, không nằm trong tên file/`meta.json`. `file_type` lấy theo magic bytes của nội dung, không theo đuôi URL. Ảnh (báo cáo tháng 2017–01/2018) cần OCR ở bước bóc tách.
 - Loại tài liệu: `FS_CONSOLIDATED_Q`, `FS_CONSOLIDATED_H`, `FS_CONSOLIDATED_Y`, `MONTHLY_RESULT` (có thể thêm loại khác qua `doc_rules`).
 
 ### Bóc tách PDF
-- Lưu ý: BCTC hợp nhất Q3/2026 là PDF scan (51 trang ảnh, không có lớp text), nên OCR có thể là đường chính chứ không chỉ dự phòng. Kiểm tra lớp text của từng file trước khi chọn cách bóc.
+- **Chọn đường bóc theo `has_text_layer` trong manifest:** `true` → `pdfplumber` (lấy từ + tọa độ); `false` (PDF scan, ảnh `.jpg`/`.png`) → **OCR là đường chính** bằng Tesseract (`vie+eng`) qua `pytesseract`, render trang bằng `pypdfium2`. Cả hai đường cho ra cùng một dạng "từ + bbox" để dùng chung bộ dựng bảng.
+- **OCR hai lượt:** Pass 1 render 100 dpi, OCR text, tìm trang tiêu đề B01/B02/B03 bằng `norm()` (dừng khi đã qua phần báo cáo và gặp thuyết minh). Pass 2 chỉ những trang đó ở 300 dpi, Tesseract TSV có bbox, gom từ thành dòng theo trục y và thành cột theo trục x, neo cột "Mã số"/"Code".
+- **Cache OCR** theo `sha256 + trang + dpi` trong `data/_cache/ocr/` (không commit). Chạy lại không OCR lại.
 - Neo theo cột **"Mã số"** của Thông tư 200 (B01: 100, 110, 270, 300, 400...; B02: 01, 10, 20, 60...), không neo theo tên chỉ tiêu.
 - Xác định trang theo tiêu đề báo cáo (tiếng Việt và tiếng Anh), so sánh trên chuỗi đã bỏ dấu, chữ thường.
 - Số tiền kiểu Việt Nam: `1.234.567` là số dương, `(1.234)` là số âm, `-` hoặc rỗng là null. Đọc dòng "Đơn vị tính" để quy đổi về VND.
 - Tên chỉ tiêu bị xuống dòng phải được nối lại.
-- Ngay sau khi bóc, kiểm tra: `270 = 300 + 400` (B01), `10 = 01 − 02` và `20 = 10 − 11` (B02). Sai thì gắn cờ `dq_balance_ok = false`, **không** đẩy kỳ đó sang Gold.
-- **Đối chiếu ngày báo cáo** (vi + en, sau OCR nếu là bản scan): đọc ngày kết thúc kỳ in trong báo cáo (vi: "tại ngày 30 tháng 9 năm 2017", "cho kỳ … kết thúc ngày …"; en: "as at 30 September 2017", "for the period ended …"; báo cáo tháng: tháng lũy kế) và so với `period` trong manifest (Q1 → 31/03, Q2/H1 → 30/06, Q3 → 30/09, Q4/năm → 31/12). Lệch hoặc không đọc được thì gắn cờ `period_check_ok = false`, ghi vào `docs/dq_report.md` và **không đưa tài liệu đó vào Silver**.
-- **Kỳ không qua DQ** (`dq_balance_ok = false`, `period_check_ok = false` hoặc OCR không đọc được) xử lý bằng `config/manual_overrides.csv` (Cách B): người nhập tay số liệu **đọc từ chính PDF gốc trong Bronze**, ghi `source_doc_sha256` và số trang. Không nhập từ trí nhớ hay từ nguồn khác (vnstock, CafeF). Giá trị override thay giá trị bóc tự động của cùng tài liệu và cùng khóa, mang `is_manual = true`. Kỳ đó phải qua lại kiểm tra phương trình kế toán rồi mới được sang Gold.
+- Ngay sau khi bóc, kiểm tra (sai số cho phép do làm tròn: 1 đơn vị tính in trên báo cáo):
+  - `270 = 300 + 400` (B01); `10 = 01 − 02` và `20 = 10 − 11` (B02);
+  - số đầu năm N (B01) = số cuối năm N−1 khi có cả hai tài liệu;
+  - tổng các dòng con = dòng tổng theo `parent_code` trong `config/dim_account.csv` (khi đã có danh mục).
+  Sai thì gắn cờ `dq_balance_ok = false`, **không** đẩy kỳ đó sang Gold. Kết quả ghi vào `docs/dq_report.md` theo kỳ.
+- **Đối chiếu ngày báo cáo** (vi + en, sau OCR nếu là bản scan): đọc ngày kết thúc kỳ in trong báo cáo (vi: "tại ngày 30 tháng 9 năm 2017", "cho kỳ … kết thúc ngày …"; en: "as at 30 September 2017", "for the period ended …"; báo cáo tháng: tháng lũy kế) và so với `period` trong manifest (Q1 → 31/03, Q2/H1 → 30/06, Q3 → 30/09, Q4/năm → 31/12). Lệch hoặc không đọc được thì gắn cờ `period_check_ok = false`, ghi vào `docs/dq_report.md` và **không đưa tài liệu đó vào Silver**. File `period = pending` được gán kỳ thật theo ngày đọc được (`resolve_period`); không đọc được thì giữ `pending`.
+- **Kỳ không qua DQ** (`dq_balance_ok = false`, `period_check_ok = false` hoặc OCR không đọc được) xử lý bằng `config/manual_overrides.csv` (Cách B): người nhập tay số liệu **đọc từ chính PDF gốc trong Bronze**, ghi `source_doc_sha256` và số trang. Không nhập từ trí nhớ hay từ nguồn khác (vnstock, CafeF). Cột: `symbol, statement, fiscal_year, fiscal_quarter, period_kind, account_code, amount_vnd, ocr_value, source_doc_sha256, page, reason, entered_by, entered_at` (`ocr_value` = số OCR đọc sai, để đối chiếu). Override được áp dụng **trước** bước chọn bản thắng: thay giá trị bóc tự động của đúng ô `(source_doc_sha256, statement, account_code, period_kind)` và gắn `is_manual = true`. `is_manual` chỉ để truy vết, **không phải** một hạng trong thứ tự ưu tiên. Kỳ đó phải qua lại kiểm tra DQ rồi mới được sang Gold.
 
 ### Silver
 - Dạng dài: `symbol, statement (B01/B02/B03), fiscal_year, fiscal_quarter, period_kind, account_code, item_name, amount_vnd, source_priority, source_lang, is_comparative, is_derived, is_manual, source_doc_sha256, dq_balance_ok`.
@@ -129,7 +137,8 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
   3. `source_lang = 'vi-VN'` thắng `'en-US'` (en-US chỉ dùng khi kỳ đó không có bản vi-VN);
   4. `source_priority` cao hơn thắng: kiểm toán (3) > soát xét (2) > tự lập (1).
   Không bao giờ để bản xếp hạng thấp hơn ghi đè bản xếp hạng cao hơn.
-- **Số so sánh (`is_comparative = true`)** chỉ dùng để lấp kỳ không có tài liệu gốc (xem `docs/limitations.md`): lấy từ cột kỳ trước của báo cáo kỳ sau, vd. năm 2015 từ cột "năm trước" của BCTC FY2016; B02 Q1/2019 từ cột "quý này năm trước" của BCTC Q1/2020. B01 chỉ lấy được cho ngày cuối năm (cột "đầu năm"/"số đầu kỳ"); **không suy ra B01 giữa năm** (vd. B01 31/03/2019). Không ghi đè số gốc khi số gốc có sẵn.
+- **Số so sánh (`is_comparative = true`)** chỉ dùng để lấp kỳ không có tài liệu gốc (xem `docs/limitations.md`): lấy từ cột kỳ trước của báo cáo kỳ sau, vd. năm 2015 từ cột "năm trước" của BCTC FY2016; B02 Q1/2019 từ cột "quý này năm trước" của BCTC Q1/2020. B01 chỉ lấy được cho ngày cuối năm (cột "đầu năm"/"số đầu kỳ"); **không suy ra B01 giữa năm** (vd. B01 31/03/2019). Không ghi đè số gốc khi số gốc có sẵn (giữ số "as reported").
+- Khi có cả số gốc và số so sánh của cùng ô mà lệch nhau > 0,1% thì ghi vào `docs/dq_report.md` mục **"Kỳ bị trình bày lại"** (kỳ, mã số, số gốc, số so sánh, tài liệu nguồn). Số gốc vẫn thắng.
 - **Q2/2017:** B02 = bán niên 2017 (cột so sánh của BCTC bán niên 2018, en) − Q1/2017 (en); gắn `is_comparative = true` và `is_derived = true`. Không có B01 30/06/2017.
 - Bản en-US: ánh xạ chỉ tiêu theo cột "Code"/"Mã số" như bản vi-VN; tên chỉ tiêu tiếng Anh đưa vào `account_mapping.csv` nếu thiếu mã.
 - Đối soát 10–15 chỉ tiêu chính với `vnstock`; chênh > 0,1% thì ghi vào báo cáo DQ. **Dữ liệu vnstock không bao giờ được ghi vào Gold.**

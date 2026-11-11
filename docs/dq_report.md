@@ -17,19 +17,27 @@
 |---|---|---|---|---|---|---|---|
 | | | | | | | | |
 
-## 2. Link bất thường trên nguồn (một URL cho hai kỳ)
+## 2. Link bất thường trên nguồn (một URL cho nhiều kỳ)
 
-Crawler ghi vào `data/_state/link_anomalies.csv` mỗi khi một mục trong danh sách của MWG trỏ tới URL đã lưu cho một kỳ khác. File trùng không được tải lại. Kỳ ghi trong tiêu đề của mục bị lỗi coi như **không có tài liệu gốc**, xem `docs/limitations.md`.
+Crawler gom toàn bộ danh sách rồi nhóm theo URL. Một URL được MWG gắn cho nhiều kỳ khác nhau thì được tải **một lần** với `period = pending`. Mọi mục của URL đó được ghi vào `data/_state/link_anomalies.csv`. Kỳ thật được gán sau khi đọc ngày báo cáo trong PDF (tuần 4–5). Kỳ còn lại của nhóm coi như **không có tài liệu gốc**, xem `docs/limitations.md`.
 
-| Tiêu đề trên mwg.vn | Kỳ theo tiêu đề | Kỳ của file thật (trong manifest) | URL | Phát hiện |
-|---|---|---|---|---|
-| Interim Audited Consolidate FS 1H17 | 2017-H1 | 2017-Q3 | `bhxcdn.vn/.../2018/01/IC-FS-30.09.2017-consolE2.pdf` | 2026-11-11 |
-| YTD May 2017 report | 2017-M05 | 2018-M05 | `bhxcdn.vn/.../2018/06/Monthly-report-YTD-May-18-EN.pdf` | 2026-11-11 |
+| URL | Các mục trên mwg.vn (kỳ theo tiêu đề) | Đoán theo tên file | Kỳ sau khi đọc PDF |
+|---|---|---|---|
+| `bhxcdn.vn/.../2018/01/IC-FS-30.09.2017-consolE2.pdf` | "Interim Audited Consolidate FS 3Q17" (2017-Q3), "Interim Audited Consolidate FS 1H17" (2017-H1) | 2017-Q3 | chờ |
+| `bhxcdn.vn/.../2018/06/Monthly-report-YTD-May-18-EN.pdf` | "YTD May 2018 report" (2018-M05), "YTD May 2017 report" (2017-M05) | 2018-M05 | chờ |
 
-Tên file (`30.09.2017`, `May-18`) cho thấy file thuộc kỳ ghi trong manifest. Điều này sẽ được xác nhận bằng ngày báo cáo đọc trong PDF ở bước bóc tách (tuần 4–5).
+Phát hiện ngày 2026-11-11. Hai file này đã được tải trước khi có quy tắc nhóm theo URL. Tên file và `meta.json` trong Bronze vẫn ghi 2017Q3 và 2018M05; manifest đã chuyển sang `pending`.
 
-Giới hạn: crawler chỉ phát hiện được khi mục đúng được xử lý trước mục sai. Nếu mục sai được gặp trước, file sẽ bị lưu nhầm kỳ. Bước đối chiếu ngày báo cáo ở tuần 4–5 sẽ bắt trường hợp này.
+## 3. Kỳ bị trình bày lại
 
-## 3. Đối soát với vnstock (tuần 6)
+Khi cùng một ô (kỳ, báo cáo, mã số) có cả số gốc (báo cáo của chính kỳ đó) và số so sánh (cột kỳ trước của báo cáo kỳ sau) mà lệch nhau > 0,1%, ghi vào bảng dưới. Silver vẫn dùng số gốc ("as reported").
+
+| Kỳ | Báo cáo | Mã số | Số gốc (VND) | Số so sánh (VND) | Chênh lệch | Tài liệu gốc | Tài liệu so sánh |
+|---|---|---|---|---|---|---|---|
+| | | | | | | | |
+
+Chưa có dữ liệu (cần Silver, tuần 6).
+
+## 4. Đối soát với vnstock (tuần 6)
 
 Chưa thực hiện. Gói `vnstock` không còn trên PyPI, xem ghi chú trong `requirements.txt`.
