@@ -47,6 +47,7 @@ mwg-lakehouse/
 │   ├── silver/               # fs_extracted_raw/, fin_statement_long/, chain_kpi/ (Delta)
 │   └── gold/                 # mwg.duckdb, dim_*/, fact_financial/ (Delta, partition fiscal_year)
 ├── src/
+│   ├── common/               # text.py (norm), paths.py
 │   ├── ingestion/            # http_utils.py, mwg_crawler.py, vnstock_check.py
 │   ├── extraction/           # pdf_extractor.py
 │   ├── transform/            # bronze_to_silver.py, silver_to_gold.py
@@ -65,6 +66,7 @@ Phân vùng thư mục theo kiểu Hive `key=value` để DuckDB/Polars đọc p
 ```bash
 python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+# Máy không có pip/python3-venv: uv venv --python 3.11 .venv && uv pip install -r requirements.txt
 
 python run_pipeline.py --backfill    # chỉ lần đầu: crawl toàn bộ lịch sử (chậm, có nghỉ)
 python run_pipeline.py               # incremental: chỉ tài liệu mới

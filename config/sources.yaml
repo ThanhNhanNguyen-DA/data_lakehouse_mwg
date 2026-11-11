@@ -1,0 +1,40 @@
+symbol: MWG
+base_url: https://mwg.vn
+
+# ĐIỀN SAU KHI KHẢO SÁT bằng DevTools (tuần 1). Crawler sẽ từ chối chạy khi còn giá trị dạng <...>.
+# Nếu tab Network có endpoint JSON trả danh sách tài liệu, ghi endpoint đó thay cho trang HTML.
+listing_pages:
+  - url: "<URL trang Công bố thông tin / Báo cáo tài chính, dùng {page} cho số trang>"
+    item_selector: "<CSS selector của mỗi dòng tài liệu>"
+    title_selector: "<selector tiêu đề>"
+    date_selector: "<selector ngày đăng>"
+    link_selector: "a[href$='.pdf']"
+
+max_pages: 2              # incremental: chỉ xem 1-2 trang đầu
+backfill_max_pages: 40    # chỉ dùng cho lần chạy đầu (--backfill)
+early_stop_known: 5       # gặp 5 tài liệu đã biết liên tiếp thì dừng
+
+# Nhận diện loại tài liệu từ tiêu đề, so trên chuỗi đã norm() (bỏ dấu, chữ thường).
+# Xét theo thứ tự, quy tắc đầu tiên khớp sẽ thắng.
+#   all: phải có đủ các từ khóa | any: có ít nhất một | none: không được có từ nào
+# Từ khóa khớp theo nguyên từ: "quy" không khớp "quyet".
+# CẦN ĐỐI CHIẾU với tiêu đề thật trên mwg.vn sau khi khảo sát.
+doc_rules:
+  - doc_type: FS_CONSOLIDATED_Y
+    all: ["hop nhat", "kiem toan"]
+  - doc_type: FS_CONSOLIDATED_H
+    all: ["hop nhat"]
+    any: ["soat xet", "ban nien", "giua nien do", "6 thang"]
+  - doc_type: FS_CONSOLIDATED_Q
+    all: ["hop nhat", "quy"]
+  - doc_type: MONTHLY_RESULT
+    any: ["luy ke", "ytd"]
+  # Biến thể tiêu đề tiếng Anh (mwg.vn/eng)
+  - doc_type: FS_CONSOLIDATED_Y
+    all: ["consolidated", "audited"]
+  - doc_type: FS_CONSOLIDATED_H
+    all: ["consolidated"]
+    any: ["reviewed", "semi-annual", "half-year", "6 months", "six months"]
+  - doc_type: FS_CONSOLIDATED_Q
+    all: ["consolidated"]
+    any: ["quarter", "q1", "q2", "q3", "q4"]

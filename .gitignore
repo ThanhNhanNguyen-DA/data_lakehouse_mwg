@@ -1,2 +1,13 @@
 /.docs
 /.vs
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+
+# requests-cache khi debug crawler (MWG_HTTP_CACHE=1)
+data/_state/http_cache.sqlite
