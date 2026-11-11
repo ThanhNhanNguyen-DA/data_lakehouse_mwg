@@ -1,1 +1,1 @@
-statement,account_code,name_vi,name_en,level,parent_code,is_subtotal,sign
+regime,statement,account_code,name_vi,name_en,level,parent_code,is_subtotal,is_additive,sign,source

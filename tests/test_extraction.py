@@ -10,10 +10,12 @@ from PIL import Image
 
 from src.extraction import ocr
 from src.extraction.pdf_extractor import (
-    apply_overrides, check_equations, classify_page, expected_end, find_dates, group_lines,
-    load_overrides, locate_statement_pages, parse_amount, parse_statement_page, report_end_date,
+    apply_overrides, check_equations, check_parent_sums, classify_page, detect_regime, expected_end,
+    find_dates, group_lines, load_equations, load_overrides, locate_statement_pages, parse_amount,
+    parse_statement_page, report_end_date, signs_of,
 )
-from src.extraction.run_extraction import _check_period, _opening_check
+from src.extraction import run_extraction
+from src.extraction.run_extraction import _check_period, _opening_check, canonical
 
 H = 20  # chiều cao chữ (px)
 
@@ -44,7 +46,15 @@ def test_parse_amount_null(raw):
     assert parse_amount(raw) is None
 
 
-@pytest.mark.parametrize("raw", ["26.1", "abc", "1.23.4"])
+@pytest.mark.parametrize("raw, expected", [
+    ("90.899.467872", 90899467872), ("2,.430.887", 2430887), ("5,788,331-", 5788331),
+    ("27,29(9,659,741)", -9659741),
+])
+def test_parse_amount_de_tinh_voi_dau_phan_cach_ocr(raw, expected):
+    assert parse_amount(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["abc", "1.2B4", ".", "7.994.614.245.183.375.265.762.233.874"])
 def test_parse_amount_sai(raw):
     with pytest.raises(ValueError):
         parse_amount(raw)
@@ -200,33 +210,100 @@ def test_check_period_pending_chon_dung_ung_vien():
 
 # ---------- DQ ----------
 
-def _values(**cols):
-    return {(st, code, kind): v for (st, code, kind), v in cols.items()}
+# Phương trình giả để test (cùng dạng config/dq_equations.csv)
+EQ = [{"regime": "R", "statement": "B02", "lhs": "10", "terms": [(1, "01"), (-1, "02")], "label": "10 = 01 - 02"},
+      {"regime": "R", "statement": "B02", "lhs": "50", "terms": [(1, "30"), (1, "40")], "label": "50 = 30 + 40"},
+      {"regime": "X", "statement": "B01", "lhs": "999", "terms": [(1, "1")], "label": "regime khác"}]
 
 
-def test_check_equations_dung_va_khoan_giam_tru_in_am():
-    values = {("B01", "270", "closing"): 300, ("B01", "300", "closing"): 100, ("B01", "400", "closing"): 200,
-              ("B02", "01", "current"): 1000, ("B02", "02", "current"): -10, ("B02", "10", "current"): 990,
-              ("B02", "11", "current"): -900, ("B02", "20", "current"): 90}
-    assert all(c["ok"] for c in check_equations(values))
+def test_check_equations_chi_dung_phuong_trinh_cua_regime():
+    values = {("B02", "01", "c"): 1000, ("B02", "02", "c"): 10, ("B02", "10", "c"): 990,
+              ("B02", "30", "c"): 100, ("B02", "40", "c"): -30, ("B02", "50", "c"): 70}
+    res = check_equations(values, EQ, "R")
+    assert [c["check"] for c in res] == ["10 = 01 - 02", "50 = 30 + 40"] and all(c["ok"] for c in res)
+
+
+def test_tri_tuyet_doi_chi_cho_ma_sign_am():
+    printed_negative = {("B02", "01", "c"): 1000, ("B02", "02", "c"): -10, ("B02", "10", "c"): 990,
+                        ("B02", "30", "c"): 100, ("B02", "40", "c"): -30, ("B02", "50", "c"): 70}
+    # chưa khai báo sign: giữ đúng dấu in -> 01 - (-10) = 1010 != 990
+    assert not check_equations(printed_negative, EQ, "R")[0]["ok"]
+    # 02 là khoản giảm trừ (sign = -1): luôn trừ |02|; 40 (lỗ khác) không có sign -1 nên giữ số âm
+    res = check_equations(printed_negative, EQ, "R", signs={("B02", "02"): -1})
+    assert all(c["ok"] for c in res)
 
 
 def test_check_equations_sai_va_thieu_ma():
-    values = {("B01", "270", "closing"): 310, ("B01", "300", "closing"): 100, ("B01", "400", "closing"): 200,
-              ("B02", "10", "current"): 990}
-    res = {c["check"]: c for c in check_equations(values)}
-    assert not res["270 = 300 + 400"]["ok"] and "lệch" in res["270 = 300 + 400"]["note"]
-    assert not res["10 = 01 - 02"]["ok"] and "thiếu" in res["10 = 01 - 02"]["note"]
-    assert res["20 = 10 - 11"]["note"] == "thiếu mã 20"
+    res = check_equations({("B02", "01", "c"): 1000, ("B02", "02", "c"): 10, ("B02", "10", "c"): 900}, EQ, "R")
+    assert not res[0]["ok"] and "lệch" in res[0]["note"]
+    assert res[1]["note"] == "thiếu mã 50"
 
 
-def test_opening_check():
-    doc = {"period": "2025-Q1", "cells": [
-        {"statement": "B01", "period_kind": "opening", "account_code": "270", "amount_vnd": 500},
-        {"statement": "B01", "period_kind": "opening", "account_code": "300", "amount_vnd": 200}]}
-    assert _opening_check(doc, {2024: {"270": 500, "300": 200}})[0] is True
-    assert _opening_check(doc, {2024: {"270": 500, "300": 999}})[0] is False
-    assert _opening_check(doc, {})[0] is None
+def test_dq_equations_csv_doc_duoc():
+    eqs = load_equations(run_extraction.EQUATIONS)
+    assert {e["regime"] for e in eqs} == {"TT200", "TT99"}
+    assert all(e["terms"] for e in eqs)
+
+
+def test_check_parent_sums_theo_dim_account():
+    dim = [{"regime": "R", "statement": "B01", "account_code": "140", "parent_code": "", "is_additive": "", "sign": "1"},
+           {"regime": "R", "statement": "B01", "account_code": "141", "parent_code": "140", "is_additive": "1", "sign": "1"},
+           {"regime": "R", "statement": "B01", "account_code": "149", "parent_code": "140", "is_additive": "1", "sign": "-1"}]
+    values = {("B01", "140", "closing"): 90, ("B01", "141", "closing"): 100, ("B01", "149", "closing"): -10}
+    assert signs_of(dim, "R") == {("B01", "140"): 1, ("B01", "141"): 1, ("B01", "149"): -1}
+    assert [c["ok"] for c in check_parent_sums(values, dim, "R")] == [True]
+    assert check_parent_sums(values, dim, "khác") == []
+
+
+def test_detect_regime_theo_ten_b01():
+    assert detect_regime("BÁO CÁO TÌNH HÌNH TÀI CHÍNH HỢP NHẤT GIỮA NIÊN ĐỘ") == "TT99"
+    assert detect_regime("BẢNG CÂN ĐỐI KẾ TOÁN HỢP NHẤT") == "TT200"
+    assert detect_regime("CONSOLIDATED BALANCE SHEET") == "TT200"
+    assert detect_regime("không có tiêu đề") is None
+    assert classify_page(_page("BÁO CÁO TÌNH HÌNH TÀI CHÍNH HỢP NHẤT"))["statement"] == "B01"
+
+
+def test_ma_chuan_va_doi_chieu_dau_nam_qua_regime():
+    regime_map = {("TT99", "B01", "280"): "270"}
+    assert canonical("TT200", "B01", "270", regime_map) == "270"
+    assert canonical("TT99", "B01", "280", regime_map) == "270"
+    assert canonical("TT99", "B01", "142", regime_map) is None  # chưa map -> không so
+    doc = {"period": "2026-Q3", "regime": "TT99", "cells": [
+        {"statement": "B01", "period_kind": "opening", "account_code": "280", "canonical_code": "270", "amount_vnd": 5}]}
+    assert _opening_check(doc, {2025: {"270": 5}})[0] is True
+    doc["cells"][0]["canonical_code"] = None
+    assert _opening_check(doc, {2025: {"270": 5}}) == (None, "chờ account_code_regime_map cho TT99")
+
+
+def test_cot_tt99_quy_iii_va_luy_ke():
+    xs = [560, 700, 840, 980]
+    words = [W("CHỈ", 60, 100), W("TIÊU", 95, 100), W("Mã", 300, 95), W("số", 302, 117),
+             W("Thuyết", 345, 95), W("minh", 350, 117),
+             W("Quý", 560, 80), W("III", 600, 80), W("Lũy", 820, 80), W("kế", 860, 80), W("từ", 890, 80),
+             W("Năm", 470, 110), W("nay", 505, 110), W("Năm", 610, 110), W("trước", 645, 110),
+             W("Năm", 750, 110), W("nay", 785, 110), W("Năm", 890, 110), W("trước", 925, 110),
+             W("1.", 20, 200), W("Doanh", 40, 200), W("01", 300, 200),
+             *[right(v, x, 200) for v, x in zip(["1.000.000", "900.000", "3.000.000", "2.700.000"], xs)]]
+    res = parse_statement_page(words, "B02")
+    assert res["kinds"] == ["q_current", "q_prior", "ytd_current", "ytd_prior"]
+
+
+def test_thay_so_tien_bang_ocr_tung_cot(monkeypatch):
+    words = [W("100", 40, 200), W("A.", 100, 200), right("1.111.1B1.111", 640, 200), right("2.222.222.222", 790, 200)]
+    words[0] = W("1OO", 40, 200)  # mã OCR sai khi đọc cả trang
+    res = {"h": H, "table_top": 200, "bottom": 220, "bounds": [500, 640], "cols": [640, 790],
+           "col_widths": [117, 117], "code_band": (30, 80)}
+    seen = []
+
+    def fake_columns(path, sha, page, boxes, config=None):
+        seen.append((boxes, config))
+        if config:  # cột mã
+            return [[W("100", 40, 200)]]
+        return [[right("1.111.111.111", 640, 200)], [right("2.222.222.222", 790, 200)]]
+    monkeypatch.setattr(run_extraction.ocr, "ocr_columns", fake_columns)
+    out = run_extraction._with_column_ocr(None, "sha", 1, words, res)
+    assert sorted(w["text"] for w in out) == ["1.111.111.111", "100", "2.222.222.222", "A."]
+    assert len(seen[0][0]) == 2 and seen[0][0][0][0] > 500 and seen[1][1] == run_extraction.ocr.CODE_CONFIG
 
 
 def test_apply_overrides_truoc_khi_chon_ban_thang(tmp_path):
@@ -247,17 +324,22 @@ def test_apply_overrides_truoc_khi_chon_ban_thang(tmp_path):
 
 # ---------- OCR: trang in ngang ----------
 
-def test_ocr_text_thu_xoay_khi_trang_it_chu(tmp_path, monkeypatch):
+def test_ocr_text_xoay_theo_osd_va_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(ocr, "OCR_CACHE", tmp_path)
     monkeypatch.setattr(ocr, "render", lambda path, page, dpi: Image.new("RGB", (40, 20), "white"))
-    upright = " ".join(["doanh thu thuan"] * 30)
+    monkeypatch.setattr(ocr.pytesseract, "image_to_osd",
+                        lambda img, output_type: {"rotate": 90, "orientation_conf": 7.5})
+    sizes = []
+    monkeypatch.setattr(ocr.pytesseract, "image_to_string", lambda img, lang: sizes.append(img.size) or "chu")
+    assert ocr.ocr_text(tmp_path / "x.pdf", "sha", 1) == "chu"
+    assert sizes == [(20, 40)]  # đã xoay trước khi OCR
+    assert ocr.page_rotation(tmp_path / "x.pdf", "sha", 1) == 270  # PIL xoay ngược chiều kim đồng hồ
+    ocr.ocr_text(tmp_path / "x.pdf", "sha", 1)
+    assert len(sizes) == 1  # lần 2 đọc cache
 
-    calls = []
 
-    def counting(img, lang):
-        calls.append(img.size)
-        return upright if len(calls) == 2 else "| . ,"  # chiều xoay thứ nhất (90 độ) là đúng
-    monkeypatch.setattr(ocr.pytesseract, "image_to_string", counting)
-    assert ocr.ocr_text(tmp_path / "x.pdf", "sha", 1) == upright
-    assert ocr.page_rotation(tmp_path / "x.pdf", "sha", 1) == 90
-    assert ocr.ocr_text(tmp_path / "x.pdf", "sha", 1) == upright and len(calls) == 4  # lần 2 đọc cache
+def test_osd_tin_cay_thap_thi_khong_xoay(monkeypatch):
+    monkeypatch.setattr(ocr, "render", lambda path, page, dpi: Image.new("RGB", (40, 20), "white"))
+    monkeypatch.setattr(ocr.pytesseract, "image_to_osd",
+                        lambda img, output_type: {"rotate": 180, "orientation_conf": 0.3})
+    assert ocr.detect_rotation(None, 1) == 0

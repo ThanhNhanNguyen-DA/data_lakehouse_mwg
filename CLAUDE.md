@@ -113,15 +113,18 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 
 ### Bóc tách PDF
 - **Chọn đường bóc theo `has_text_layer` trong manifest:** `true` → `pdfplumber` (lấy từ + tọa độ); `false` (PDF scan, ảnh `.jpg`/`.png`) → **OCR là đường chính** bằng Tesseract (`vie+eng`) qua `pytesseract`, render trang bằng `pypdfium2`. Cả hai đường cho ra cùng một dạng "từ + bbox" để dùng chung bộ dựng bảng.
-- **OCR hai lượt:** Pass 1 render 100 dpi, OCR text, tìm trang tiêu đề B01/B02/B03 bằng `norm()` (dừng khi đã qua phần báo cáo và gặp thuyết minh). Pass 2 chỉ những trang đó ở 300 dpi, Tesseract TSV có bbox, gom từ thành dòng theo trục y và thành cột theo trục x, neo cột "Mã số"/"Code".
+- **OCR hai lượt:** Pass 1: xoay trang theo OSD của Tesseract (150 dpi; trang B02 quý in ngang, mỗi trang một chiều), OCR text 100 dpi, tìm trang B01/B02/B03 theo mã mẫu (`B01-DN/HN`, `B01a~DN/HN`) hoặc tiêu đề bằng `norm()`, dừng khi gặp thuyết minh. Pass 2 chỉ những trang đó ở 300 dpi: Tesseract TSV `vie+eng` cả trang để lấy bố cục và tên chỉ tiêu; rồi **OCR riêng từng cột số tiền** (`--psm 6`, whitelist `0123456789.,()-`) và **cột mã số** (whitelist `0123456789ab`), đã xóa đường kẻ bảng, thay cho số/mã OCR cả trang. Gom từ thành dòng theo trục y, cột theo mép phải, neo cột "Mã số"/"Code"; kỳ của từng cột đọc từ tiêu đề cột (kể cả tiêu đề nhóm "Quý III", "Lũy kế…" nằm trên hai cột).
 - **Cache OCR** theo `sha256 + trang + dpi` trong `data/_cache/ocr/` (không commit). Chạy lại không OCR lại.
-- Neo theo cột **"Mã số"** của Thông tư 200 (B01: 100, 110, 270, 300, 400...; B02: 01, 10, 20, 60...), không neo theo tên chỉ tiêu.
-- Xác định trang theo tiêu đề báo cáo (tiếng Việt và tiếng Anh), so sánh trên chuỗi đã bỏ dấu, chữ thường.
+- Neo theo cột **"Mã số"** in trên báo cáo, không neo theo tên chỉ tiêu.
+- Xác định trang theo tiêu đề báo cáo (tiếng Việt và tiếng Anh, **cả hai tên B01**: "Bảng cân đối kế toán" và "Báo cáo tình hình tài chính"), so sánh trên chuỗi đã bỏ dấu, chữ thường.
+- **Chế độ kế toán (regime)** nhận diện theo tên B01 in trên báo cáo: "Bảng cân đối kế toán"/"Balance sheet" → `TT200` (TT200 + TT202 cho hợp nhất); "Báo cáo tình hình tài chính"/"Statement of financial position" → `TT99` (TT99/2025/TT-BTC, MWG dùng từ BCTC Q3/2026; nhiều mã B01/B02 dịch chuyển, vd. tổng tài sản 270 → 280). Mã chuẩn = mã TT200; mã TT99 quy đổi qua `config/account_code_regime_map.csv`. `config/dim_account.csv` (có cột `regime, is_additive, sign, parent_code`) và bảng map **chỉ dựng từ văn bản gốc trong `docs/reference/`**; mã không chắc để trống.
+- Số tiền đọc dễ tính với dấu phân cách OCR sai (`90.899.467872` → giữ chữ số); có chữ cái thì là lỗi. Sai chữ số sẽ lộ ở kiểm tra DQ.
 - Số tiền kiểu Việt Nam: `1.234.567` là số dương, `(1.234)` là số âm, `-` hoặc rỗng là null. Đọc dòng "Đơn vị tính" để quy đổi về VND.
 - Tên chỉ tiêu bị xuống dòng phải được nối lại.
 - Ngay sau khi bóc, kiểm tra (sai số cho phép do làm tròn: 1 đơn vị tính in trên báo cáo):
-  - `270 = 300 + 400` (B01); `10 = 01 − 02` và `20 = 10 − 11` (B02);
-  - số đầu năm N (B01) = số cuối năm N−1 khi có cả hai tài liệu;
+  - phương trình **theo regime** trong `config/dq_equations.csv` (không viết cứng mã trong code): TT200 `270 = 300 + 400`, `10 = 01 − 02`, `20 = 10 − 11`; TT99 dùng các công thức in trên báo cáo (`280 = 100 + 200`, `440 = 300 + 400`, `30 = 20 + 22 − (23 + 25 + 26) + 27`, ...);
+  - **trị tuyệt đối chỉ cho mã có `sign = -1` trong `dim_account`** (khoản giảm trừ: báo cáo TT200 của MWG in âm trong ngoặc, báo cáo TT99 in dương); mã khác (30/40/50/60...) giữ đúng dấu in;
+  - số đầu năm N (B01) = số cuối năm N−1 khi có cả hai tài liệu (so theo mã chuẩn; kỳ TT99 chờ bảng map);
   - tổng các dòng con = dòng tổng theo `parent_code` trong `config/dim_account.csv` (khi đã có danh mục).
   Sai thì gắn cờ `dq_balance_ok = false`, **không** đẩy kỳ đó sang Gold. Kết quả ghi vào `docs/dq_report.md` theo kỳ.
 - **Đối chiếu ngày báo cáo** (vi + en, sau OCR nếu là bản scan): đọc ngày kết thúc kỳ in trong báo cáo (vi: "tại ngày 30 tháng 9 năm 2017", "cho kỳ … kết thúc ngày …"; en: "as at 30 September 2017", "for the period ended …"; báo cáo tháng: tháng lũy kế) và so với `period` trong manifest (Q1 → 31/03, Q2/H1 → 30/06, Q3 → 30/09, Q4/năm → 31/12). Lệch hoặc không đọc được thì gắn cờ `period_check_ok = false`, ghi vào `docs/dq_report.md` và **không đưa tài liệu đó vào Silver**. File `period = pending` được gán kỳ thật theo ngày đọc được (`resolve_period`); không đọc được thì giữ `pending`.

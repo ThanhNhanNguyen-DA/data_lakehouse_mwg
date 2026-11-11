@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from src.common.paths import ROOT
-from src.extraction.pdf_extractor import check_equations
+from src.extraction.pdf_extractor import check_equations, load_dim_account, load_equations, signs_of
 
 FIXTURES = ROOT / "tests" / "fixtures"
 CASES = {  # vị trí trang báo cáo trong file mẫu (đã xem bằng mắt khi cắt trang)
@@ -51,10 +51,23 @@ def test_ngay_bao_cao(name):
 
 
 @pytest.mark.parametrize("name", CASES)
+def test_regime_tt200(name):
+    assert _extract(name)["regime"] == "TT200"
+
+
+@pytest.mark.parametrize("name", CASES)
 def test_phuong_trinh_ke_toan(name):
-    cells = _extract(name)["cells"]
-    values = {(c["statement"], c["account_code"], c["period_kind"]): c["amount_vnd"] for c in cells}
-    failed = [c for c in check_equations(values) if not c["ok"]]
+    """Phương trình của regime. Chỉ kiểm phương trình có vế trừ khi dim_account đã khai báo sign:
+    BCTC TT200 của MWG in khoản giảm trừ là số âm, chưa có sign thì không đánh giá đúng được."""
+    from src.extraction.run_extraction import DIM_ACCOUNT, EQUATIONS
+
+    res = _extract(name)
+    values = {(c["statement"], c["account_code"], c["period_kind"]): c["amount_vnd"] for c in res["cells"]}
+    signs = signs_of(load_dim_account(DIM_ACCOUNT), res["regime"])
+    eqs = [e for e in load_equations(EQUATIONS)
+           if all(op > 0 or (e["statement"], code) in signs for op, code in e["terms"])]
+    assert eqs, "không có phương trình nào kiểm được"
+    failed = [c for c in check_equations(values, eqs, res["regime"], signs) if not c["ok"]]
     assert not failed, failed
 
 

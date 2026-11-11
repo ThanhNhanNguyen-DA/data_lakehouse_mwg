@@ -10,6 +10,7 @@ tesseract.exe không nằm trong PATH (xem README).
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import os
 from pathlib import Path
@@ -17,7 +18,8 @@ from pathlib import Path
 import pdfplumber
 import pypdfium2 as pdfium
 import pytesseract
-from PIL import Image
+import numpy as np
+from PIL import Image, ImageOps
 
 from src.common.paths import DATA_DIR
 
@@ -26,7 +28,12 @@ OCR_LANG = "vie+eng"
 PASS1_DPI = 100
 PASS2_DPI = 300
 IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
-MIN_UPRIGHT_WORDS = 40  # dưới mức này coi như trang bị xoay hoặc gần như trống
+OSD_DPI = 150
+CROP_BORDER = 20
+NUMBER_LANG = "eng"
+NUMBER_CONFIG = "--psm 6 -c tessedit_char_whitelist=0123456789.,()-"
+CODE_CONFIG = "--psm 6 -c tessedit_char_whitelist=0123456789ab"  # mã số: 270, 421a, 01
+MIN_OSD_CONF = 2.0
 
 if os.environ.get("TESSERACT_CMD"):
     pytesseract.pytesseract.tesseract_cmd = os.environ["TESSERACT_CMD"]
@@ -60,31 +67,33 @@ def _cache_file(sha256: str, page: int, dpi: int, ext: str) -> Path:
     return OCR_CACHE / sha256 / f"p{page:03d}_{dpi}.{ext}"
 
 
-def _word_score(text: str) -> int:
-    """Số từ "thật" (>= 3 chữ cái) - trang bị xoay cho ra toàn ký tự rời rạc."""
-    return sum(1 for t in text.split() if len(t) >= 3 and t.isalpha())
+def detect_rotation(path: Path, page: int) -> int:
+    """Góc xoay (độ, ngược chiều kim đồng hồ cho PIL) để trang đứng thẳng, theo OSD của Tesseract.
+
+    BCTC quý có trang B02 in ngang, mỗi trang xoay một chiều. OSD ở 150 dpi đủ tin cậy
+    (đo trên PDF thật); độ tin cậy thấp hoặc trang trống thì giữ nguyên.
+    """
+    try:
+        osd = pytesseract.image_to_osd(render(path, page, OSD_DPI), output_type=pytesseract.Output.DICT)
+    except pytesseract.TesseractError:
+        return 0
+    return -int(osd["rotate"]) % 360 if osd["orientation_conf"] >= MIN_OSD_CONF else 0
 
 
 def ocr_text(path: Path, sha256: str, page: int, dpi: int = PASS1_DPI) -> str:
-    """Pass 1: text thuần của trang, dùng để tìm trang tiêu đề và đọc ngày báo cáo.
+    """Pass 1: text thuần của trang (đã xoay đúng chiều), để tìm trang tiêu đề và đọc ngày báo cáo.
 
-    Trang ít chữ đọc được thì thử xoay 90/270/180 độ (BCTC quý có trang in ngang, mỗi trang
-    xoay một chiều) và giữ chiều cho nhiều từ nhất; chiều xoay được cache cho pass 2.
+    Chiều xoay được cache cho pass 2.
     """
     cached = _cache_file(sha256, page, dpi, "txt")
     if cached.exists():
         return cached.read_text(encoding="utf-8")
-    img = render(path, page, dpi)
-    best_text, best_rot = pytesseract.image_to_string(img, lang=OCR_LANG), 0
-    if _word_score(best_text) < MIN_UPRIGHT_WORDS:
-        for rot in (90, 270, 180):
-            text = pytesseract.image_to_string(img.rotate(rot, expand=True), lang=OCR_LANG)
-            if _word_score(text) > _word_score(best_text):
-                best_text, best_rot = text, rot
+    rot = detect_rotation(path, page)
+    text = pytesseract.image_to_string(render(path, page, dpi).rotate(rot, expand=True), lang=OCR_LANG)
     cached.parent.mkdir(parents=True, exist_ok=True)
-    _cache_file(sha256, page, 0, "rot").write_text(str(best_rot), encoding="utf-8")
-    cached.write_text(best_text, encoding="utf-8")
-    return best_text
+    _cache_file(sha256, page, 0, "rot").write_text(str(rot), encoding="utf-8")
+    cached.write_text(text, encoding="utf-8")
+    return text
 
 
 def page_rotation(path: Path, sha256: str, page: int) -> int:
@@ -118,6 +127,59 @@ def parse_tsv(tsv: str) -> list[Word]:
         words.append({"text": text, "x0": x0, "y0": y0,
                       "x1": x0 + int(r["width"]), "y1": y0 + int(r["height"])})
     return words
+
+
+def _max_runs(mask: np.ndarray) -> np.ndarray:
+    """Độ dài đoạn True liền mạch dài nhất theo từng cột của mảng 2 chiều."""
+    pad = np.zeros((1, mask.shape[1]), dtype=np.int8)
+    d = np.diff(np.vstack([pad, mask.astype(np.int8), pad]), axis=0)
+    out = np.zeros(mask.shape[1], dtype=int)
+    for c in range(mask.shape[1]):
+        starts, ends = np.where(d[:, c] == 1)[0], np.where(d[:, c] == -1)[0]
+        if len(starts):
+            out[c] = (ends - starts).max()
+    return out
+
+
+def clean_rules(img: Image.Image) -> Image.Image:
+    """Xóa đường kẻ bảng rồi thêm lề trắng trước khi OCR một cột.
+
+    Đường kẻ = đoạn đen liền mạch dài (dọc >= 50% chiều cao, ngang >= 80% bề ngang). Nét chữ số
+    thẳng hàng giữa các dòng (số căn phải) bị ngắt bởi khoảng trống giữa dòng nên không bị xóa.
+    Đường kẻ dính trong vùng cắt làm Tesseract bỏ sót chữ, vd. mã 270 trong ô đóng khung cuối B01.
+    """
+    a = np.array(img.convert("L"))
+    dark = a < 160
+    for c in np.where(_max_runs(dark) >= 0.5 * a.shape[0])[0]:
+        a[:, max(c - 2, 0):c + 3] = 255
+    for r in np.where(_max_runs(dark.T) >= 0.8 * a.shape[1])[0]:
+        a[max(r - 2, 0):r + 3, :] = 255
+    return ImageOps.expand(Image.fromarray(a), border=CROP_BORDER, fill=255)
+
+
+def ocr_columns(path: Path, sha256: str, page: int, boxes: list[tuple[int, int, int, int]],
+                dpi: int = PASS2_DPI, config: str | None = None) -> list[list[Word]]:
+    """OCR riêng từng cột số tiền (crop theo box trên ảnh đã xoay, cùng hệ tọa độ với ocr_words).
+
+    Chỉ cho phép chữ số và . , ( ) - nên không còn lỗi kiểu '1.234.5B7'; tọa độ trả về theo trang.
+    """
+    out, img = [], None
+    for x0, y0, x1, y1 in boxes:
+        config = config or NUMBER_CONFIG
+        tag = hashlib.md5(config.encode()).hexdigest()[:6]
+        cached = OCR_CACHE / sha256 / f"p{page:03d}_{dpi}_col_{x0}_{y0}_{x1}_{y1}_{tag}.tsv"
+        if cached.exists():
+            tsv = cached.read_text(encoding="utf-8")
+        else:
+            if img is None:
+                img = render(path, page, dpi).rotate(page_rotation(path, sha256, page), expand=True)
+            tsv = pytesseract.image_to_data(clean_rules(img.crop((x0, y0, x1, y1))), lang=NUMBER_LANG, config=config)
+            cached.parent.mkdir(parents=True, exist_ok=True)
+            cached.write_text(tsv, encoding="utf-8")
+        dx, dy = x0 - CROP_BORDER, y0 - CROP_BORDER
+        out.append([{**w, "x0": w["x0"] + dx, "x1": w["x1"] + dx, "y0": w["y0"] + dy, "y1": w["y1"] + dy}
+                    for w in parse_tsv(tsv)])
+    return out
 
 
 def text_layer_text(path: Path, page: int) -> str:

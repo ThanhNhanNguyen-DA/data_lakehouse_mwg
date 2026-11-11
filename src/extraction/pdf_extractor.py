@@ -98,6 +98,7 @@ def unit_multiplier(text: str) -> int | None:
 
 _GROUPED = re.compile(r"\d{1,3}(?:[.,]\d{3})+")
 _DASHES = {"-", "–", "—"}
+MAX_AMOUNT_DIGITS = 16  # < 10^16 VND; số lớn nhất của MWG có 15 chữ số
 _NUMERIC_CHARS = re.compile(r"^[\d.,()\-–—]+$")
 
 
@@ -108,18 +109,26 @@ def _clean(text: str) -> str:
 def parse_amount(text: str) -> int | None:
     """Số tiền VND (số nguyên) từ một ô; hiểu cả '1.234.567' (vi) lẫn '1,234,567' (en).
 
-    '(1.234)' và '-1.234' là số âm; '-' là null. Không đọc được -> ValueError.
+    '(1.234)' và '-1.234' là số âm; '-' là null. Dễ tính với dấu phân cách OCR đọc sai
+    ('90.899.467872', '2,.430.887', '1,234-'): chỉ giữ chữ số, vì sai chữ số sẽ lộ ở kiểm tra DQ.
+    Số thuyết minh dính phía trước ('27,29(9,659)') thì lấy phần từ dấu '(' trở đi.
+    Có chữ cái hoặc không có chữ số -> ValueError.
     """
     t = _clean(text)
+    if "(" in t[1:]:
+        t = t[t.index("(", 1):]
     neg = t.startswith("(")  # OCR đôi khi mất dấu đóng ngoặc
-    t = t.strip("()")
-    if t in _DASHES or t == "":
+    t = t.strip("()").rstrip("-–—")
+    if t == "":
         return None
     if t[0] in "-−":
         neg, t = True, t[1:]
-    if not (_GROUPED.fullmatch(t) or re.fullmatch(r"\d{1,3}", t)):
+    if not re.fullmatch(r"[\d.,]+", t) or not re.search(r"\d", t):
         raise ValueError(f"Không đọc được số tiền: {text!r}")
-    v = int(re.sub(r"[.,]", "", t))
+    digits = re.sub(r"[.,]", "", t)
+    if len(digits) > MAX_AMOUNT_DIGITS:  # hai số OCR dính nhau
+        raise ValueError(f"Số tiền quá dài: {text!r}")
+    v = int(digits)
     return -v if neg else v
 
 
@@ -172,8 +181,19 @@ def _xc(w: dict) -> float:
     return (w["x0"] + w["x1"]) / 2
 
 
-def _find(words: list[dict], names: set[str]) -> dict | None:
-    return next((w for w in words if norm(_clean(w["text"])).strip(".:") in names), None)
+def _find(words: list[dict], names: set[str], prefixes: tuple[str, ...] = ()) -> list[dict]:
+    """Các từ trong vùng tiêu đề khớp tên cột (OCR hay mất chữ cuối: 'Thuyế' -> tiền tố 'thuy')."""
+    out = []
+    for w in words:
+        t = norm(_clean(w["text"])).strip(".:")
+        if t in names or (prefixes and t.startswith(prefixes)):
+            out.append(w)
+    return out
+
+
+def _has_cell(line: list[dict], col_right: float, h: float) -> bool:
+    """Dòng có ô ở cột này không (kể cả '-')."""
+    return any(abs(w["x1"] - col_right) <= 2 * h and _NUMERIC_CHARS.match(_clean(w["text"])) for w in line)
 
 
 def _band(word: dict | None, pad: float) -> tuple[float, float] | None:
@@ -198,6 +218,17 @@ def _cluster(values: list[float], gap: float) -> list[list[float]]:
     return out
 
 
+def _phrases(line: list[dict], gap: float) -> list[tuple[float, float, str]]:
+    """Gom các từ sát nhau trong một dòng thành cụm (x0, x1, text)."""
+    out: list[list[dict]] = []
+    for w in line:
+        if out and w["x0"] - out[-1][-1]["x1"] <= gap:
+            out[-1].append(w)
+        else:
+            out.append([w])
+    return [(g[0]["x0"], g[-1]["x1"], " ".join(w["text"] for w in g)) for g in out]
+
+
 def _column_kind(text: str, statement: str) -> str | None:
     t = norm(text)
     if statement == "B01":
@@ -207,7 +238,7 @@ def _column_kind(text: str, statement: str) -> str | None:
             return "opening"
         return None
     ytd = any(k in t for k in ("luy ke", "accumulated", "cumulative", "year to date", "year-to-date"))
-    quarter = any(k in t for k in ("quy nay", "this quarter", "quarter"))
+    quarter = bool(re.search(r"\bquy\b|quarter", t))  # "Quý này", "Quý III"
     if any(k in t for k in ("nam truoc", "previous", "prior", "last year", "preceding")):
         when = "prior"
     elif any(k in t for k in ("nam nay", "current", "this year")):
@@ -240,9 +271,10 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
 
     prev: kết quả trang trước của cùng báo cáo (dùng lại dải cột nếu trang này thiếu tiêu đề cột).
     """
+    empty = {"rows": [], "kinds": [], "header_ok": False, "header_text": "", "code_band": None,
+             "note_band": None, "cols": [], "bounds": [], "table_top": None, "bottom": None, "h": None}
     if not words:
-        return {"rows": [], "kinds": [], "header_ok": False, "header_text": "", "code_band": None,
-                "note_band": None}
+        return empty
     h = median(w["y1"] - w["y0"] for w in words)
     lines = [_merge_numbers(line, 0.6 * h) for line in group_lines(words)]
     first_amount = next((i for i, line in enumerate(lines) if any(_is_grouped_amount(w["text"]) for w in line)),
@@ -250,37 +282,56 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
     header = [w for line in lines[:first_amount] for w in line]
     header_text = "\n".join(" ".join(w["text"] for w in line) for line in lines[:first_amount])
 
-    code_word = _find(header, {"ma", "ma so", "maso", "code"})
+    # Nhiều từ có thể khớp "Mã"/"Code" (kể cả rác OCR): chọn từ có nhiều mã nằm thẳng bên dưới nhất
+    all_words = [w for line in lines for w in line]
+    scored = [(sum(1 for b in all_words if b["y0"] > w["y1"] and _code_of(b["text"]) and abs(_xc(b) - _xc(w)) <= 2 * h), w)
+              for w in _find(header, {"ma", "ma so", "maso", "code"})]
+    code_word = max(scored, key=lambda t: t[0])[1] if scored and max(t[0] for t in scored) >= 3 else None
     code_band = _band(code_word, pad=1.5 * h) or (prev or {}).get("code_band")
-    note_band = _band(_find(header, {"thuyet", "thuyet minh", "notes", "note"}), pad=0.5 * h) \
-        or (prev or {}).get("note_band")
-    # Mã có thể nằm cao hơn dòng số tiền (B02 quý), nên tìm mã ở mọi dòng dưới chữ "Mã số"/"Code"
-    first_row = next((i for i, line in enumerate(lines) if code_word and min(w["y0"] for w in line) > code_word["y1"]
-                      and not any(w is code_word for w in line)), first_amount) if code_word else first_amount
-    if code_band is None:  # không thấy tiêu đề cột: lấy cụm x chứa mã lớn nhất (số thứ tự chỉ 1..20)
-        cands = [(w, int(re.sub(r"\D", "", c))) for line in lines[first_amount:] for w in line
+    note_words = _find(header, {"minh", "notes", "note"}, prefixes=("thuy",))
+    note_band = _band(note_words[0], pad=0.5 * h) if note_words else (prev or {}).get("note_band")
+    # Mã có thể nằm cao hơn dòng số tiền (tên chỉ tiêu xuống dòng), nên tìm mã ở mọi dòng dưới chữ
+    # "Mã số"/"Code"; không thấy tiêu đề cột thì từ 2 dòng trên dòng số tiền đầu tiên (bỏ dòng có năm,
+    # vd. "as at 31 December 2018").
+    if code_word:
+        first_row = next((i for i, line in enumerate(lines) if min(w["y0"] for w in line) > code_word["y1"]
+                          and not any(w is code_word for w in line)), first_amount)
+    else:
+        first_row = next((i for i in range(max(0, first_amount - 2), first_amount)
+                          if not re.search(r"20\d{2}", " ".join(w["text"] for w in lines[i]))), first_amount)
+    if code_band is None:
+        # Không thấy tiêu đề cột: trong các cụm x có đủ nhiều mã (>= 1/2 cụm đông nhất), chọn cụm có
+        # giá trị lớn nhất - cột số thứ tự (1, 2, 3...) có cùng số dòng nhưng giá trị nhỏ hơn mã.
+        cands = [(w, int(re.sub(r"\D", "", c))) for line in lines[first_row:] for w in line
                  if (c := _code_of(w["text"]))]
         if not cands:
-            return {"rows": [], "kinds": [], "header_ok": False, "header_text": header_text,
-                    "code_band": None, "note_band": note_band}
+            return {**empty, "header_text": header_text, "note_band": note_band}
         clusters = _cluster([_xc(w) for w, _ in cands], 2 * h)
-        best = max(clusters, key=lambda c: max(v for w, v in cands if _xc(w) in c))
+        big = [c for c in clusters if len(c) >= max(len(x) for x in clusters) / 2]
+        best = max(big, key=lambda c: max(v for w, v in cands if _xc(w) in c))
         code_band = (min(best) - 1.5 * h, max(best) + 1.5 * h)
     left_limit = max(code_band[1], note_band[1] if note_band else code_band[1])
 
     body = [w for line in lines[first_amount:] for w in line]
     rights = [w["x1"] for w in body if _is_grouped_amount(w["text"]) and w["x0"] > left_limit - h]
     min_size = 2 if len(rights) >= 10 else 1  # trang nhiều số: bỏ cụm lẻ do OCR nhiễu
-    cols = [median(c) for c in _cluster(rights, 2.5 * h) if len(c) >= min_size]
+    clusters = [c for c in _cluster(rights, 2.5 * h) if len(c) >= min_size]
+    cols = [median(c) for c in clusters]
+    # bề rộng số dài nhất mỗi cột: để OCR riêng cột không cắt lẹm sang tên chỉ tiêu/thuyết minh
+    widths = [max(w["x1"] - w["x0"] for w in body if _is_grouped_amount(w["text"]) and w["x1"] in c)
+              for c in clusters]
     if not cols:
-        return {"rows": [], "kinds": [], "header_ok": False, "header_text": header_text,
-                "code_band": code_band, "note_band": note_band}
+        return {**empty, "header_text": header_text, "code_band": code_band, "note_band": note_band}
 
-    # Tiêu đề từng cột: chữ trong vùng tiêu đề nằm giữa mép phải cột trước và mép phải cột này
+    # Tiêu đề từng cột: mỗi cụm chữ của vùng tiêu đề gán cho mọi cột nó phủ lên, để tiêu đề nhóm
+    # ("Quý III", "Lũy kế từ đầu năm ...") nằm trên hai cột được tính cho cả hai cột.
     bounds = [left_limit] + cols
-    col_texts = [" ".join(w["text"] for w in header if bounds[i] - h < _xc(w) <= bounds[i + 1] + h)
+    phrases = [p for line in lines[:first_amount] for p in _phrases(line, 0.8 * h)]  # cách chữ < cách cột
+    col_texts = [" ".join(t for x0, x1, t in phrases if min(x1, bounds[i + 1] + h) - max(x0, bounds[i]) > 0.3 * h)
                  for i in range(len(cols))]
     kinds = [_column_kind(t, statement) for t in col_texts]
+    if any(k and k.startswith("ytd_") for k in kinds):  # tiêu đề nhóm "Quý III" có thể chỉ rơi vào một cột
+        kinds = [f"q_{k}" if k in ("current", "prior") else k for k in kinds]
     header_ok = None not in kinds and len(set(kinds)) == len(kinds)
     if not header_ok:
         kinds = _years_kinds(col_texts, statement) or _POSITIONAL_KINDS.get((statement, len(cols))) \
@@ -292,8 +343,7 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
         vals, found = [None] * len(cols), False
         for w in line:
             t = _clean(w["text"])
-            if w["x0"] <= left_limit - h or not (_is_grouped_amount(t) or t.strip("()") in _DASHES
-                                                   or re.fullmatch(r"\(?\d{1,3}\)?", t)):
+            if w["x0"] <= left_limit - h or not _NUMERIC_CHARS.match(t):
                 continue
             i = min(range(len(cols)), key=lambda j: abs(w["x1"] - cols[j]))
             if abs(w["x1"] - cols[i]) <= 2 * h:
@@ -311,29 +361,44 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
             anchors.append((i, code))
     for n, (i, code) in enumerate(anchors):
         end = anchors[n + 1][0] if n + 1 < len(anchors) else len(lines)
-        values, raw, name = [None] * len(cols), "", []
+        # Số của các cột có thể lệch dòng nhau (OCR riêng từng cột), nên gom trên mọi dòng thuộc mã này:
+        # mỗi cột lấy giá trị đầu tiên tìm thấy.
+        values, filled, raw, name = [None] * len(cols), [False] * len(cols), [], []
         for line in lines[i:end]:
-            name += [w["text"] for w in line if w["x1"] < (note_band[0] if note_band else cols[0] - 4 * h)
-                     and not (code_band[0] <= _xc(w) <= code_band[1])]
             vals, found = values_of(line)
+            if not any(filled):
+                name += [w["text"] for w in line if w["x1"] < (note_band[0] if note_band else cols[0] - 4 * h)
+                         and not (code_band[0] <= _xc(w) <= code_band[1])]
             if found:
-                values, raw = vals, " ".join(w["text"] for w in line if w["x0"] > left_limit - h)
+                raw.append(" ".join(w["text"] for w in line if w["x0"] > left_limit - h))
+                for j, v in enumerate(vals):
+                    if not filled[j] and (v is not None or _has_cell(line, cols[j], h)):
+                        values[j], filled[j] = v, True
+            if all(filled):
                 break
+        raw = " ".join(raw)
+        if not any(filled):
+            continue  # mã không có ô số nào (kể cả '-'): rác OCR, vd. "19" của dòng ngày ký "19 February 2019"
         if statement in ("B02", "B03") and len(code) == 1:
             code = code.zfill(2)  # BCTC quý in "1", "2"
         rows.append({"account_code": code, "item_name": " ".join(name).strip(), "values": values, "raw": raw})
+    body_start = min(first_row, first_amount)
     return {"rows": rows, "kinds": kinds, "header_ok": header_ok, "header_text": header_text,
-            "code_band": code_band, "note_band": note_band}
+            "code_band": code_band, "note_band": note_band, "cols": cols, "bounds": bounds, "h": h,
+            "col_widths": widths,
+            "table_top": min(w["y0"] for w in lines[body_start]) if body_start < len(lines) else None,
+            "bottom": max(w["y1"] for w in words)}
 
 
 # ---------- Tìm trang báo cáo ----------
 
 STATEMENT_TITLES = {
-    "B01": ("bang can doi ke toan", "balance sheet", "statement of financial position"),
+    "B01": ("bang can doi ke toan", "balance sheet", "bao cao tinh hinh tai chinh",
+            "statement of financial position"),
     "B02": ("ket qua hoat dong kinh doanh", "income statement", "statement of income"),
     "B03": ("luu chuyen tien te", "cash flow"),
 }
-_FORM_CODE = re.compile(r"\bb\s*0?([1-39])\s*a?\s*[-–]\s*dn")
+_FORM_CODE = re.compile(r"\bb\s*0?([1-39])\s*a?\s*[-–~_.]?\s*dn")  # OCR đọc "B01a~DN/HN"
 TOP_LINES = 15
 
 
@@ -412,35 +477,95 @@ def expected_end(period: str) -> date | None:
     return date(y, month, {3: 31, 6: 30, 9: 30, 12: 31}[month])
 
 
-# ---------- Kiểm tra DQ ----------
+# ---------- Chế độ kế toán (regime) ----------
 
-# (báo cáo, mã vế trái, [(dấu, mã)]). Khoản giảm trừ (02, 11) MWG in số âm trong ngoặc,
-# nên vế trừ dùng giá trị tuyệt đối: 10 = 01 - |02|, 20 = 10 - |11|.
-EQUATIONS = [
-    ("B01", "270", [(1, "300"), (1, "400")], "270 = 300 + 400"),
-    ("B02", "10", [(1, "01"), (-1, "02")], "10 = 01 - 02"),
-    ("B02", "20", [(1, "10"), (-1, "11")], "20 = 10 - 11"),
+# Nhận diện theo tên B01 in trên báo cáo: TT99/2025 đổi "Bảng cân đối kế toán" thành
+# "Báo cáo tình hình tài chính" (MWG dùng từ BCTC Q3/2026).
+REGIME_BY_B01_TITLE = [
+    ("TT99", ("bao cao tinh hinh tai chinh", "statement of financial position")),
+    ("TT200", ("bang can doi ke toan", "balance sheet")),
 ]
 
 
-def check_equations(values: dict[tuple[str, str, str], int | None], tol: int = 1) -> list[dict]:
-    """values: {(báo cáo, mã, kỳ cột): số}. Mỗi phương trình kiểm trên mọi cột có vế trái."""
+def detect_regime(b01_text: str) -> str | None:
+    t = norm(b01_text)
+    return next((regime for regime, keys in REGIME_BY_B01_TITLE if any(k in t for k in keys)), None)
+
+
+# ---------- Kiểm tra DQ (tham số hóa theo regime, xem config/dq_equations.csv) ----------
+
+def _terms(expr: str) -> list[tuple[int, str]]:
+    """'20+22-23-25-26+27' -> [(1,'20'), (1,'22'), (-1,'23'), ...]."""
+    return [(-1 if sign == "-" else 1, code) for sign, code in re.findall(r"([+-]?)\s*(\w+)", expr)]
+
+
+def load_equations(path: Path) -> list[dict]:
+    if not Path(path).exists():
+        return []
+    with Path(path).open(encoding="utf-8", newline="") as f:
+        return [{**r, "terms": _terms(r["rhs"])} for r in csv.DictReader(f) if r.get("lhs", "").strip()]
+
+
+def load_dim_account(path: Path) -> list[dict]:
+    if not Path(path).exists():
+        return []
+    with Path(path).open(encoding="utf-8", newline="") as f:
+        return [r for r in csv.DictReader(f) if r.get("account_code", "").strip()]
+
+
+def signs_of(dim: list[dict], regime: str) -> dict[tuple[str, str], int]:
+    """{(báo cáo, mã): sign} của các mã có sign khai báo trong dim_account."""
+    return {(r["statement"], r["account_code"]): int(r["sign"]) for r in dim
+            if r["regime"] == regime and r.get("sign", "").strip() in ("1", "-1")}
+
+
+def _contribution(op: int, v: int, sign: int | None) -> int:
+    # Khoản giảm trừ (sign = -1 trong dim_account) luôn làm giảm, dù báo cáo in âm hay dương;
+    # mã khác (30/40/50/60...) giữ đúng dấu in trên báo cáo.
+    return -abs(v) if sign == -1 else op * v
+
+
+def _evaluate(label: str, statement: str, lhs: str, terms: list[tuple[int, str]],
+              values: dict, signs: dict, tol: int) -> list[dict]:
+    kinds = sorted({k for (s, c, k) in values if s == statement and c == lhs})
+    if not kinds:
+        return [{"check": label, "kind": None, "ok": False, "note": f"thiếu mã {lhs}"}]
     out = []
-    for st, lhs, terms, label in EQUATIONS:
-        kinds = sorted({k for (s, c, k) in values if s == st and c == lhs})
-        if not kinds:
-            out.append({"check": label, "kind": None, "ok": False, "note": f"thiếu mã {lhs}"})
+    for kind in kinds:
+        left = values.get((statement, lhs, kind))
+        parts = [values.get((statement, code, kind)) for _, code in terms]
+        if left is None or None in parts:
+            missing = [c for (_, c), v in zip(terms, parts) if v is None] + ([lhs] if left is None else [])
+            out.append({"check": label, "kind": kind, "ok": False, "note": f"thiếu {', '.join(missing)}"})
             continue
-        for kind in kinds:
-            left = values.get((st, lhs, kind))
-            parts = [values.get((st, code, kind)) for _, code in terms]
-            if left is None or None in parts:
-                missing = [c for (_, c), v in zip(terms, parts) if v is None] + ([lhs] if left is None else [])
-                out.append({"check": label, "kind": kind, "ok": False, "note": f"thiếu {', '.join(missing)}"})
-                continue
-            right = sum(v if sign > 0 else -abs(v) for (sign, _), v in zip(terms, parts))
-            out.append({"check": label, "kind": kind, "ok": abs(left - right) <= tol,
-                        "note": "" if abs(left - right) <= tol else f"lệch {left - right:,}"})
+        right = sum(_contribution(op, v, signs.get((statement, code))) for (op, code), v in zip(terms, parts))
+        ok = abs(left - right) <= tol
+        out.append({"check": label, "kind": kind, "ok": ok, "note": "" if ok else f"lệch {left - right:,}"})
+    return out
+
+
+def check_equations(values: dict[tuple[str, str, str], int | None], equations: list[dict],
+                    regime: str, signs: dict | None = None, tol: int = 1) -> list[dict]:
+    """values: {(báo cáo, mã, kỳ cột): số}. Chỉ dùng phương trình của đúng regime."""
+    out = []
+    for eq in equations:
+        if eq["regime"] == regime:
+            out += _evaluate(eq["label"], eq["statement"], eq["lhs"], eq["terms"], values, signs or {}, tol)
+    return out
+
+
+def check_parent_sums(values: dict, dim: list[dict], regime: str, tol: int = 1) -> list[dict]:
+    """Dòng tổng = tổng các dòng con có is_additive = 1 (theo parent_code trong dim_account)."""
+    signs = signs_of(dim, regime)
+    children: dict[tuple[str, str], list[str]] = {}
+    for r in dim:
+        if r["regime"] == regime and r.get("parent_code", "").strip() and r.get("is_additive", "").strip() == "1":
+            children.setdefault((r["statement"], r["parent_code"]), []).append(r["account_code"])
+    out = []
+    for (st, parent), kids in sorted(children.items()):
+        present = [k for k in kids if any(s == st and c == k for (s, c, _) in values)]
+        if present:
+            out += _evaluate(f"{parent} = Σ con", st, parent, [(1, k) for k in present], values, signs, tol)
     return out
 
 
