@@ -100,8 +100,8 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 
 ### Bronze
 - **Append-only.** Không sửa, không xóa file đã tải.
-- Mỗi file PDF có `<tên>.meta.json`: `url, title, doc_type, period, published, sha256, size, fetched_at, http_status`.
-- Tên file: `MWG_{kỳ}_{sha256[:8]}.pdf` (kỳ dạng `2026Q3`, `2026H1`, `2025`).
+- Mỗi file có `<tên>.meta.json`: `url, title, doc_type, file_type, period, published, sha256, size, fetched_at, http_status` (file tải trước khi có `file_type` thì không có trường này; mặc định là `pdf`).
+- Tên file: `MWG_{kỳ}_{sha256[:8]}.{pdf|jpg|png}` (kỳ dạng `2026Q3`, `2026H1`, `2025`, `2017M08`). `file_type` lấy theo magic bytes của nội dung, không theo đuôi URL. Ảnh (báo cáo tháng 2017–01/2018) cần OCR ở bước bóc tách.
 - Loại tài liệu: `FS_CONSOLIDATED_Q`, `FS_CONSOLIDATED_H`, `FS_CONSOLIDATED_Y`, `MONTHLY_RESULT` (có thể thêm loại khác qua `doc_rules`).
 
 ### Bóc tách PDF

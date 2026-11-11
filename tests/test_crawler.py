@@ -31,8 +31,10 @@ class FakeResp:
 
 
 class FakeApi:
-    def __init__(self, years, posts, pdf_content=b"%PDF-1.4 fake", errors=None):
-        self.years, self.posts, self.pdf_content = years, posts, pdf_content
+    def __init__(self, years, posts, pdf_content=b"%PDF-1.4 fake",
+                 jpg_content=b"\xff\xd8\xff\xe0 fake", errors=None):
+        self.years, self.posts = years, posts
+        self.pdf_content, self.jpg_content = pdf_content, jpg_content
         self.errors = errors or {}  # url -> HTTP status hoặc exception
         self.calls = []
 
@@ -49,7 +51,8 @@ class FakeApi:
         elif "PostAPI" in url:
             data = self.posts.get(int(q["categoryID"]), [])
         else:
-            return FakeResp(url, content=self.pdf_content)
+            is_jpg = urlsplit(url).path.endswith(".jpg")
+            return FakeResp(url, content=self.jpg_content if is_jpg else self.pdf_content)
         for d in data:
             d["totalRecord"] = len(data)
         return FakeResp(url, {"code": 0, "data": data})
@@ -81,7 +84,8 @@ def _sample_api(**kw):
         431: [_post(4, "Cập Nhật Tình Hình Kinh Doanh 10 Tháng 2026", ""),
               _post(5, "Cập Nhật Tình Hình Kinh Doanh 9 Tháng 2026", "https://cdn.test/a/m9.pdf")],
         209: [_post(6, "Báo Cáo Tài Chính Hợp Nhất Kiểm Toán Năm 2025", "https://cdn.test/b/y.pdf", 4)],
-        208: [_post(7, "Báo cáo tóm tắt KQKD 8 tháng đầu năm 2025", "https://cdn.test/b/m8.jpg")],
+        208: [_post(7, "Báo cáo tóm tắt KQKD 8 tháng đầu năm 2025", "https://cdn.test/b/m8.jpg"),
+              _post(10, "Báo cáo tóm tắt KQKD 7 tháng đầu năm 2025", "https://cdn.test/b/m7.docx")],
         195: [_post(8, "Báo Cáo Tài Chính Hợp Nhất Quý 1 Năm 2024", "https://cdn.test/c/q1.pdf", 1)],
     }
     return FakeApi(years, posts, **kw)
@@ -92,12 +96,12 @@ def test_crawl_tai_dung_tai_lieu_va_ghi_bronze(env):
     api = install(_sample_api())
     rows = mwg_crawler.crawl()
 
-    # incremental: chỉ 2 năm mới nhất; bỏ BCTC riêng, bài ẩn, link rỗng, file .jpg
+    # incremental: chỉ 2 năm mới nhất; bỏ BCTC riêng, bài ẩn, link rỗng, định dạng .docx
     assert sorted(api.downloads()) == ["https://cdn.test/a/m9.pdf", "https://cdn.test/a/q3.pdf",
-                                       "https://cdn.test/b/y.pdf"]
-    assert {(r["doc_type"], r["period"], r["assurance_level"]) for r in rows} == {
-        ("FS_CONSOLIDATED_Q", "2026-Q3", 1), ("MONTHLY_RESULT", "2026-M09", 1),
-        ("FS_CONSOLIDATED_Y", "2025", 3)}
+                                       "https://cdn.test/b/m8.jpg", "https://cdn.test/b/y.pdf"]
+    assert {(r["doc_type"], r["file_type"], r["period"], r["assurance_level"]) for r in rows} == {
+        ("FS_CONSOLIDATED_Q", "pdf", "2026-Q3", 1), ("MONTHLY_RESULT", "pdf", "2026-M09", 1),
+        ("FS_CONSOLIDATED_Y", "pdf", "2025", 3), ("MONTHLY_RESULT", "jpg", "2025-M08", 1)}
 
     pdfs = sorted((tmp / "bronze").rglob("*.pdf"))
     assert len(pdfs) == 3
@@ -105,13 +109,17 @@ def test_crawl_tai_dung_tai_lieu_va_ghi_bronze(env):
     assert q3.parent.parent.name == "doc_type=FS_CONSOLIDATED_Q"
     assert q3.parent.name.startswith("ingestion_date=")
     meta = json.loads(q3.with_name(q3.name + ".meta.json").read_text(encoding="utf-8"))
-    for key in ("url", "title", "doc_type", "period", "published", "sha256", "size",
+    for key in ("url", "title", "doc_type", "file_type", "period", "published", "sha256", "size",
                 "fetched_at", "http_status"):
         assert key in meta
     assert q3.name == f"MWG_2026Q3_{meta['sha256'][:8]}.pdf"
 
+    jpgs = list((tmp / "bronze").rglob("*.jpg"))
+    assert [j.name[:12] for j in jpgs] == ["MWG_2025M08_"]
+    assert jpgs[0].with_name(jpgs[0].name + ".meta.json").exists()
+
     mf = pl.read_parquet(mwg_crawler.MANIFEST_PATH)
-    assert mf.height == 3 and set(mf["url"]) == {r["url"] for r in rows}
+    assert mf.height == 4 and set(mf["url"]) == {r["url"] for r in rows}
 
 
 def test_chay_lan_hai_khong_tai_lai(env, capsys):
@@ -135,17 +143,50 @@ def test_dry_run_khong_tai_va_khong_ghi(env):
     tmp, install = env
     api = install(_sample_api())
     rows = mwg_crawler.crawl(dry_run=True)
-    assert len(rows) == 3
+    assert len(rows) == 4
     assert api.downloads() == []
     assert not mwg_crawler.MANIFEST_PATH.exists()
     assert not (tmp / "bronze").exists()
 
 
-def test_noi_dung_khong_phai_pdf_thi_bo_qua(env):
+def test_noi_dung_khong_phai_pdf_hay_anh_thi_bo_qua(env):
     tmp, install = env
-    install(_sample_api(pdf_content=b"<html>error</html>"))
+    install(_sample_api(pdf_content=b"<html>error</html>", jpg_content=b"<html>error</html>"))
     assert mwg_crawler.crawl() == []
-    assert not list(tmp.rglob("*.pdf"))
+    assert not list((tmp / "bronze").rglob("MWG_*"))
+
+
+def test_file_type_theo_noi_dung_khong_theo_duoi_url(env):
+    _, install = env
+    install(_sample_api(jpg_content=b"\x89PNG\r\n\x1a\n fake"))
+    rows = mwg_crawler.crawl()
+    m8 = next(r for r in rows if r["period"] == "2025-M08")
+    assert m8["file_type"] == "png" and m8["path"].endswith(".png")
+
+
+@pytest.mark.parametrize("content, expected", [
+    (b"%PDF-1.4", "pdf"), (b"\xff\xd8\xff\xe0", "jpg"), (b"\x89PNG\r\n\x1a\n", "png"),
+    (b"<html>", None), (b"", None),
+])
+def test_detect_file_type(content, expected):
+    assert mwg_crawler.detect_file_type(content) == expected
+
+
+def test_manifest_cu_chua_co_file_type(env):
+    # manifest tạo trước khi có cột file_type: đọc lên coi là pdf, lần chạy sau ghi tiếp được
+    _, install = env
+    old_schema = {k: v for k, v in mwg_crawler.MANIFEST_SCHEMA.items() if k != "file_type"}
+    old = pl.DataFrame([{"url": "https://cdn.test/a/q3.pdf", "post_id": 1, "doc_type": "FS_CONSOLIDATED_Q",
+                         "period": "2026-Q3", "sha256": "x" * 64}], schema=old_schema)
+    mwg_crawler.MANIFEST_PATH.parent.mkdir(parents=True)
+    old.write_parquet(mwg_crawler.MANIFEST_PATH)
+
+    mf = mwg_crawler.load_manifest()
+    assert mf.columns == list(mwg_crawler.MANIFEST_SCHEMA) and mf["file_type"].to_list() == ["pdf"]
+    api = install(_sample_api())
+    mwg_crawler.crawl()
+    assert "https://cdn.test/a/q3.pdf" not in api.downloads()
+    assert pl.read_parquet(mwg_crawler.MANIFEST_PATH).height == 4
 
 
 def test_ban_dieu_chinh_cung_ky_duoc_danh_dau(env):
@@ -170,7 +211,8 @@ def test_link_chet_ghi_lai_va_tai_tiep(env, status):
     rows = mwg_crawler.crawl()
 
     assert DEAD in api.downloads()
-    assert {r["url"] for r in rows} == {"https://cdn.test/a/m9.pdf", "https://cdn.test/b/y.pdf"}
+    assert {r["url"] for r in rows} == {"https://cdn.test/a/m9.pdf", "https://cdn.test/b/y.pdf",
+                                        "https://cdn.test/b/m8.jpg"}
     errors = mwg_crawler.ERRORS_PATH.read_text(encoding="utf-8")
     assert DEAD in errors and str(status) in errors
     # link chết không vào manifest, lần sau vẫn thử lại; file lỗi không bị nhân dòng

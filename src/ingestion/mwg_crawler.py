@@ -32,12 +32,17 @@ MANIFEST_PATH = STATE_DIR / "manifest.parquet"
 ERRORS_PATH = STATE_DIR / "download_errors.csv"
 BRONZE_ROOT = BRONZE_DIR / "source=mwg_ir"
 DEAD_LINK_STATUS = {404, 410}  # link chết trên nguồn: ghi lại rồi bỏ qua, không dừng cả lần chạy
+
+# Định dạng được lưu vào Bronze. Đuôi URL quyết định có tải hay không,
+# còn file_type lấy theo magic bytes của nội dung (đuôi URL có thể sai).
+DOWNLOAD_EXTS = {".pdf", ".jpg", ".jpeg", ".png"}
+MAGIC = {"pdf": b"%PDF", "jpg": b"\xff\xd8\xff", "png": b"\x89PNG\r\n\x1a\n"}
 ERROR_FIELDS = ["url", "title", "doc_type", "period", "http_status", "first_seen", "last_seen"]
 _PLACEHOLDER = re.compile(r"<[^>]*>")
 
 MANIFEST_SCHEMA = {
     "url": pl.Utf8, "post_id": pl.Int64, "title": pl.Utf8, "doc_type": pl.Utf8,
-    "period": pl.Utf8, "published": pl.Utf8, "category_year": pl.Int32,
+    "file_type": pl.Utf8, "period": pl.Utf8, "published": pl.Utf8, "category_year": pl.Int32,
     "assurance_level": pl.Int8, "sha256": pl.Utf8, "size": pl.Int64,
     "http_status": pl.Int16, "is_restatement": pl.Boolean, "path": pl.Utf8,
     "fetched_at": pl.Utf8,
@@ -204,9 +209,13 @@ def list_documents(cfg: dict, max_years: int | None):
 # ---------- Manifest + Bronze ----------
 
 def load_manifest() -> pl.DataFrame:
-    if MANIFEST_PATH.exists():
-        return pl.read_parquet(MANIFEST_PATH)
-    return pl.DataFrame(schema=MANIFEST_SCHEMA)
+    if not MANIFEST_PATH.exists():
+        return pl.DataFrame(schema=MANIFEST_SCHEMA)
+    df = pl.read_parquet(MANIFEST_PATH)
+    if "file_type" not in df.columns:
+        # manifest tạo trước khi có cột file_type: khi đó crawler chỉ lưu PDF
+        df = df.with_columns(pl.lit("pdf").alias("file_type"))
+    return df.select([pl.col(c).cast(t) for c, t in MANIFEST_SCHEMA.items()])
 
 
 def _save_manifest(df: pl.DataFrame) -> None:
@@ -244,8 +253,13 @@ def _log_download_error(doc: dict, doc_type: str, period: str, status: int) -> N
         w.writerows(rows.values())
 
 
-def _is_pdf_url(url: str) -> bool:
-    return urlsplit(url).path.lower().endswith(".pdf")
+def _url_ext(url: str) -> str:
+    return Path(urlsplit(url).path).suffix.lower()
+
+
+def detect_file_type(content: bytes) -> str | None:
+    """'pdf' / 'jpg' / 'png' theo magic bytes, hoặc None nếu không phải định dạng hỗ trợ."""
+    return next((ft for ft, magic in MAGIC.items() if content.startswith(magic)), None)
 
 
 def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
@@ -269,8 +283,8 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
         if not doc["url"] or doc["url"] == "#":
             print(f"[crawl] Chưa có file (sắp công bố {doc['published']}): {doc['title']}")
             continue
-        if not _is_pdf_url(doc["url"]):
-            print(f"[crawl] Bỏ qua file không phải PDF: {doc['title']} -> {doc['url'][-40:]}")
+        if _url_ext(doc["url"]) not in DOWNLOAD_EXTS:
+            print(f"[crawl] Bỏ qua định dạng chưa hỗ trợ: {doc['title']} -> {doc['url'][-40:]}")
             continue
 
         period = parse_period(doc["title"], doc_type, default_year=doc["category_year"])
@@ -297,32 +311,34 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
             failed += 1
             continue
         content = r.content
-        if not content.startswith(b"%PDF"):
-            print(f"[crawl] Nội dung tải về không phải PDF, bỏ qua: {doc['url']}")
+        file_type = detect_file_type(content)
+        if file_type is None:
+            print(f"[crawl] Nội dung tải về không phải PDF/ảnh, bỏ qua: {doc['url']}")
             continue
 
         sha = hashlib.sha256(content).hexdigest()
         out_dir = BRONZE_ROOT / f"doc_type={doc_type}" / f"ingestion_date={date.today().isoformat()}"
         out_dir.mkdir(parents=True, exist_ok=True)
-        pdf_path = out_dir / f"{cfg['symbol']}_{period.replace('-', '')}_{sha[:8]}.pdf"
-        if not pdf_path.exists():  # Bronze append-only: không ghi đè
-            pdf_path.write_bytes(content)
+        file_path = out_dir / f"{cfg['symbol']}_{period.replace('-', '')}_{sha[:8]}.{file_type}"
+        if not file_path.exists():  # Bronze append-only: không ghi đè
+            file_path.write_bytes(content)
 
         prev_sha = seen_periods.get((doc_type, period))
         meta = {
             "url": doc["url"], "post_id": doc["post_id"], "title": doc["title"],
-            "doc_type": doc_type, "period": period, "published": doc["published"],
+            "doc_type": doc_type, "file_type": file_type, "period": period,
+            "published": doc["published"],
             "category_year": doc["category_year"],
             "assurance_level": assurance_level(doc["title"], doc_type, cfg),
             "sha256": sha, "size": len(content), "http_status": r.status_code,
             "is_restatement": prev_sha is not None and prev_sha != sha,
             "fetched_at": datetime.now().isoformat(timespec="seconds"),
         }
-        meta_path = pdf_path.with_name(pdf_path.name + ".meta.json")
+        meta_path = file_path.with_name(file_path.name + ".meta.json")
         if not meta_path.exists():
             meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        row = {**meta, "path": _rel(pdf_path)}
+        row = {**meta, "path": _rel(file_path)}
         mf = pl.concat([mf, pl.DataFrame([row], schema=MANIFEST_SCHEMA)])
         _save_manifest(mf)  # lưu sau mỗi file để dừng giữa chừng không mất trạng thái
         known.add(doc["url"])
