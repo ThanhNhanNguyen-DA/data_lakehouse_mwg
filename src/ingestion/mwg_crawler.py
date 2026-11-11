@@ -42,6 +42,8 @@ DEAD_LINK_STATUS = {404, 410}  # link chết trên nguồn: ghi lại rồi bỏ
 DOWNLOAD_EXTS = {".pdf", ".jpg", ".jpeg", ".png"}
 MAGIC = {"pdf": b"%PDF", "jpg": b"\xff\xd8\xff", "png": b"\x89PNG\r\n\x1a\n"}
 ERROR_FIELDS = ["url", "lang", "title", "doc_type", "period", "http_status", "first_seen", "last_seen"]
+ANOMALIES_PATH = STATE_DIR / "link_anomalies.csv"
+ANOMALY_FIELDS = ["title", "period_from_title", "url", "period_in_manifest", "detected_at"]
 _PLACEHOLDER = re.compile(r"<[^>]*>")
 API_CODE_NO_DATA = 24000  # API trả code này kèm "Không có dữ liệu" khi danh mục rỗng
 
@@ -310,6 +312,28 @@ def _log_download_error(doc: dict, doc_type: str, period: str, status: int) -> N
         w.writerows({k: r.get(k, "") for k in ERROR_FIELDS} for r in rows.values())
 
 
+def _log_link_anomaly(doc: dict, period: str, period_in_manifest: str) -> None:
+    """Ghi vào link_anomalies.csv một mục có URL đã lưu cho kỳ khác (một dòng mỗi cặp url + title).
+
+    Ghi cả khi --dry-run: đây là trạng thái của nguồn, không phải dữ liệu Bronze.
+    """
+    print(f"[crawl] Cảnh báo: '{doc['title']}' (kỳ {period}) trỏ tới URL đã lưu cho kỳ "
+          f"{period_in_manifest}: {doc['url']}")
+    exists = ANOMALIES_PATH.exists()
+    if exists:
+        with ANOMALIES_PATH.open(encoding="utf-8", newline="") as f:
+            if any(r["url"] == doc["url"] and r["title"] == doc["title"] for r in csv.DictReader(f)):
+                return
+    ANOMALIES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with ANOMALIES_PATH.open("a", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=ANOMALY_FIELDS)
+        if not exists:
+            w.writeheader()
+        w.writerow({"title": doc["title"], "period_from_title": period, "url": doc["url"],
+                    "period_in_manifest": period_in_manifest,
+                    "detected_at": datetime.now().isoformat(timespec="seconds")})
+
+
 def _url_ext(url: str) -> str:
     return Path(urlsplit(url).path).suffix.lower()
 
@@ -342,7 +366,7 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
     cross_check = {(c["lang_id"], c["doc_type"], str(c["period"]))
                    for c in cfg["listing"].get("cross_check") or []}
     mf = load_manifest()
-    known = set(mf["url"].to_list())
+    known = dict(zip(mf["url"], mf["period"]))  # url -> kỳ đã lưu
     dead = {u for u, r in _load_download_errors().items()
             if str(r.get("http_status")) in {str(s) for s in DEAD_LINK_STATUS}}
     seen_periods = {(r["lang"], r["doc_type"], r["period"]): r["sha256"] for r in mf.iter_rows(named=True)}
@@ -373,11 +397,13 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
                       f"{doc['title']}")
             period = period or "unknown"
 
+            if doc["url"] in known:
+                if known[doc["url"]] != period:  # nguồn trỏ nhầm: một URL cho hai kỳ khác nhau
+                    _log_link_anomaly(doc, period, known[doc["url"]])
+                continue
             reason = _fetch_reason(lang, primary_lang, doc_type, period, have_primary, cross_check)
             if reason is None:
                 covered += 1
-                continue
-            if doc["url"] in known:
                 continue
             if dry_run:
                 note = "  [link đã 404, sẽ thử lại]" if doc["url"] in dead else ""
@@ -431,7 +457,7 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
             row = {**meta, "path": _rel(file_path)}
             mf = pl.concat([mf, pl.DataFrame([row], schema=MANIFEST_SCHEMA)])
             _save_manifest(mf)  # lưu sau mỗi file để dừng giữa chừng không mất trạng thái
-            known.add(doc["url"])
+            known[doc["url"]] = period
             seen_periods[(lang, doc_type, period)] = sha
             if reason == "primary":
                 have_primary.add((doc_type, period))

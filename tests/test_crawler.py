@@ -72,6 +72,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(mwg_crawler, "MANIFEST_PATH", tmp_path / "_state" / "manifest.parquet")
     monkeypatch.setattr(mwg_crawler, "BRONZE_ROOT", tmp_path / "bronze" / "source=mwg_ir")
     monkeypatch.setattr(mwg_crawler, "ERRORS_PATH", tmp_path / "_state" / "download_errors.csv")
+    monkeypatch.setattr(mwg_crawler, "ANOMALIES_PATH", tmp_path / "_state" / "link_anomalies.csv")
     monkeypatch.setattr(mwg_crawler, "has_text_layer", lambda path: True)
 
     def install(api):
@@ -322,3 +323,38 @@ def test_loi_http_khac_van_dung(env):
     install(_sample_api(errors={DEAD: 401}))
     with pytest.raises(requests.HTTPError):
         mwg_crawler.crawl()
+
+
+# ---------- Link bất thường: một URL cho hai kỳ ----------
+
+def _api_with_shared_url():
+    api = _sample_api()
+    # giống lỗi thật "1H17" -> file Q3/2017: mục tháng 7 trỏ tới file tháng 9
+    api.posts[431].append(_post(11, "Cập Nhật Tình Hình Kinh Doanh 7 Tháng 2026", f"{CDN}/vi/m9.pdf"))
+    return api
+
+
+def test_url_dung_chung_giua_hai_ky_ghi_link_anomalies(env):
+    _, install = env
+    install(_api_with_shared_url())
+    rows = mwg_crawler.crawl()
+
+    assert [r["period"] for r in rows if r["url"] == f"{CDN}/vi/m9.pdf"] == ["2026-M09"]  # không lưu trùng
+    with mwg_crawler.ANOMALIES_PATH.open(encoding="utf-8") as f:
+        anomalies = list(csv.DictReader(f))
+    assert list(anomalies[0]) == mwg_crawler.ANOMALY_FIELDS
+    assert [(a["title"], a["period_from_title"], a["url"], a["period_in_manifest"]) for a in anomalies] == [
+        ("Cập Nhật Tình Hình Kinh Doanh 7 Tháng 2026", "2026-M07", f"{CDN}/vi/m9.pdf", "2026-M09")]
+
+    install(_api_with_shared_url())
+    mwg_crawler.crawl()  # chạy lại: không nhân dòng
+    assert mwg_crawler.ANOMALIES_PATH.read_text(encoding="utf-8").count("7 Tháng 2026") == 1
+
+
+def test_url_da_biet_cung_ky_khong_phai_bat_thuong(env):
+    _, install = env
+    install(_sample_api())
+    mwg_crawler.crawl()
+    install(_sample_api())
+    mwg_crawler.crawl()
+    assert not mwg_crawler.ANOMALIES_PATH.exists()

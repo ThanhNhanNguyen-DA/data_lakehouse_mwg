@@ -90,6 +90,7 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
   Đã khảo sát (11/11/2026): `mwg.vn/bao-cao` lấy danh sách từ JSON API `api.bhxwork.vn/gw/ir-api`
   (`CategoryAPI` → danh mục theo năm, `PostAPI` → tài liệu). Cấu hình nằm trong `sources.yaml > listing`.
 - **Hai ngôn ngữ, cùng do MWG công bố:** `vi-VN` (danh mục gốc 7) là nguồn chính, luôn tải. `en-US` (danh mục gốc 61, nhóm BCTC và nhóm báo cáo tháng "YTD … report") là nguồn dự phòng: một tài liệu en-US chỉ được tải khi kỳ `(doc_type, period)` chưa có bản vi-VN tải được (link vi-VN chết hoặc không đăng), hoặc khi kỳ đó nằm trong `listing.cross_check` (hiện là Q3/2020 và FY2020, để đối chiếu hai bản trong `docs/dq_report.md`). Manifest ghi `lang` và `fetch_reason` (`primary` / `fallback` / `cross_check`).
+- Mục có URL đã lưu cho kỳ khác (nguồn trỏ nhầm link) ghi vào `data/_state/link_anomalies.csv` (`title, period_from_title, url, period_in_manifest, detected_at`) và vào `docs/dq_report.md`; không tải trùng, không lưu thêm kỳ.
 - Link chết (404/410) ghi vào `data/_state/download_errors.csv` rồi đi tiếp; lần backfill sau vẫn thử lại. **Không dùng Wayback Machine** hay bản lưu của bên thứ ba; kỳ không lấy lại được ghi vào `docs/limitations.md`.
 - Mọi request đi qua `src/ingestion/http_utils.get()`:
   - Session dùng chung, header trình duyệt thật (User-Agent xoay vòng, `Accept-Language: vi-VN`, `Referer`).
@@ -115,17 +116,21 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 - Số tiền kiểu Việt Nam: `1.234.567` là số dương, `(1.234)` là số âm, `-` hoặc rỗng là null. Đọc dòng "Đơn vị tính" để quy đổi về VND.
 - Tên chỉ tiêu bị xuống dòng phải được nối lại.
 - Ngay sau khi bóc, kiểm tra: `270 = 300 + 400` (B01), `10 = 01 − 02` và `20 = 10 − 11` (B02). Sai thì gắn cờ `dq_balance_ok = false`, **không** đẩy kỳ đó sang Gold.
+- **Đối chiếu ngày báo cáo** (vi + en, sau OCR nếu là bản scan): đọc ngày kết thúc kỳ in trong báo cáo (vi: "tại ngày 30 tháng 9 năm 2017", "cho kỳ … kết thúc ngày …"; en: "as at 30 September 2017", "for the period ended …"; báo cáo tháng: tháng lũy kế) và so với `period` trong manifest (Q1 → 31/03, Q2/H1 → 30/06, Q3 → 30/09, Q4/năm → 31/12). Lệch hoặc không đọc được thì gắn cờ `period_check_ok = false`, ghi vào `docs/dq_report.md` và **không đưa tài liệu đó vào Silver**.
+- **Kỳ không qua DQ** (`dq_balance_ok = false`, `period_check_ok = false` hoặc OCR không đọc được) xử lý bằng `config/manual_overrides.csv` (Cách B): người nhập tay số liệu **đọc từ chính PDF gốc trong Bronze**, ghi `source_doc_sha256` và số trang. Không nhập từ trí nhớ hay từ nguồn khác (vnstock, CafeF). Giá trị override thay giá trị bóc tự động của cùng tài liệu và cùng khóa, mang `is_manual = true`. Kỳ đó phải qua lại kiểm tra phương trình kế toán rồi mới được sang Gold.
 
 ### Silver
-- Dạng dài: `symbol, statement (B01/B02/B03), fiscal_year, fiscal_quarter, period_kind, account_code, item_name, amount_vnd, source_priority, source_lang, is_comparative, source_doc_sha256, dq_balance_ok`.
+- Dạng dài: `symbol, statement (B01/B02/B03), fiscal_year, fiscal_quarter, period_kind, account_code, item_name, amount_vnd, source_priority, source_lang, is_comparative, is_derived, is_manual, source_doc_sha256, dq_balance_ok`.
 - Kỳ: `2026-Q3` → `fiscal_year=2026, fiscal_quarter=3`; báo cáo năm dùng `fiscal_quarter=0`. B02 quý giữ cả "quý này" và "lũy kế".
 - Mã tài khoản: ưu tiên mã số in trên báo cáo; nếu thiếu thì ánh xạ qua `config/account_mapping.csv`. Dòng không ánh xạ được ghi ra `data/_state/unmapped_items.csv`; **không tự bịa mã**.
 - Ghi bằng **Delta MERGE** theo khóa `(symbol, statement, fiscal_year, fiscal_quarter, period_kind, account_code)`. Bản thắng chọn theo thứ tự, tiêu chí trước quyết định trước:
   1. `is_comparative = false` (số gốc của chính kỳ đó) thắng `true` (số lấy từ cột kỳ trước của báo cáo kỳ sau);
-  2. `source_lang = 'vi-VN'` thắng `'en-US'` (en-US chỉ dùng khi kỳ đó không có bản vi-VN);
-  3. `source_priority` cao hơn thắng: kiểm toán (3) > soát xét (2) > tự lập (1).
+  2. `is_derived = false` (số in trên báo cáo) thắng `true` (số tính ra từ các kỳ khác, vd. Q2 = H1 − Q1);
+  3. `source_lang = 'vi-VN'` thắng `'en-US'` (en-US chỉ dùng khi kỳ đó không có bản vi-VN);
+  4. `source_priority` cao hơn thắng: kiểm toán (3) > soát xét (2) > tự lập (1).
   Không bao giờ để bản xếp hạng thấp hơn ghi đè bản xếp hạng cao hơn.
 - **Số so sánh (`is_comparative = true`)** chỉ dùng để lấp kỳ không có tài liệu gốc (xem `docs/limitations.md`): lấy từ cột kỳ trước của báo cáo kỳ sau, vd. năm 2015 từ cột "năm trước" của BCTC FY2016; B02 Q1/2019 từ cột "quý này năm trước" của BCTC Q1/2020. B01 chỉ lấy được cho ngày cuối năm (cột "đầu năm"/"số đầu kỳ"); **không suy ra B01 giữa năm** (vd. B01 31/03/2019). Không ghi đè số gốc khi số gốc có sẵn.
+- **Q2/2017:** B02 = bán niên 2017 (cột so sánh của BCTC bán niên 2018, en) − Q1/2017 (en); gắn `is_comparative = true` và `is_derived = true`. Không có B01 30/06/2017.
 - Bản en-US: ánh xạ chỉ tiêu theo cột "Code"/"Mã số" như bản vi-VN; tên chỉ tiêu tiếng Anh đưa vào `account_mapping.csv` nếu thiếu mã.
 - Đối soát 10–15 chỉ tiêu chính với `vnstock`; chênh > 0,1% thì ghi vào báo cáo DQ. **Dữ liệu vnstock không bao giờ được ghi vào Gold.**
 
@@ -161,7 +166,7 @@ Trước khi coi một thay đổi là xong:
 |---|---|---|
 | 1 | Khởi động & khảo sát mwg.vn | `sources.yaml` đầy đủ, ảnh chụp điều khoản sử dụng |
 | 2–3 | Crawler + Bronze | Incremental chạy đúng, manifest khớp số file |
-| 4–5 | Bóc tách PDF | ≥ 95% kỳ qua kiểm tra phương trình kế toán |
+| 4–5 | Bóc tách PDF | OCR cho bản scan; ≥ 95% kỳ qua kiểm tra phương trình kế toán và đối chiếu ngày báo cáo; kỳ lỗi xử lý qua `manual_overrides.csv` |
 | 6 | Silver | Delta MERGE, đối soát vnstock, `chain_kpi` |
 | 7 | Gold | Star schema + view KPI khớp Excel |
 | 8 | Dashboard | Streamlit chạy local và trên Community Cloud |

@@ -50,7 +50,7 @@ Theo quy tắc trong `CLAUDE.md`: B02 và B03 lấy được từ cột "kỳ n�
 | H1/2017 | ✗ | ✓ (lũy kế 6 tháng) | BCTC bán niên 2018 (en) |
 | FY2014 | ✗ | ✗ | Cần BCTC 2015, mà BCTC 2015 cũng thiếu |
 | H1/2014, Q2/2014 | ✗ | ✗ | Cần BCTC 2015, mà BCTC 2015 cũng thiếu |
-| Q2/2017 (bản vi "QII") | ✗ | ✓ | Q2 = H1/2017 (số so sánh ở trên) − Q1/2017 (en) |
+| Q2/2017 (bản vi "QII") | ✗ | ✓ (`is_comparative` + `is_derived`) | B02 = H1/2017 (cột so sánh BCTC bán niên 2018, en) − Q1/2017 (en) |
 
 Các kỳ đánh ✗ sẽ không có trong Gold. Dashboard cần hiển thị khoảng trống, không nội suy.
 
@@ -65,6 +65,6 @@ Các kỳ đánh ✗ sẽ không có trong Gold. Dashboard cần hiển thị kh
 
 ## 5. Giới hạn khác
 
-- **PDF scan:** **cả 19 BCTC hợp nhất bản en-US (2016–2020, Q2/2022) đều là bản scan** (`has_text_layer = false`), nên giai đoạn 2016–2020 bắt buộc phải OCR. BCTC hợp nhất Q3/2026 (vi-VN) cũng là bản scan. Báo cáo tháng en-US: 29 PDF có lớp text, 1 PDF scan, 11 ảnh. 101 file vi-VN tải trước ngày 11/11/2026 chưa có giá trị `has_text_layer`.
+- **PDF scan:** **cả 19 BCTC hợp nhất bản en-US (2016–2020, Q2/2022) đều là bản scan** (`has_text_layer = false`), nên giai đoạn 2016–2020 bắt buộc phải OCR. BCTC hợp nhất Q3/2026 (vi-VN) cũng là bản scan. Báo cáo tháng en-US (41 file): 29 PDF có lớp text, 1 PDF scan (01/2018), 11 ảnh `.jpg` (2017). 101 file vi-VN tải trước ngày 11/11/2026 chưa có giá trị `has_text_layer`.
 - **Số liệu en-US** được coi là tương đương bản vi-VN. Mức độ khớp được kiểm tra trên Q3/2020 và FY2020, xem `docs/dq_report.md`.
 - **Mức tin cậy theo tiêu đề:** tiêu đề en-US ghi "Audited" cả cho BCTC quý và bán niên đã soát xét, nên `assurance_level` của bản en-US không dựa vào chữ này (FY = 3, 1H = 2, quý ≤ 2).

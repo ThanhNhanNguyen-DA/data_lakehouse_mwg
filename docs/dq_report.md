@@ -17,6 +17,19 @@
 |---|---|---|---|---|---|---|---|
 | | | | | | | | |
 
-## 2. Đối soát với vnstock (tuần 6)
+## 2. Link bất thường trên nguồn (một URL cho hai kỳ)
+
+Crawler ghi vào `data/_state/link_anomalies.csv` mỗi khi một mục trong danh sách của MWG trỏ tới URL đã lưu cho một kỳ khác. File trùng không được tải lại. Kỳ ghi trong tiêu đề của mục bị lỗi coi như **không có tài liệu gốc**, xem `docs/limitations.md`.
+
+| Tiêu đề trên mwg.vn | Kỳ theo tiêu đề | Kỳ của file thật (trong manifest) | URL | Phát hiện |
+|---|---|---|---|---|
+| Interim Audited Consolidate FS 1H17 | 2017-H1 | 2017-Q3 | `bhxcdn.vn/.../2018/01/IC-FS-30.09.2017-consolE2.pdf` | 2026-11-11 |
+| YTD May 2017 report | 2017-M05 | 2018-M05 | `bhxcdn.vn/.../2018/06/Monthly-report-YTD-May-18-EN.pdf` | 2026-11-11 |
+
+Tên file (`30.09.2017`, `May-18`) cho thấy file thuộc kỳ ghi trong manifest. Điều này sẽ được xác nhận bằng ngày báo cáo đọc trong PDF ở bước bóc tách (tuần 4–5).
+
+Giới hạn: crawler chỉ phát hiện được khi mục đúng được xử lý trước mục sai. Nếu mục sai được gặp trước, file sẽ bị lưu nhầm kỳ. Bước đối chiếu ngày báo cáo ở tuần 4–5 sẽ bắt trường hợp này.
+
+## 3. Đối soát với vnstock (tuần 6)
 
 Chưa thực hiện. Gói `vnstock` không còn trên PyPI, xem ghi chú trong `requirements.txt`.
