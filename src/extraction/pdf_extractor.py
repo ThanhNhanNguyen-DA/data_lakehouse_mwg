@@ -6,8 +6,25 @@ và kiểm tra phương trình kế toán viết ở tuần 4-5.
 from __future__ import annotations
 
 import re
+from pathlib import Path
+
+import pdfplumber
 
 from src.common.text import norm
+
+
+def has_text_layer(path: str | Path, max_pages: int = 5, min_chars: int = 50) -> bool | None:
+    """PDF có lớp text không (đọc được bằng pdfplumber) hay là bản scan cần OCR.
+
+    True nếu một trong max_pages trang đầu có ít nhất min_chars ký tự text.
+    None nếu không mở được file (PDF hỏng/mã hóa) -> cần xem tay.
+    """
+    try:
+        with pdfplumber.open(path) as pdf:
+            return any(len((page.extract_text() or "").strip()) >= min_chars
+                       for page in pdf.pages[:max_pages])
+    except Exception:
+        return None
 
 _NULL_TOKENS = {"", "-", "–", "—"}  # rỗng, '-', en dash, em dash
 _MINUS = ("-", "−")  # dấu trừ ASCII và dấu trừ Unicode

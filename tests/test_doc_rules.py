@@ -108,5 +108,126 @@ def test_sources_yaml_da_dien_du():
 
 
 def test_unfilled_fields():
-    assert unfilled_fields({"listing": {"api_base": "<...>", "lang_id": "vi-VN"}}) == ["listing.api_base"]
+    cfg = {"listing": {"api_base": "<...>", "languages": [{"lang_id": "vi-VN", "referer": "<...>"}]}}
+    assert unfilled_fields(cfg) == ["listing.api_base", "listing.languages[0].referer"]
+    assert unfilled_fields({"listing": {"api_base": "x"}}) == ["listing.languages"]
     assert unfilled_fields({}) == ["listing"]
+
+
+# ---------- en-US: toàn bộ tiêu đề thật trong nhóm "ANNUAL, CORPORATE GOVERNANCE & FINANCIAL
+# REPORTS" (2016-2026, khảo sát 11/11/2026). Năm 2014-2015 bản en-US không có tài liệu. ----------
+
+EN_TAKEN = [
+    # (tiêu đề, doc_type, kỳ, mức tin cậy). FY = 3, 1H = 2; "Audited" trên BCTC quý chỉ tính 2.
+    ("Consolidated FS Q3/2026", "FS_CONSOLIDATED_Q", "2026-Q3", 1),
+    ("Audited Consolidated FS 1H2026", "FS_CONSOLIDATED_H", "2026-H1", 2),
+    ("Consolidated FS Q2/2026", "FS_CONSOLIDATED_Q", "2026-Q2", 1),
+    ("Consolidated FS Q1/2026", "FS_CONSOLIDATED_Q", "2026-Q1", 1),
+    ("Audited Consolidated FS FY2025", "FS_CONSOLIDATED_Y", "2025", 3),
+    ("Consolidated FS Q4/2025", "FS_CONSOLIDATED_Q", "2025-Q4", 1),
+    ("Consolidated FS Q3/2025", "FS_CONSOLIDATED_Q", "2025-Q3", 1),
+    ("Audited Consolidated FS 1H2025", "FS_CONSOLIDATED_H", "2025-H1", 2),
+    ("Consolidated FS Q2/2025", "FS_CONSOLIDATED_Q", "2025-Q2", 1),
+    ("Consolidated FS Q1/2025", "FS_CONSOLIDATED_Q", "2025-Q1", 1),
+    ("Audited Consolidated FS FY2024", "FS_CONSOLIDATED_Y", "2024", 3),
+    ("Consolidated FS Q4/2024", "FS_CONSOLIDATED_Q", "2024-Q4", 1),
+    ("Consolidated FS Q3/2024", "FS_CONSOLIDATED_Q", "2024-Q3", 1),
+    ("Audited Consolidated FS 1H2024", "FS_CONSOLIDATED_H", "2024-H1", 2),
+    ("Consolidated FS Q2/2024", "FS_CONSOLIDATED_Q", "2024-Q2", 1),
+    ("Consolidated FS Q1/2024", "FS_CONSOLIDATED_Q", "2024-Q1", 1),
+    ("Audited Consolidated FS FY2023", "FS_CONSOLIDATED_Y", "2023", 3),
+    ("Consolidated FS Q4/2023", "FS_CONSOLIDATED_Q", "2023-Q4", 1),
+    ("Consolidated FS Q3/2023", "FS_CONSOLIDATED_Q", "2023-Q3", 1),
+    ("Audited Consolidated FS 1H2023", "FS_CONSOLIDATED_H", "2023-H1", 2),
+    ("Consolidated FS Q2/2023", "FS_CONSOLIDATED_Q", "2023-Q2", 1),
+    ("Consolidated FS 1Q2023", "FS_CONSOLIDATED_Q", "2023-Q1", 1),
+    ("Audited Consolidated FS FY2022", "FS_CONSOLIDATED_Y", "2022", 3),
+    ("Audited Consolidated FS 3Q2022", "FS_CONSOLIDATED_Q", "2022-Q3", 2),
+    ("Audited Consolidated FS 1H2022", "FS_CONSOLIDATED_H", "2022-H1", 2),
+    ("Consolidated Financial Statements Q2 2022", "FS_CONSOLIDATED_Q", "2022-Q2", 1),
+    ("Audited Consolidated FS 1Q2022", "FS_CONSOLIDATED_Q", "2022-Q1", 2),
+    ("Audited Consolidated FS FY2021", "FS_CONSOLIDATED_Y", "2021", 3),
+    ("Audited Consolidated FS 3Q2021", "FS_CONSOLIDATED_Q", "2021-Q3", 2),
+    ("Audited Consolidated FS 1H2021", "FS_CONSOLIDATED_H", "2021-H1", 2),
+    ("Audited Consolidated FS 1Q2021", "FS_CONSOLIDATED_Q", "2021-Q1", 2),
+    ("Audited Consolidated FS FY2020", "FS_CONSOLIDATED_Y", "2020", 3),
+    ("Audited Consolidated FS 3Q2020", "FS_CONSOLIDATED_Q", "2020-Q3", 2),
+    ("Audited Consolidated FS 1H2020", "FS_CONSOLIDATED_H", "2020-H1", 2),
+    ("Audited Consolidated FS 1Q2020", "FS_CONSOLIDATED_Q", "2020-Q1", 2),
+    ("Audited Consolidate FS FY2019", "FS_CONSOLIDATED_Y", "2019", 3),
+    ("Interim Consolidated FS 3Q19", "FS_CONSOLIDATED_Q", "2019-Q3", 1),
+    ("Interim Consolidated FS 1H19", "FS_CONSOLIDATED_H", "2019-H1", 2),
+    ("Interim Consolidated FS 1Q19", "FS_CONSOLIDATED_Q", "2019-Q1", 1),
+    ("Audited Consolidate FS FY2018", "FS_CONSOLIDATED_Y", "2018", 3),
+    ("Interim Consolidate FS 3Q18", "FS_CONSOLIDATED_Q", "2018-Q3", 1),
+    ("Interim Consolidate FS 1H18", "FS_CONSOLIDATED_H", "2018-H1", 2),
+    ("Interim Consolidate FS 1Q18", "FS_CONSOLIDATED_Q", "2018-Q1", 1),
+    ("Audited Consolidate FY 2017", "FS_CONSOLIDATED_Y", "2017", 3),
+    ("Interim Audited Consolidate FS 3Q17", "FS_CONSOLIDATED_Q", "2017-Q3", 2),
+    ("Interim Audited Consolidate FS 1H17", "FS_CONSOLIDATED_H", "2017-H1", 2),
+    ("Interim Audited Consolidate FS 1Q17", "FS_CONSOLIDATED_Q", "2017-Q1", 2),
+    ("Consolidate FS 2016", "FS_CONSOLIDATED_Y", "2016", 3),
+    ("FS Consolidate QIII_2016", "FS_CONSOLIDATED_Q", "2016-Q3", 1),
+    ("FS Consolidate 1st half_2016", "FS_CONSOLIDATED_H", "2016-H1", 2),
+    ("FS Consolidate Q1_2016", "FS_CONSOLIDATED_Q", "2016-Q1", 1),
+]
+
+EN_SKIPPED = [
+    "Separate FS Q3/2026", "Audited Separate FS 1H2026", "Separate FS Q2/2026",
+    "Report On Corporate Governance In 6M2026", "Separate FS Q1/2026",
+    "Annual Report 2025", "Sustainability Report 2025", "Audited Separate FS FY2025",
+    "Report On Corporate Governance In 2025", "Separate FS Q4/2025", "Separate FS Q3/2025",
+    "Audited Separate FS 1H2025", "Report On Corporate Governance In 6M2025",
+    "Separate FS Q2/2025", "Separate FS Q1/2025",
+    "Annual Report 2024", "Sustainability Report 2024", "Audited Separate FS FY2024",
+    "Report On Corporate Governance In 2024", "Separate FS Q4/2024", "Separate FS Q3/2024",
+    "Audited Separate FS 1H2024", "Separate FS Q2/2024", "Report On Corporate Governance In 6M2024",
+    "Separate FS Q1/2024",
+    "Sustainability Report 2023", "Annual Report 2023", "Audited Separate FS FY2023",
+    "Separate FS Q4/2023", "Report On Corporate Governance In 2023", "Separate FS Q3/2023",
+    "Audited Separate FS 1H2023", "Separate FS Q2/2023", "Report On Corporate Governance In 6M2023",
+    "Separate FS Q1/2023",
+    "Annual Report 2022", "Sustainability Report 2022", "Audited Separate FS FY2022",
+    "Report On Corporate Governance 2022", "Audited Separate FS 3Q2022", "Audited Separate FS 1H2022",
+    "Separate Financial Statements Q2 2022", "Report On Corporate Governance In 6M2022",
+    "Audited Separate FS 1Q2022",
+    "Annual Report 2021", "Audited Separate FS FY2021", "Report On Corporate Governance 2021",
+    "Audited Separate FS 3Q2021", "Audited Separate FS 1H2021",
+    "Report On Corporate Governance In 6M2021", "Audited Separate FS 1Q2021",
+    "Annual Report 2020", "Audited Separate FS FY2020", "Report On Corporate Governance in 2020",
+    "Audited Separate FS 3Q2020", "Audited Separate FS 1H2020",
+    "Report On Corporate Governance in 6M2020", "Audited Separate FS 1Q2020",
+    "Annual Report 2019", "Audited Separate FS FY2019", "Interim Separated FS 3Q19",
+    "Interim Separated FS 1H19", "Interim Separated FS 1Q19",
+    "Annual Report 2018", "Audited Separate FS FY2018", "Interim Separate FS 3Q18",
+    "Interim Separate FS 1H18", "Interim Separate FS 1Q18",
+    "Audited Separate FY 2017", "Interim Audited Separate FS 3Q17", "Interim Audited Separate FS 1H17",
+    "Interim Audited Separate FS 1Q17",
+    "Annual Report 2016", "Separate FS 2016", "FS Separate QIII_2016", "FS Separate 1st half_2016",
+    "FS Separate Q1_2016",
+]
+
+
+@pytest.mark.parametrize("title, doc_type, period, level", EN_TAKEN)
+def test_tieu_de_en_that(title, doc_type, period, level):
+    assert classify(title) == doc_type
+    assert parse_period(title, doc_type) == period
+    assert assurance_level(title, doc_type, lang="en-US") == level
+
+
+@pytest.mark.parametrize("title", EN_SKIPPED)
+def test_tieu_de_en_that_khong_lay(title):
+    assert classify(title) is None
+
+
+@pytest.mark.parametrize("title", ["Parent Company Consolidated FS Q1/2026",  # giả định
+                                   "Consolidated FS of the Parent 2016"])
+def test_en_loai_tru_parent(title):
+    assert classify(title) is None
+
+
+def test_tu_khoa_tien_to():
+    rules = [{"doc_type": "X", "all": ["consolidat*"], "any": ["3q*"]}]
+    assert classify("Consolidated FS 3Q19", rules) == "X"
+    assert classify("Consolidate 3Q2020", rules) == "X"
+    assert classify("Unconsolidated FS 3Q19", rules) is None  # tiền tố phải ở đầu từ

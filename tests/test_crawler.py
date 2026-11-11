@@ -1,4 +1,6 @@
-"""Test crawler với API giả: không gọi mạng thật. Nội dung PDF là byte giả, không phải số liệu."""
+"""Test crawler với API giả: không gọi mạng thật. Nội dung file là byte giả, không phải số liệu."""
+import copy
+import csv
 import json
 from urllib.parse import parse_qs, urlsplit
 
@@ -8,7 +10,9 @@ import requests
 
 from src.ingestion import mwg_crawler
 
-FS, MONTHLY = "Báo cáo tài chính, quản trị, thường niên", "Báo cáo kết quả kinh doanh theo tháng"
+FS_VI, MONTHLY_VI = "Báo cáo tài chính, quản trị, thường niên", "Báo cáo kết quả kinh doanh theo tháng"
+FS_EN = "ANNUAL, CORPORATE GOVERNANCE & FINANCIAL REPORTS"
+CDN = "https://cdn.test"
 
 
 def _year(cid, name, children):
@@ -33,7 +37,7 @@ class FakeResp:
 class FakeApi:
     def __init__(self, years, posts, pdf_content=b"%PDF-1.4 fake",
                  jpg_content=b"\xff\xd8\xff\xe0 fake", errors=None):
-        self.years, self.posts = years, posts
+        self.years, self.posts = years, posts  # years: lang -> [category năm]
         self.pdf_content, self.jpg_content = pdf_content, jpg_content
         self.errors = errors or {}  # url -> HTTP status hoặc exception
         self.calls = []
@@ -47,9 +51,11 @@ class FakeApi:
             raise requests.HTTPError(f"{err}", response=FakeResp(url, status_code=err))
         q = {k: v[0] for k, v in parse_qs(urlsplit(url).query).items()}
         if "CategoryAPI" in url:
-            data = self.years
+            data = self.years.get(q["langID"], [])
         elif "PostAPI" in url:
             data = self.posts.get(int(q["categoryID"]), [])
+            if not data:
+                return FakeResp(url, {"code": mwg_crawler.API_CODE_NO_DATA, "data": None})
         else:
             is_jpg = urlsplit(url).path.endswith(".jpg")
             return FakeResp(url, content=self.jpg_content if is_jpg else self.pdf_content)
@@ -58,7 +64,7 @@ class FakeApi:
         return FakeResp(url, {"code": 0, "data": data})
 
     def downloads(self):
-        return [u for u, kind in self.calls if kind == "pdf"]
+        return sorted(u.removeprefix(CDN) for u, kind in self.calls if kind == "pdf")
 
 
 @pytest.fixture
@@ -66,6 +72,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(mwg_crawler, "MANIFEST_PATH", tmp_path / "_state" / "manifest.parquet")
     monkeypatch.setattr(mwg_crawler, "BRONZE_ROOT", tmp_path / "bronze" / "source=mwg_ir")
     monkeypatch.setattr(mwg_crawler, "ERRORS_PATH", tmp_path / "_state" / "download_errors.csv")
+    monkeypatch.setattr(mwg_crawler, "has_text_layer", lambda path: True)
 
     def install(api):
         monkeypatch.setattr(mwg_crawler, "get", api)
@@ -74,52 +81,96 @@ def env(tmp_path, monkeypatch):
 
 
 def _sample_api(**kw):
-    years = [_year(429, "2026", [(431, MONTHLY), (430, FS)]),
-             _year(205, "2025", [(208, MONTHLY), (209, FS)]),
-             _year(193, "2024", [(194, MONTHLY), (195, FS)])]
+    years = {
+        "vi-VN": [_year(429, "2026", [(431, MONTHLY_VI), (430, FS_VI)]),
+                  _year(205, "2025", [(208, MONTHLY_VI), (209, FS_VI)]),
+                  _year(193, "2024", [(194, MONTHLY_VI), (195, FS_VI)])],
+        "en-US": [_year(432, "2026", [(434, "MONTHLY PERFORMANCE UPDATES"), (433, FS_EN)]),
+                  _year(211, "2025", [(212, "MONTHLY PERFORMANCE UPDATES"), (213, FS_EN)]),
+                  _year(196, "2024", [(197, "MONTHLY PERFORMANCE UPDATES"), (198, FS_EN)])],
+    }
     posts = {
-        430: [_post(1, "Báo Cáo Tài Chính Hợp Nhất Quý 3 Năm 2026", "https://cdn.test/a/q3.pdf"),
-              _post(2, "Báo Cáo Tài Chính Riêng Quý 3 Năm 2026", "https://cdn.test/a/rieng.pdf"),
-              _post(3, "Báo Cáo Tài Chính Hợp Nhất Quý 2 Năm 2026", "https://cdn.test/a/q2.pdf", 2, active=False)],
+        430: [_post(1, "Báo Cáo Tài Chính Hợp Nhất Quý 3 Năm 2026", f"{CDN}/vi/q3-2026.pdf"),
+              _post(2, "Báo Cáo Tài Chính Riêng Quý 3 Năm 2026", f"{CDN}/vi/rieng.pdf"),
+              _post(3, "Báo Cáo Tài Chính Hợp Nhất Quý 2 Năm 2026", f"{CDN}/vi/q2-2026.pdf", 2, active=False)],
         431: [_post(4, "Cập Nhật Tình Hình Kinh Doanh 10 Tháng 2026", ""),
-              _post(5, "Cập Nhật Tình Hình Kinh Doanh 9 Tháng 2026", "https://cdn.test/a/m9.pdf")],
-        209: [_post(6, "Báo Cáo Tài Chính Hợp Nhất Kiểm Toán Năm 2025", "https://cdn.test/b/y.pdf", 4)],
-        208: [_post(7, "Báo cáo tóm tắt KQKD 8 tháng đầu năm 2025", "https://cdn.test/b/m8.jpg"),
-              _post(10, "Báo cáo tóm tắt KQKD 7 tháng đầu năm 2025", "https://cdn.test/b/m7.docx")],
-        195: [_post(8, "Báo Cáo Tài Chính Hợp Nhất Quý 1 Năm 2024", "https://cdn.test/c/q1.pdf", 1)],
+              _post(5, "Cập Nhật Tình Hình Kinh Doanh 9 Tháng 2026", f"{CDN}/vi/m9.pdf")],
+        209: [_post(6, "Báo Cáo Tài Chính Hợp Nhất Kiểm Toán Năm 2025", f"{CDN}/vi/fy2025.pdf", 4)],
+        208: [_post(7, "Báo cáo tóm tắt KQKD 8 tháng đầu năm 2025", f"{CDN}/vi/m8.jpg"),
+              _post(10, "Báo cáo tóm tắt KQKD 7 tháng đầu năm 2025", f"{CDN}/vi/m7.docx")],
+        195: [_post(8, "Báo Cáo Tài Chính Hợp Nhất Quý 1 Năm 2024", f"{CDN}/vi/q1-2024.pdf", 1)],
+        433: [_post(21, "Consolidated FS Q3/2026", f"{CDN}/en/q3-2026.pdf"),
+              _post(22, "Separate FS Q3/2026", f"{CDN}/en/sep-q3-2026.pdf"),
+              _post(23, "Audited Consolidated FS 1H2026", f"{CDN}/en/1h2026.pdf", 2)],
+        213: [_post(24, "Audited Consolidated FS FY2025", f"{CDN}/en/fy2025.pdf", 4)],
+        198: [_post(25, "Consolidated FS Q1/2024", f"{CDN}/en/q1-2024.pdf", 1)],
+        # 197, 212, 434 (báo cáo tháng en-US) không nằm trong sections nên không bao giờ được gọi
     }
     return FakeApi(years, posts, **kw)
 
 
-def test_crawl_tai_dung_tai_lieu_va_ghi_bronze(env):
+def _with_config(monkeypatch, **changes):
+    cfg = copy.deepcopy(mwg_crawler.load_config())
+    cfg["listing"].update(changes)
+    monkeypatch.setattr(mwg_crawler, "load_config", lambda *a, **k: cfg)
+
+
+# ---------- Bản chính vi-VN + dự phòng en-US ----------
+
+def test_crawl_tai_ban_chinh_va_du_phong_khi_thieu(env):
     tmp, install = env
     api = install(_sample_api())
     rows = mwg_crawler.crawl()
 
-    # incremental: chỉ 2 năm mới nhất; bỏ BCTC riêng, bài ẩn, link rỗng, định dạng .docx
-    assert sorted(api.downloads()) == ["https://cdn.test/a/m9.pdf", "https://cdn.test/a/q3.pdf",
-                                       "https://cdn.test/b/m8.jpg", "https://cdn.test/b/y.pdf"]
-    assert {(r["doc_type"], r["file_type"], r["period"], r["assurance_level"]) for r in rows} == {
-        ("FS_CONSOLIDATED_Q", "pdf", "2026-Q3", 1), ("MONTHLY_RESULT", "pdf", "2026-M09", 1),
-        ("FS_CONSOLIDATED_Y", "pdf", "2025", 3), ("MONTHLY_RESULT", "jpg", "2025-M08", 1)}
+    # vi-VN: bỏ BCTC riêng, bài ẩn, link rỗng, .docx. en-US: chỉ 1H2026 vì vi-VN không có kỳ này;
+    # Q3/2026 và FY2025 đã có bản vi-VN nên không tải bản en-US.
+    assert api.downloads() == ["/en/1h2026.pdf", "/vi/fy2025.pdf", "/vi/m8.jpg",
+                               "/vi/m9.pdf", "/vi/q3-2026.pdf"]
+    got = {(r["lang"], r["fetch_reason"], r["doc_type"], r["file_type"], r["period"],
+            r["assurance_level"]) for r in rows}
+    assert got == {
+        ("vi-VN", "primary", "FS_CONSOLIDATED_Q", "pdf", "2026-Q3", 1),
+        ("vi-VN", "primary", "MONTHLY_RESULT", "pdf", "2026-M09", 1),
+        ("vi-VN", "primary", "FS_CONSOLIDATED_Y", "pdf", "2025", 3),
+        ("vi-VN", "primary", "MONTHLY_RESULT", "jpg", "2025-M08", 1),
+        ("en-US", "fallback", "FS_CONSOLIDATED_H", "pdf", "2026-H1", 2),
+    }
+    # không gọi danh mục báo cáo tháng en-US
+    assert not any("categoryID=434" in u for u, _ in api.calls)
 
-    pdfs = sorted((tmp / "bronze").rglob("*.pdf"))
-    assert len(pdfs) == 3
-    q3 = next(p for p in pdfs if "MWG_2026Q3_" in p.name)
+    q3 = next((tmp / "bronze").rglob("MWG_2026Q3_*.pdf"))
     assert q3.parent.parent.name == "doc_type=FS_CONSOLIDATED_Q"
     assert q3.parent.name.startswith("ingestion_date=")
     meta = json.loads(q3.with_name(q3.name + ".meta.json").read_text(encoding="utf-8"))
-    for key in ("url", "title", "doc_type", "file_type", "period", "published", "sha256", "size",
-                "fetched_at", "http_status"):
+    for key in ("url", "lang", "fetch_reason", "title", "doc_type", "file_type", "has_text_layer",
+                "period", "published", "sha256", "size", "fetched_at", "http_status"):
         assert key in meta
     assert q3.name == f"MWG_2026Q3_{meta['sha256'][:8]}.pdf"
 
-    jpgs = list((tmp / "bronze").rglob("*.jpg"))
-    assert [j.name[:12] for j in jpgs] == ["MWG_2025M08_"]
-    assert jpgs[0].with_name(jpgs[0].name + ".meta.json").exists()
-
     mf = pl.read_parquet(mwg_crawler.MANIFEST_PATH)
-    assert mf.height == 4 and set(mf["url"]) == {r["url"] for r in rows}
+    assert mf.height == 5 and set(mf["url"]) == {r["url"] for r in rows}
+    assert mf.columns == list(mwg_crawler.MANIFEST_SCHEMA)
+
+
+def test_ban_chinh_chet_link_thi_tai_ban_du_phong(env):
+    _, install = env
+    api = install(_sample_api(errors={f"{CDN}/vi/fy2025.pdf": 404}))
+    rows = mwg_crawler.crawl()
+    assert "/en/fy2025.pdf" in api.downloads()
+    y = next(r for r in rows if r["period"] == "2025")
+    assert (y["lang"], y["fetch_reason"], y["assurance_level"]) == ("en-US", "fallback", 3)
+
+
+def test_cross_check_tai_ca_hai_ngon_ngu(env, monkeypatch):
+    _, install = env
+    _with_config(monkeypatch, cross_check=[
+        {"lang_id": "en-US", "doc_type": "FS_CONSOLIDATED_Q", "period": "2026-Q3"}])
+    api = install(_sample_api())
+    rows = mwg_crawler.crawl()
+    assert {"/vi/q3-2026.pdf", "/en/q3-2026.pdf"} <= set(api.downloads())
+    q3 = {(r["lang"], r["fetch_reason"], r["is_restatement"]) for r in rows if r["period"] == "2026-Q3"}
+    # hai ngôn ngữ cùng kỳ không phải bản điều chỉnh
+    assert q3 == {("vi-VN", "primary", False), ("en-US", "cross_check", False)}
 
 
 def test_chay_lan_hai_khong_tai_lai(env, capsys):
@@ -136,18 +187,81 @@ def test_backfill_xem_tat_ca_cac_nam(env):
     _, install = env
     api = install(_sample_api())
     mwg_crawler.crawl(backfill=True)
-    assert "https://cdn.test/c/q1.pdf" in api.downloads()
+    assert "/vi/q1-2024.pdf" in api.downloads()
+    assert "/en/q1-2024.pdf" not in api.downloads()  # đã có bản vi-VN
 
+
+# ---------- Dry-run ----------
 
 def test_dry_run_khong_tai_va_khong_ghi(env):
     tmp, install = env
     api = install(_sample_api())
     rows = mwg_crawler.crawl(dry_run=True)
-    assert len(rows) == 4
+    assert len(rows) == 5
     assert api.downloads() == []
     assert not mwg_crawler.MANIFEST_PATH.exists()
     assert not (tmp / "bronze").exists()
 
+
+def test_dry_run_tinh_den_link_chet_da_biet(env):
+    _, install = env
+    mwg_crawler.ERRORS_PATH.parent.mkdir(parents=True)
+    with mwg_crawler.ERRORS_PATH.open("w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=mwg_crawler.ERROR_FIELDS)
+        w.writeheader()
+        w.writerow({"url": f"{CDN}/vi/fy2025.pdf", "lang": "vi-VN", "http_status": 404})
+    install(_sample_api())
+    rows = mwg_crawler.crawl(dry_run=True)
+    by_url = {r["url"].removeprefix(CDN): r for r in rows}
+    assert by_url["/vi/fy2025.pdf"]["known_dead"] is True
+    assert by_url["/en/fy2025.pdf"]["fetch_reason"] == "fallback"
+
+
+# ---------- Manifest ----------
+
+def test_manifest_cu_duoc_bo_sung_cot_moi(env):
+    # manifest tạo trước khi có file_type, lang, fetch_reason, has_text_layer
+    _, install = env
+    old_cols = {k: v for k, v in mwg_crawler.MANIFEST_SCHEMA.items()
+                if k not in ("file_type", "lang", "fetch_reason", "has_text_layer")}
+    old = pl.DataFrame([{"url": f"{CDN}/vi/q3-2026.pdf", "post_id": 1, "doc_type": "FS_CONSOLIDATED_Q",
+                         "period": "2026-Q3", "sha256": "x" * 64}], schema=old_cols)
+    mwg_crawler.MANIFEST_PATH.parent.mkdir(parents=True)
+    old.write_parquet(mwg_crawler.MANIFEST_PATH)
+
+    mf = mwg_crawler.load_manifest()
+    assert mf.columns == list(mwg_crawler.MANIFEST_SCHEMA)
+    assert mf.select("lang", "fetch_reason", "file_type", "has_text_layer").row(0) == (
+        "vi-VN", "primary", "pdf", None)
+    api = install(_sample_api())
+    mwg_crawler.crawl()
+    # kỳ 2026-Q3 đã có bản vi-VN trong manifest cũ -> không tải lại, cũng không tải bản en-US
+    assert "/vi/q3-2026.pdf" not in api.downloads()
+    assert "/en/q3-2026.pdf" not in api.downloads()
+
+
+def test_ghi_has_text_layer(env, monkeypatch):
+    _, install = env
+    monkeypatch.setattr(mwg_crawler, "has_text_layer", lambda path: path.suffix == ".pdf" and "2026H1" in path.name)
+    install(_sample_api())
+    rows = {r["period"]: r for r in mwg_crawler.crawl()}
+    assert rows["2026-H1"]["has_text_layer"] is True       # en-US
+    assert rows["2026-Q3"]["has_text_layer"] is False      # PDF scan
+    assert rows["2025-M08"]["has_text_layer"] is False     # ảnh luôn cần OCR
+
+
+def test_ban_dieu_chinh_cung_ky_cung_ngon_ngu_duoc_danh_dau(env):
+    _, install = env
+    install(_sample_api())
+    mwg_crawler.crawl()
+    api = _sample_api(pdf_content=b"%PDF-1.4 ban dieu chinh")
+    api.posts[430].append(_post(9, "Báo Cáo Tài Chính Hợp Nhất Quý 3 Năm 2026", f"{CDN}/vi/q3-2026-v2.pdf"))
+    install(api)
+    rows = mwg_crawler.crawl()
+    assert [(r["lang"], r["period"], r["is_restatement"]) for r in rows] == [("vi-VN", "2026-Q3", True)]
+
+
+# ---------- Định dạng file ----------
 
 def test_noi_dung_khong_phai_pdf_hay_anh_thi_bo_qua(env):
     tmp, install = env
@@ -172,36 +286,9 @@ def test_detect_file_type(content, expected):
     assert mwg_crawler.detect_file_type(content) == expected
 
 
-def test_manifest_cu_chua_co_file_type(env):
-    # manifest tạo trước khi có cột file_type: đọc lên coi là pdf, lần chạy sau ghi tiếp được
-    _, install = env
-    old_schema = {k: v for k, v in mwg_crawler.MANIFEST_SCHEMA.items() if k != "file_type"}
-    old = pl.DataFrame([{"url": "https://cdn.test/a/q3.pdf", "post_id": 1, "doc_type": "FS_CONSOLIDATED_Q",
-                         "period": "2026-Q3", "sha256": "x" * 64}], schema=old_schema)
-    mwg_crawler.MANIFEST_PATH.parent.mkdir(parents=True)
-    old.write_parquet(mwg_crawler.MANIFEST_PATH)
+# ---------- Lỗi tải ----------
 
-    mf = mwg_crawler.load_manifest()
-    assert mf.columns == list(mwg_crawler.MANIFEST_SCHEMA) and mf["file_type"].to_list() == ["pdf"]
-    api = install(_sample_api())
-    mwg_crawler.crawl()
-    assert "https://cdn.test/a/q3.pdf" not in api.downloads()
-    assert pl.read_parquet(mwg_crawler.MANIFEST_PATH).height == 4
-
-
-def test_ban_dieu_chinh_cung_ky_duoc_danh_dau(env):
-    _, install = env
-    install(_sample_api())
-    mwg_crawler.crawl()
-    api = _sample_api(pdf_content=b"%PDF-1.4 ban dieu chinh")
-    api.posts[430].append(_post(9, "Báo Cáo Tài Chính Hợp Nhất Quý 3 Năm 2026",
-                                "https://cdn.test/a/q3-v2.pdf"))
-    install(api)
-    rows = mwg_crawler.crawl()
-    assert [(r["period"], r["is_restatement"]) for r in rows] == [("2026-Q3", True)]
-
-
-DEAD = "https://cdn.test/a/q3.pdf"
+DEAD = f"{CDN}/vi/q3-2026.pdf"
 
 
 @pytest.mark.parametrize("status", [404, 410])
@@ -210,15 +297,15 @@ def test_link_chet_ghi_lai_va_tai_tiep(env, status):
     api = install(_sample_api(errors={DEAD: status}))
     rows = mwg_crawler.crawl()
 
-    assert DEAD in api.downloads()
-    assert {r["url"] for r in rows} == {"https://cdn.test/a/m9.pdf", "https://cdn.test/b/y.pdf",
-                                        "https://cdn.test/b/m8.jpg"}
+    assert "/vi/q3-2026.pdf" in api.downloads()
+    # bản vi-VN chết -> tải bản en-US cùng kỳ thay thế
+    assert ("en-US", "fallback") in {(r["lang"], r["fetch_reason"]) for r in rows if r["period"] == "2026-Q3"}
     errors = mwg_crawler.ERRORS_PATH.read_text(encoding="utf-8")
-    assert DEAD in errors and str(status) in errors
+    assert DEAD in errors and str(status) in errors and "vi-VN" in errors
     # link chết không vào manifest, lần sau vẫn thử lại; file lỗi không bị nhân dòng
     api2 = install(_sample_api(errors={DEAD: status}))
     mwg_crawler.crawl()
-    assert api2.downloads() == [DEAD]
+    assert api2.downloads() == ["/vi/q3-2026.pdf"]
     assert mwg_crawler.ERRORS_PATH.read_text(encoding="utf-8").count(DEAD) == 1
 
 

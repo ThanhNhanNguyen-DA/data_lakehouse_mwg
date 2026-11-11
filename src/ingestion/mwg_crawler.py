@@ -3,9 +3,12 @@
 Danh sách tài liệu lấy từ JSON API mà trang mwg.vn/bao-cao gọi (xem config/sources.yaml).
 Incremental bằng manifest (data/_state/manifest.parquet, khóa là URL file).
 
+Nguồn chính là bản vi-VN. Bản en-US chỉ được tải khi kỳ đó (doc_type, period) chưa có bản
+vi-VN tải được (link vi-VN chết hoặc không có), hoặc khi kỳ đó nằm trong listing.cross_check.
+
     python -m src.ingestion.mwg_crawler              # incremental: chỉ các năm mới nhất
     python -m src.ingestion.mwg_crawler --backfill   # lần đầu: toàn bộ lịch sử
-    python -m src.ingestion.mwg_crawler --dry-run    # chỉ liệt kê + phân loại, không tải PDF
+    python -m src.ingestion.mwg_crawler --dry-run    # chỉ liệt kê + phân loại, không tải
 """
 from __future__ import annotations
 
@@ -25,6 +28,7 @@ import yaml
 
 from src.common.paths import BRONZE_DIR, CONFIG_DIR, ROOT, STATE_DIR
 from src.common.text import norm
+from src.extraction.pdf_extractor import has_text_layer
 from src.ingestion.http_utils import get
 
 SOURCES_PATH = CONFIG_DIR / "sources.yaml"
@@ -37,16 +41,21 @@ DEAD_LINK_STATUS = {404, 410}  # link chết trên nguồn: ghi lại rồi bỏ
 # còn file_type lấy theo magic bytes của nội dung (đuôi URL có thể sai).
 DOWNLOAD_EXTS = {".pdf", ".jpg", ".jpeg", ".png"}
 MAGIC = {"pdf": b"%PDF", "jpg": b"\xff\xd8\xff", "png": b"\x89PNG\r\n\x1a\n"}
-ERROR_FIELDS = ["url", "title", "doc_type", "period", "http_status", "first_seen", "last_seen"]
+ERROR_FIELDS = ["url", "lang", "title", "doc_type", "period", "http_status", "first_seen", "last_seen"]
 _PLACEHOLDER = re.compile(r"<[^>]*>")
+API_CODE_NO_DATA = 24000  # API trả code này kèm "Không có dữ liệu" khi danh mục rỗng
 
 MANIFEST_SCHEMA = {
-    "url": pl.Utf8, "post_id": pl.Int64, "title": pl.Utf8, "doc_type": pl.Utf8,
-    "file_type": pl.Utf8, "period": pl.Utf8, "published": pl.Utf8, "category_year": pl.Int32,
+    "url": pl.Utf8, "post_id": pl.Int64, "lang": pl.Utf8, "fetch_reason": pl.Utf8,
+    "title": pl.Utf8, "doc_type": pl.Utf8, "file_type": pl.Utf8, "has_text_layer": pl.Boolean,
+    "period": pl.Utf8, "published": pl.Utf8, "category_year": pl.Int32,
     "assurance_level": pl.Int8, "sha256": pl.Utf8, "size": pl.Int64,
     "http_status": pl.Int16, "is_restatement": pl.Boolean, "path": pl.Utf8,
     "fetched_at": pl.Utf8,
 }
+# Giá trị cho các cột chưa có ở manifest cũ (trước khi có nguồn en-US, chỉ có bản vi-VN PDF)
+_MANIFEST_DEFAULTS = {"lang": "vi-VN", "fetch_reason": "primary", "file_type": "pdf",
+                      "has_text_layer": None}
 
 
 @lru_cache(maxsize=None)
@@ -55,18 +64,36 @@ def load_config(path: Path = SOURCES_PATH) -> dict:
         return yaml.safe_load(f)
 
 
+def _placeholder_keys(prefix: str, d: dict) -> list[str]:
+    return [f"{prefix}.{k}" for k, v in d.items()
+            if v is None or (isinstance(v, str) and _PLACEHOLDER.search(v))]
+
+
 def unfilled_fields(cfg: dict) -> list[str]:
-    """Các trường trong 'listing' còn để trống hoặc placeholder <...>."""
+    """Các trường trong 'listing' (kể cả từng ngôn ngữ) còn trống hoặc placeholder <...>."""
     listing = cfg.get("listing")
     if not listing:
         return ["listing"]
-    return [f"listing.{k}" for k, v in listing.items()
-            if v is None or (isinstance(v, str) and _PLACEHOLDER.search(v))]
+    out = _placeholder_keys("listing", listing)
+    langs = listing.get("languages") or []
+    if not langs:
+        out.append("listing.languages")
+    for i, lang in enumerate(langs):
+        out += _placeholder_keys(f"listing.languages[{i}]", lang)
+    return out
 
 
 # ---------- Nhận diện loại tài liệu ----------
 
+def _key(title: str) -> str:
+    """Chuỗi để so khớp tiêu đề: norm() + coi '_' là dấu cách ("QIII_2016" -> "qiii 2016")."""
+    return norm(title).replace("_", " ")
+
+
 def _has_word(text: str, keyword: str) -> bool:
+    """Khớp nguyên từ; từ khóa kết thúc bằng '*' khớp tiền tố của một từ."""
+    if keyword.endswith("*"):
+        return re.search(rf"(?<!\w){re.escape(keyword[:-1])}", text) is not None
     return re.search(rf"(?<!\w){re.escape(keyword)}(?!\w)", text) is not None
 
 
@@ -74,7 +101,7 @@ def classify(title: str, rules: list[dict] | None = None) -> str | None:
     """Trả về doc_type theo quy tắc đầu tiên khớp trong doc_rules, hoặc None."""
     if rules is None:
         rules = load_config()["doc_rules"]
-    t = norm(title)
+    t = _key(title)
     for rule in rules:
         all_kw, any_kw, none_kw = rule.get("all", []), rule.get("any", []), rule.get("none", [])
         if not all_kw and not any_kw:
@@ -86,11 +113,12 @@ def classify(title: str, rules: list[dict] | None = None) -> str | None:
     return None
 
 
-def assurance_level(title: str, doc_type: str, cfg: dict | None = None) -> int:
-    """Mức tin cậy: kiểm toán 3 > soát xét 2 > tự lập 1 (max của mặc định và từ khóa)."""
+def assurance_level(title: str, doc_type: str, cfg: dict | None = None,
+                    lang: str = "vi-VN") -> int:
+    """Mức tin cậy: kiểm toán 3 > soát xét 2 > tự lập 1 (max của mặc định và từ khóa theo ngôn ngữ)."""
     a = (cfg or load_config())["assurance"]
-    t = norm(title)
-    found = [lvl for kw, lvl in a["keywords"].items() if _has_word(t, kw)]
+    t = _key(title)
+    found = [lvl for kw, lvl in a["keywords"].get(lang, {}).items() if _has_word(t, kw)]
     return max([a["default"].get(doc_type, 1), *found])
 
 
@@ -99,10 +127,28 @@ def assurance_level(title: str, doc_type: str, cfg: dict | None = None) -> int:
 _ROMAN = {"i": 1, "ii": 2, "iii": 3, "iv": 4}
 _YEAR = re.compile(r"(?<!\d)(20\d{2})(?!\d)")
 _QUARTER = re.compile(r"\b(?:quy|quarter|q)\s*([1-4]|iv|iii|ii|i)\b")
+_EN_QUARTER_YEAR = re.compile(r"\b([1-4])q(\d{4}|\d{2})\b")   # "3q19", "1q2023"
+_EN_HALF_YEAR = re.compile(r"\b1h(\d{4}|\d{2})\b")             # "1h18", "1h2020"
+_EN_FISCAL_YEAR = re.compile(r"\bfy\s*(\d{4}|\d{2})\b")        # "fy2019", "fy 2017"
 _MONTH = re.compile(r"\b(1[0-2]|[1-9])\s*(?:thang|months?)\b|\bthang\s*(1[0-2]|[1-9])\b")
 _MONTH_RANGE = re.compile(r"\bthang\s*(1[0-2]|[1-9])\s*\+\s*(1[0-2]|[1-9])\b")  # "tháng 1+2"
 _HALF_HINTS = ("soat xet", "ban nien", "giua nien do", "6 thang", "sau thang",
-               "semi-annual", "half-year", "half year", "6 months", "six months")
+               "semi-annual", "half-year", "half year", "1st half", "6 months", "six months")
+
+
+def _full_year(yy: str) -> str:
+    return yy if len(yy) == 4 else f"20{yy}"
+
+
+def _year_in(t: str) -> str | None:
+    y = _YEAR.search(t)
+    if y:
+        return y.group(1)
+    for rx, grp in ((_EN_QUARTER_YEAR, 2), (_EN_HALF_YEAR, 1), (_EN_FISCAL_YEAR, 1)):
+        m = rx.search(t)
+        if m:
+            return _full_year(m.group(grp))
+    return None
 
 
 def parse_period(title: str, doc_type: str | None = None,
@@ -112,13 +158,9 @@ def parse_period(title: str, doc_type: str | None = None,
     default_year: năm dùng khi tiêu đề không ghi năm (crawler truyền năm của danh mục trên mwg.vn).
     Trả về None nếu không xác định được, để crawler ghi 'unknown' thay vì đoán.
     """
-    t = norm(title)
-    y = _YEAR.search(t)
-    if y:
-        year = y.group(1)
-    elif default_year:
-        year = str(default_year)
-    else:
+    t = _key(title)
+    year = _year_in(t) or (str(default_year) if default_year else None)
+    if year is None:
         return None
 
     if doc_type == "FS_CONSOLIDATED_Y":
@@ -138,24 +180,29 @@ def parse_period(title: str, doc_type: str | None = None,
     if q:
         val = q.group(1)
         return f"{year}-Q{_ROMAN.get(val) or int(val)}"
+    qy = _EN_QUARTER_YEAR.search(t)
+    if qy:
+        return f"{year}-Q{qy.group(1)}"
     if doc_type == "FS_CONSOLIDATED_Q":
         return None  # loại quý mà không thấy số quý: không đoán
-    if any(h in t for h in _HALF_HINTS):
+    if _EN_HALF_YEAR.search(t) or any(h in t for h in _HALF_HINTS):
         return f"{year}-H1"
     return year
 
 
 # ---------- Liệt kê tài liệu qua JSON API ----------
 
-def _api(endpoint: str, params: dict, cfg: dict) -> list[dict]:
+def _api(endpoint: str, params: dict, cfg: dict, lang_cfg: dict) -> list[dict]:
     """Gọi API danh sách, tự lật trang theo totalRecord. Chỉ trả bản ghi đang hiển thị."""
     lst = cfg["listing"]
     out: list[dict] = []
     for page_index in range(1, 21):
-        query = {"langID": lst["lang_id"], **params,
+        query = {"langID": lang_cfg["lang_id"], **params,
                  "pageIndex": page_index, "pageSize": lst["page_size"]}
         url = f"{lst['api_base'].rstrip('/')}{endpoint}?{urlencode(query)}"
-        body = get(url, referer=lst["referer"]).json()
+        body = get(url, referer=lang_cfg["referer"]).json()
+        if body.get("code") == API_CODE_NO_DATA:  # danh mục rỗng (vd. en-US năm 2015)
+            break
         if body.get("code") != 0:
             raise RuntimeError(f"[crawl] API báo lỗi {body.get('code')}: {body.get('message')} ({url})")
         data = body.get("data") or []
@@ -166,11 +213,11 @@ def _api(endpoint: str, params: dict, cfg: dict) -> list[dict]:
     return [d for d in out if d.get("isActived") and not d.get("isDeleted")]
 
 
-def list_year_sections(cfg: dict) -> list[dict]:
+def list_year_sections(cfg: dict, lang_cfg: dict) -> list[dict]:
     """[{year, section, category_id}] theo năm mới nhất trước, chỉ các section trong config."""
-    lst = cfg["listing"]
-    wanted = {norm(s): s for s in lst["sections"]}
-    years = _api(lst["category_endpoint"], {"parentID": lst["root_category_id"]}, cfg)
+    wanted = {norm(s): s for s in lang_cfg["sections"]}
+    years = _api(cfg["listing"]["category_endpoint"],
+                 {"parentID": lang_cfg["root_category_id"]}, cfg, lang_cfg)
     out = []
     for y in years:
         if not str(y.get("categoryName", "")).strip().isdigit():
@@ -183,22 +230,24 @@ def list_year_sections(cfg: dict) -> list[dict]:
             if norm(name) in wanted:
                 out.append({"year": int(y["categoryName"]), "section": wanted[norm(name)],
                             "category_id": int(cid)})
-    return sorted(out, key=lambda r: (-r["year"], lst["sections"].index(r["section"])))
+    return sorted(out, key=lambda r: (-r["year"], lang_cfg["sections"].index(r["section"])))
 
 
-def list_documents(cfg: dict, max_years: int | None):
+def list_documents(cfg: dict, lang_cfg: dict, max_years: int | None):
     """Sinh từng tài liệu (đã lọc bài ẩn/xóa) của max_years năm mới nhất (None = tất cả)."""
-    sections = list_year_sections(cfg)
+    sections = list_year_sections(cfg, lang_cfg)
     years = sorted({s["year"] for s in sections}, reverse=True)
     keep = set(years[:max_years] if max_years else years)
     for s in sections:
         if s["year"] not in keep:
             continue
         for p in _api(cfg["listing"]["post_endpoint"],
-                      {"categoryID": s["category_id"], "condition": cfg["listing"]["condition"]}, cfg):
+                      {"categoryID": s["category_id"], "condition": cfg["listing"]["condition"]},
+                      cfg, lang_cfg):
             yield {
                 "url": (p.get("fileLink") or "").strip(),
                 "post_id": p.get("postID"),
+                "lang": lang_cfg["lang_id"],
                 "title": " ".join(str(p.get("title") or "").split()),
                 "published": str(p.get("publishDate") or "")[:10] or None,
                 "category_year": s["year"],
@@ -212,9 +261,8 @@ def load_manifest() -> pl.DataFrame:
     if not MANIFEST_PATH.exists():
         return pl.DataFrame(schema=MANIFEST_SCHEMA)
     df = pl.read_parquet(MANIFEST_PATH)
-    if "file_type" not in df.columns:
-        # manifest tạo trước khi có cột file_type: khi đó crawler chỉ lưu PDF
-        df = df.with_columns(pl.lit("pdf").alias("file_type"))
+    missing = [c for c in MANIFEST_SCHEMA if c not in df.columns]
+    df = df.with_columns([pl.lit(_MANIFEST_DEFAULTS.get(c)).alias(c) for c in missing])
     return df.select([pl.col(c).cast(t) for c, t in MANIFEST_SCHEMA.items()])
 
 
@@ -232,25 +280,29 @@ def _rel(path: Path) -> str:
         return path.as_posix()
 
 
+def _load_download_errors() -> dict[str, dict]:
+    if not ERRORS_PATH.exists():
+        return {}
+    with ERRORS_PATH.open(encoding="utf-8", newline="") as f:
+        return {r["url"]: r for r in csv.DictReader(f)}
+
+
 def _log_download_error(doc: dict, doc_type: str, period: str, status: int) -> None:
     """Ghi link tải lỗi vào download_errors.csv (một dòng mỗi URL, cập nhật last_seen).
 
     Link lỗi không vào manifest, nên lần backfill sau vẫn thử lại phòng khi nguồn sửa link.
     """
-    rows: dict[str, dict] = {}
-    if ERRORS_PATH.exists():
-        with ERRORS_PATH.open(encoding="utf-8", newline="") as f:
-            rows = {r["url"]: r for r in csv.DictReader(f)}
+    rows = _load_download_errors()
     today = date.today().isoformat()
     prev = rows.get(doc["url"], {})
-    rows[doc["url"]] = {"url": doc["url"], "title": doc["title"], "doc_type": doc_type,
-                        "period": period, "http_status": status,
+    rows[doc["url"]] = {"url": doc["url"], "lang": doc["lang"], "title": doc["title"],
+                        "doc_type": doc_type, "period": period, "http_status": status,
                         "first_seen": prev.get("first_seen", today), "last_seen": today}
     ERRORS_PATH.parent.mkdir(parents=True, exist_ok=True)
     with ERRORS_PATH.open("w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=ERROR_FIELDS)
         w.writeheader()
-        w.writerows(rows.values())
+        w.writerows({k: r.get(k, "") for k in ERROR_FIELDS} for r in rows.values())
 
 
 def _url_ext(url: str) -> str:
@@ -262,91 +314,127 @@ def detect_file_type(content: bytes) -> str | None:
     return next((ft for ft, magic in MAGIC.items() if content.startswith(magic)), None)
 
 
+def _fetch_reason(lang: str, primary_lang: str, doc_type: str, period: str,
+                  have_primary: set, cross_check: set) -> str | None:
+    """'primary' | 'cross_check' | 'fallback', hoặc None nếu không cần tải bản này."""
+    if lang == primary_lang:
+        return "primary"
+    if (lang, doc_type, period) in cross_check:
+        return "cross_check"
+    if period == "unknown" or (doc_type, period) in have_primary:
+        return None
+    return "fallback"
+
+
 def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
     cfg = load_config()
     missing = unfilled_fields(cfg)
     if missing:
         raise SystemExit(f"[crawl] sources.yaml thiếu: {', '.join(missing)}")
 
+    languages = cfg["listing"]["languages"]
+    primary_lang = languages[0]["lang_id"]
+    cross_check = {(c["lang_id"], c["doc_type"], str(c["period"]))
+                   for c in cfg["listing"].get("cross_check") or []}
     mf = load_manifest()
     known = set(mf["url"].to_list())
-    seen_periods = {(r["doc_type"], r["period"]): r["sha256"] for r in mf.iter_rows(named=True)}
+    dead = {u for u, r in _load_download_errors().items()
+            if str(r.get("http_status")) in {str(s) for s in DEAD_LINK_STATUS}}
+    seen_periods = {(r["lang"], r["doc_type"], r["period"]): r["sha256"] for r in mf.iter_rows(named=True)}
+    # Các kỳ đã có bản chính: bản dự phòng của các kỳ này không cần tải
+    have_primary = {(r["doc_type"], r["period"]) for r in mf.iter_rows(named=True)
+                    if r["lang"] == primary_lang}
     max_years = None if backfill else cfg["incremental_years"]
     new_rows: list[dict] = []
-    skipped = failed = 0
+    skipped = failed = covered = 0
 
-    for doc in list_documents(cfg, max_years):
-        doc_type = classify(doc["title"])
-        if doc_type is None:
-            skipped += 1
-            continue
-        if not doc["url"] or doc["url"] == "#":
-            print(f"[crawl] Chưa có file (sắp công bố {doc['published']}): {doc['title']}")
-            continue
-        if _url_ext(doc["url"]) not in DOWNLOAD_EXTS:
-            print(f"[crawl] Bỏ qua định dạng chưa hỗ trợ: {doc['title']} -> {doc['url'][-40:]}")
-            continue
+    for lang_cfg in languages:  # bản chính trước, để biết kỳ nào đã có khi xét bản dự phòng
+        lang = lang_cfg["lang_id"]
+        for doc in list_documents(cfg, lang_cfg, max_years):
+            doc_type = classify(doc["title"])
+            if doc_type is None:
+                skipped += 1
+                continue
+            if not doc["url"] or doc["url"] == "#":
+                print(f"[crawl] Chưa có file (sắp công bố {doc['published']}): {doc['title']}")
+                continue
+            if _url_ext(doc["url"]) not in DOWNLOAD_EXTS:
+                print(f"[crawl] Bỏ qua định dạng chưa hỗ trợ: {doc['title']} -> {doc['url'][-40:]}")
+                continue
 
-        period = parse_period(doc["title"], doc_type, default_year=doc["category_year"])
-        if period and period[:4] != str(doc["category_year"]):
-            print(f"[crawl] Lưu ý: kỳ {period} theo tiêu đề khác năm danh mục {doc['category_year']}: "
-                  f"{doc['title']}")
-        period = period or "unknown"
+            period = parse_period(doc["title"], doc_type, default_year=doc["category_year"])
+            if period and period[:4] != str(doc["category_year"]):
+                print(f"[crawl] Lưu ý: kỳ {period} theo tiêu đề khác năm danh mục {doc['category_year']}: "
+                      f"{doc['title']}")
+            period = period or "unknown"
 
-        if doc["url"] in known:
-            continue
-        if dry_run:
-            print(f"[crawl] (dry-run) {doc_type:<18} {period:<8} {doc['published']}  {doc['title']}")
-            new_rows.append({**doc, "doc_type": doc_type, "period": period})
-            continue
+            reason = _fetch_reason(lang, primary_lang, doc_type, period, have_primary, cross_check)
+            if reason is None:
+                covered += 1
+                continue
+            if doc["url"] in known:
+                continue
+            if dry_run:
+                note = "  [link đã 404, sẽ thử lại]" if doc["url"] in dead else ""
+                print(f"[crawl] (dry-run) {lang} {reason:<11} {doc_type:<18} {period:<8} "
+                      f"{doc['published']}  {doc['title']}{note}")
+                if reason == "primary" and doc["url"] not in dead:
+                    have_primary.add((doc_type, period))
+                new_rows.append({**doc, "doc_type": doc_type, "period": period,
+                                 "fetch_reason": reason, "known_dead": doc["url"] in dead})
+                continue
 
-        try:
-            r = get(doc["url"], referer=cfg["listing"]["referer"], kind="pdf")
-        except requests.HTTPError as e:
-            status = e.response.status_code if e.response is not None else None
-            if status not in DEAD_LINK_STATUS:
-                raise
-            print(f"[crawl] Link chết (HTTP {status}), bỏ qua: {doc['title']} -> {doc['url']}")
-            _log_download_error(doc, doc_type, period, status)
-            failed += 1
-            continue
-        content = r.content
-        file_type = detect_file_type(content)
-        if file_type is None:
-            print(f"[crawl] Nội dung tải về không phải PDF/ảnh, bỏ qua: {doc['url']}")
-            continue
+            try:
+                r = get(doc["url"], referer=lang_cfg["referer"], kind="pdf")
+            except requests.HTTPError as e:
+                status = e.response.status_code if e.response is not None else None
+                if status not in DEAD_LINK_STATUS:
+                    raise
+                print(f"[crawl] Link chết (HTTP {status}), bỏ qua: {doc['title']} -> {doc['url']}")
+                _log_download_error(doc, doc_type, period, status)
+                failed += 1
+                continue
+            content = r.content
+            file_type = detect_file_type(content)
+            if file_type is None:
+                print(f"[crawl] Nội dung tải về không phải PDF/ảnh, bỏ qua: {doc['url']}")
+                continue
 
-        sha = hashlib.sha256(content).hexdigest()
-        out_dir = BRONZE_ROOT / f"doc_type={doc_type}" / f"ingestion_date={date.today().isoformat()}"
-        out_dir.mkdir(parents=True, exist_ok=True)
-        file_path = out_dir / f"{cfg['symbol']}_{period.replace('-', '')}_{sha[:8]}.{file_type}"
-        if not file_path.exists():  # Bronze append-only: không ghi đè
-            file_path.write_bytes(content)
+            sha = hashlib.sha256(content).hexdigest()
+            out_dir = BRONZE_ROOT / f"doc_type={doc_type}" / f"ingestion_date={date.today().isoformat()}"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            file_path = out_dir / f"{cfg['symbol']}_{period.replace('-', '')}_{sha[:8]}.{file_type}"
+            if not file_path.exists():  # Bronze append-only: không ghi đè
+                file_path.write_bytes(content)
 
-        prev_sha = seen_periods.get((doc_type, period))
-        meta = {
-            "url": doc["url"], "post_id": doc["post_id"], "title": doc["title"],
-            "doc_type": doc_type, "file_type": file_type, "period": period,
-            "published": doc["published"],
-            "category_year": doc["category_year"],
-            "assurance_level": assurance_level(doc["title"], doc_type, cfg),
-            "sha256": sha, "size": len(content), "http_status": r.status_code,
-            "is_restatement": prev_sha is not None and prev_sha != sha,
-            "fetched_at": datetime.now().isoformat(timespec="seconds"),
-        }
-        meta_path = file_path.with_name(file_path.name + ".meta.json")
-        if not meta_path.exists():
-            meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+            prev_sha = seen_periods.get((lang, doc_type, period))
+            meta = {
+                "url": doc["url"], "post_id": doc["post_id"], "lang": lang, "fetch_reason": reason,
+                "title": doc["title"], "doc_type": doc_type, "file_type": file_type,
+                "has_text_layer": has_text_layer(file_path) if file_type == "pdf" else False,
+                "period": period, "published": doc["published"],
+                "category_year": doc["category_year"],
+                "assurance_level": assurance_level(doc["title"], doc_type, cfg, lang),
+                "sha256": sha, "size": len(content), "http_status": r.status_code,
+                "is_restatement": prev_sha is not None and prev_sha != sha,
+                "fetched_at": datetime.now().isoformat(timespec="seconds"),
+            }
+            meta_path = file_path.with_name(file_path.name + ".meta.json")
+            if not meta_path.exists():
+                meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-        row = {**meta, "path": _rel(file_path)}
-        mf = pl.concat([mf, pl.DataFrame([row], schema=MANIFEST_SCHEMA)])
-        _save_manifest(mf)  # lưu sau mỗi file để dừng giữa chừng không mất trạng thái
-        known.add(doc["url"])
-        seen_periods[(doc_type, period)] = sha
-        new_rows.append(row)
-        print(f"[bronze] {doc_type} {period} <- {doc['title']}")
+            row = {**meta, "path": _rel(file_path)}
+            mf = pl.concat([mf, pl.DataFrame([row], schema=MANIFEST_SCHEMA)])
+            _save_manifest(mf)  # lưu sau mỗi file để dừng giữa chừng không mất trạng thái
+            known.add(doc["url"])
+            seen_periods[(lang, doc_type, period)] = sha
+            if reason == "primary":
+                have_primary.add((doc_type, period))
+            new_rows.append(row)
+            print(f"[bronze] {lang} {reason} {doc_type} {period} <- {doc['title']}")
 
-    print(f"[crawl] Bỏ qua {skipped} tài liệu không thuộc loại cần lấy.")
+    print(f"[crawl] Bỏ qua {skipped} tài liệu không thuộc loại cần lấy; "
+          f"{covered} bản dự phòng không cần vì đã có bản chính.")
     if failed:
         print(f"[crawl] Link chết: {failed} (xem {_rel(ERRORS_PATH)}).")
     if new_rows:

@@ -89,18 +89,22 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 - Nếu trong DevTools có endpoint JSON trả danh sách tài liệu, ưu tiên gọi endpoint đó thay vì parse HTML.
   Đã khảo sát (11/11/2026): `mwg.vn/bao-cao` lấy danh sách từ JSON API `api.bhxwork.vn/gw/ir-api`
   (`CategoryAPI` → danh mục theo năm, `PostAPI` → tài liệu). Cấu hình nằm trong `sources.yaml > listing`.
+- **Hai ngôn ngữ, cùng do MWG công bố:** `vi-VN` (danh mục gốc 7) là nguồn chính, luôn tải. `en-US` (danh mục gốc 61, chỉ nhóm BCTC) là nguồn dự phòng: một tài liệu en-US chỉ được tải khi kỳ `(doc_type, period)` chưa có bản vi-VN tải được (link vi-VN chết hoặc không đăng), hoặc khi kỳ đó nằm trong `listing.cross_check` (hiện là Q3/2020 và FY2020, để đối chiếu hai bản trong `docs/dq_report.md`). Manifest ghi `lang` và `fetch_reason` (`primary` / `fallback` / `cross_check`).
+- Link chết (404/410) ghi vào `data/_state/download_errors.csv` rồi đi tiếp; lần backfill sau vẫn thử lại. **Không dùng Wayback Machine** hay bản lưu của bên thứ ba; kỳ không lấy lại được ghi vào `docs/limitations.md`.
 - Mọi request đi qua `src/ingestion/http_utils.get()`:
   - Session dùng chung, header trình duyệt thật (User-Agent xoay vòng, `Accept-Language: vi-VN`, `Referer`).
   - Nghỉ ngẫu nhiên 2–5 giây giữa request, 5–10 giây khi tải PDF.
   - Retry exponential backoff (tối đa 4 lần) cho 429/5xx/timeout.
   - **Gặp 403 thì dừng và ghi log, không tìm cách vượt qua.** Không giải CAPTCHA, không dùng proxy.
 - **Incremental bằng manifest** (`data/_state/manifest.parquet`, khóa là URL): API trả nguyên một năm mỗi request, nên incremental chỉ xem `incremental_years` (= 2) năm mới nhất; `--backfill` xem tất cả. Dùng `--dry-run` để xem trước tài liệu sẽ tải.
-- Tài liệu cùng kỳ nhưng sha256 khác (bản điều chỉnh, bản kiểm toán thay bản tự lập) vẫn được lưu; tầng Silver quyết định bản nào thắng.
+- Tài liệu cùng kỳ nhưng sha256 khác (bản điều chỉnh, bản kiểm toán thay bản tự lập, bản ngôn ngữ khác) vẫn được lưu; tầng Silver quyết định bản nào thắng. `is_restatement` chỉ so trong cùng một ngôn ngữ.
 - Tôn trọng `robots.txt` và Điều khoản sử dụng mwg.vn (chỉ dùng cho mục đích cá nhân, phi thương mại, học thuật).
 
 ### Bronze
 - **Append-only.** Không sửa, không xóa file đã tải.
-- Mỗi file có `<tên>.meta.json`: `url, title, doc_type, file_type, period, published, sha256, size, fetched_at, http_status` (file tải trước khi có `file_type` thì không có trường này; mặc định là `pdf`).
+- Mỗi file có `<tên>.meta.json`: `url, lang, fetch_reason, title, doc_type, file_type, has_text_layer, period, published, assurance_level, sha256, size, fetched_at, http_status`. File tải trước khi có các trường mới thì thiếu chúng; manifest coi là `lang=vi-VN`, `fetch_reason=primary`, `file_type=pdf`, `has_text_layer=null`.
+- `has_text_layer`: PDF có lớp text đọc được bằng `pdfplumber` (True) hay là bản scan cần OCR (False); ảnh luôn là False; null = không mở được file.
+- `assurance_level` (dùng làm `source_priority` ở Silver) theo ngôn ngữ: vi-VN dùng từ khóa "kiểm toán"/"soát xét"; en-US FY = 3, 1H = 2, còn "Audited" trên BCTC quý chỉ tính 2 vì bản vi-VN cùng kỳ ghi "Soát Xét".
 - Tên file: `MWG_{kỳ}_{sha256[:8]}.{pdf|jpg|png}` (kỳ dạng `2026Q3`, `2026H1`, `2025`, `2017M08`). `file_type` lấy theo magic bytes của nội dung, không theo đuôi URL. Ảnh (báo cáo tháng 2017–01/2018) cần OCR ở bước bóc tách.
 - Loại tài liệu: `FS_CONSOLIDATED_Q`, `FS_CONSOLIDATED_H`, `FS_CONSOLIDATED_Y`, `MONTHLY_RESULT` (có thể thêm loại khác qua `doc_rules`).
 
@@ -113,10 +117,16 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 - Ngay sau khi bóc, kiểm tra: `270 = 300 + 400` (B01), `10 = 01 − 02` và `20 = 10 − 11` (B02). Sai thì gắn cờ `dq_balance_ok = false`, **không** đẩy kỳ đó sang Gold.
 
 ### Silver
-- Dạng dài: `symbol, statement (B01/B02/B03), fiscal_year, fiscal_quarter, period_kind, account_code, item_name, amount_vnd, source_priority, source_doc_sha256, dq_balance_ok`.
+- Dạng dài: `symbol, statement (B01/B02/B03), fiscal_year, fiscal_quarter, period_kind, account_code, item_name, amount_vnd, source_priority, source_lang, is_comparative, source_doc_sha256, dq_balance_ok`.
 - Kỳ: `2026-Q3` → `fiscal_year=2026, fiscal_quarter=3`; báo cáo năm dùng `fiscal_quarter=0`. B02 quý giữ cả "quý này" và "lũy kế".
 - Mã tài khoản: ưu tiên mã số in trên báo cáo; nếu thiếu thì ánh xạ qua `config/account_mapping.csv`. Dòng không ánh xạ được ghi ra `data/_state/unmapped_items.csv`; **không tự bịa mã**.
-- Ghi bằng **Delta MERGE** theo khóa `(symbol, statement, fiscal_year, fiscal_quarter, period_kind, account_code)`. Độ ưu tiên nguồn: kiểm toán (3) > soát xét (2) > tự lập (1). Không bao giờ để bản ưu tiên thấp ghi đè bản ưu tiên cao.
+- Ghi bằng **Delta MERGE** theo khóa `(symbol, statement, fiscal_year, fiscal_quarter, period_kind, account_code)`. Bản thắng chọn theo thứ tự, tiêu chí trước quyết định trước:
+  1. `is_comparative = false` (số gốc của chính kỳ đó) thắng `true` (số lấy từ cột kỳ trước của báo cáo kỳ sau);
+  2. `source_lang = 'vi-VN'` thắng `'en-US'` (en-US chỉ dùng khi kỳ đó không có bản vi-VN);
+  3. `source_priority` cao hơn thắng: kiểm toán (3) > soát xét (2) > tự lập (1).
+  Không bao giờ để bản xếp hạng thấp hơn ghi đè bản xếp hạng cao hơn.
+- **Số so sánh (`is_comparative = true`)** chỉ dùng để lấp kỳ không có tài liệu gốc (xem `docs/limitations.md`): lấy từ cột kỳ trước của báo cáo kỳ sau, vd. năm 2015 từ cột "năm trước" của BCTC FY2016; B02 Q1/2019 từ cột "quý này năm trước" của BCTC Q1/2020. B01 chỉ lấy được cho ngày cuối năm (cột "đầu năm"/"số đầu kỳ"); **không suy ra B01 giữa năm** (vd. B01 31/03/2019). Không ghi đè số gốc khi số gốc có sẵn.
+- Bản en-US: ánh xạ chỉ tiêu theo cột "Code"/"Mã số" như bản vi-VN; tên chỉ tiêu tiếng Anh đưa vào `account_mapping.csv` nếu thiếu mã.
 - Đối soát 10–15 chỉ tiêu chính với `vnstock`; chênh > 0,1% thì ghi vào báo cáo DQ. **Dữ liệu vnstock không bao giờ được ghi vào Gold.**
 
 ### Gold (Star Schema)
