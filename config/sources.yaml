@@ -1,40 +1,71 @@
 symbol: MWG
 base_url: https://mwg.vn
 
-# ĐIỀN SAU KHI KHẢO SÁT bằng DevTools (tuần 1). Crawler sẽ từ chối chạy khi còn giá trị dạng <...>.
-# Nếu tab Network có endpoint JSON trả danh sách tài liệu, ghi endpoint đó thay cho trang HTML.
-listing_pages:
-  - url: "<URL trang Công bố thông tin / Báo cáo tài chính, dùng {page} cho số trang>"
-    item_selector: "<CSS selector của mỗi dòng tài liệu>"
-    title_selector: "<selector tiêu đề>"
-    date_selector: "<selector ngày đăng>"
-    link_selector: "a[href$='.pdf']"
+# Khảo sát ngày 11/11/2026: trang https://mwg.vn/bao-cao (Next.js) không có tài liệu trong HTML,
+# danh sách được tải từ JSON API bên dưới (thấy trong DevTools > Network và file JS của trang).
+#   1. CategoryAPI?parentID=<root_category_id>  -> danh mục theo năm (categoryName = "2026", ...),
+#      mỗi năm có childrenIDList / childrenNameList là các nhóm con (sections).
+#   2. PostAPI?categoryID=<id nhóm con>         -> tài liệu: title, fileLink, publishDate, quarter, postID.
+# robots.txt: mwg.vn "Allow: /"; api.bhxwork.vn 404; bhxcdn.vn 403 (RFC 9309: 4xx = không giới hạn).
+listing:
+  referer: https://mwg.vn/bao-cao
+  api_base: https://api.bhxwork.vn/gw/ir-api
+  category_endpoint: /api/CategoryAPI
+  post_endpoint: /api/PostAPI
+  lang_id: vi-VN
+  root_category_id: 7        # "Báo cáo" (bản tiếng Anh dùng 61)
+  page_size: 50
+  condition: -1              # tất cả bài, giống trang web
+  sections:                  # tên nhóm con trong mỗi năm
+    - "Báo cáo tài chính, quản trị, thường niên"
+    - "Báo cáo kết quả kinh doanh theo tháng"
 
-max_pages: 2              # incremental: chỉ xem 1-2 trang đầu
-backfill_max_pages: 40    # chỉ dùng cho lần chạy đầu (--backfill)
-early_stop_known: 5       # gặp 5 tài liệu đã biết liên tiếp thì dừng
+# API trả nguyên danh sách của một năm trong một request, nên incremental = chỉ xem các năm mới nhất.
+# Cần 2 năm vì BCTC quý 4 và BCTC năm kiểm toán của năm N được đăng vào năm N+1 trong danh mục năm N.
+incremental_years: 2
 
 # Nhận diện loại tài liệu từ tiêu đề, so trên chuỗi đã norm() (bỏ dấu, chữ thường).
 # Xét theo thứ tự, quy tắc đầu tiên khớp sẽ thắng.
 #   all: phải có đủ các từ khóa | any: có ít nhất một | none: không được có từ nào
 # Từ khóa khớp theo nguyên từ: "quy" không khớp "quyet".
-# CẦN ĐỐI CHIẾU với tiêu đề thật trên mwg.vn sau khi khảo sát.
+# Ví dụ tiêu đề thật nằm trong tests/test_doc_rules.py.
 doc_rules:
-  - doc_type: FS_CONSOLIDATED_Y
-    all: ["hop nhat", "kiem toan"]
+  # "Báo Cáo Tài Chính Hợp Nhất Quý 3 Năm 2026", "... Soát Xét Qúy 3 Năm 2020",
+  # "... Soát Xét Hợp Nhất Quý 1/2020", "... hợp nhất soát xét QIII năm 2017"
+  - doc_type: FS_CONSOLIDATED_Q
+    all: ["hop nhat"]
+    any: ["quy", "q1", "q2", "q3", "q4", "qi", "qii", "qiii", "qiv"]
+    none: ["quan tri"]
+  # "... Hợp Nhất Soát Xét Bán Niên Năm 2026", "BCTC Hợp Nhất Đã Kiểm Toán 6 Tháng Đầu Năm 2020"
   - doc_type: FS_CONSOLIDATED_H
     all: ["hop nhat"]
-    any: ["soat xet", "ban nien", "giua nien do", "6 thang"]
-  - doc_type: FS_CONSOLIDATED_Q
-    all: ["hop nhat", "quy"]
-  - doc_type: MONTHLY_RESULT
-    any: ["luy ke", "ytd"]
-  # Biến thể tiêu đề tiếng Anh (mwg.vn/eng)
+    any: ["ban nien", "6 thang", "giua nien do"]
+    none: ["quan tri"]
+  # "... Hợp Nhất Kiểm Toán Năm 2025", "... Hợp Nhất Soát Xét Năm 2020", "Báo cáo tài chính hợp nhất năm 2014"
   - doc_type: FS_CONSOLIDATED_Y
-    all: ["consolidated", "audited"]
-  - doc_type: FS_CONSOLIDATED_H
-    all: ["consolidated"]
-    any: ["reviewed", "semi-annual", "half-year", "6 months", "six months"]
+    all: ["hop nhat"]
+    any: ["bao cao tai chinh", "bctc"]
+    none: ["quan tri"]
+  # 2014: "Báo cáo tài chính Quý III năm 2014" không ghi hợp nhất hay riêng.
+  # Tạm coi là hợp nhất; tầng bóc tách phải xác nhận lại bằng tiêu đề "hợp nhất" trong PDF.
   - doc_type: FS_CONSOLIDATED_Q
-    all: ["consolidated"]
-    any: ["quarter", "q1", "q2", "q3", "q4"]
+    all: ["bao cao tai chinh"]
+    any: ["quy", "q1", "q2", "q3", "q4", "qi", "qii", "qiii", "qiv"]
+    none: ["rieng", "quan tri"]
+  # "Cập Nhật Tình Hình Kinh Doanh 9 Tháng 2026", "Báo cáo tóm tắt KQKD 8 tháng đầu năm 2017",
+  # "Báo cáo KQKD cả năm 2021"
+  - doc_type: MONTHLY_RESULT
+    any: ["cap nhat tinh hinh kinh doanh", "kqkd", "luy ke", "ytd"]
+
+# Mức tin cậy của tài liệu -> source_priority ở Silver: kiểm toán (3) > soát xét (2) > tự lập (1).
+# Lấy max(mặc định theo loại, từ khóa trong tiêu đề). BCTC năm của công ty niêm yết bắt buộc
+# kiểm toán, BCTC bán niên bắt buộc soát xét, nên đặt mặc định 3 và 2.
+assurance:
+  keywords:
+    kiem toan: 3
+    soat xet: 2
+  default:
+    FS_CONSOLIDATED_Y: 3
+    FS_CONSOLIDATED_H: 2
+    FS_CONSOLIDATED_Q: 1
+    MONTHLY_RESULT: 1

@@ -89,10 +89,19 @@ def test_ton_trong_robots_txt(fake):
     assert http_utils.get("https://mwg.vn/public/x.pdf").status_code == 200
 
 
-def test_robots_txt_403_thi_khong_tai_gi(monkeypatch, fake):
-    s = fake([403])
+@pytest.mark.parametrize("robots_status", [403, 404])
+def test_robots_txt_4xx_la_khong_gioi_han(monkeypatch, fake, robots_status):
+    # RFC 9309: robots.txt trả 4xx thì được tải (bhxcdn.vn trả 403 cho robots.txt)
+    s = fake([robots_status, 200])
     monkeypatch.setattr(http_utils, "_robots", {})
-    with pytest.raises(http_utils.RobotsDisallowed):
+    assert http_utils.get("https://mwg.vn/a").status_code == 200
+    assert [c[0] for c in s.calls] == ["https://mwg.vn/robots.txt", "https://mwg.vn/a"]
+
+
+def test_robots_txt_5xx_thi_dung(monkeypatch, fake):
+    s = fake([503])
+    monkeypatch.setattr(http_utils, "_robots", {})
+    with pytest.raises(RuntimeError):
         http_utils.get("https://mwg.vn/a")
     assert [c[0] for c in s.calls] == ["https://mwg.vn/robots.txt"]
 

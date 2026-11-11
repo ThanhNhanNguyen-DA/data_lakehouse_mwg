@@ -101,10 +101,10 @@ def _robots_for(url: str) -> RobotFileParser:
         r = _session.get(rp.url, timeout=TIMEOUT)
     finally:
         _mark_request()
-    if r.status_code in (401, 403):
-        rp.disallow_all = True
-    elif 400 <= r.status_code < 500:
-        rp.allow_all = True  # không có robots.txt
+    # Theo RFC 9309 mục 2.3.1: robots.txt trả 4xx (kể cả 401/403) = không có quy tắc;
+    # 5xx hoặc lỗi mạng = phải coi như cấm toàn bộ, nên dừng hẳn.
+    if 400 <= r.status_code < 500:
+        rp.allow_all = True
     elif r.ok:
         rp.parse(r.text.splitlines())
     else:

@@ -87,12 +87,14 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 ### Ingestion (crawl mwg.vn)
 - **Không hard-code** URL trang danh sách, CSS selector, từ khóa nhận diện tài liệu. Tất cả nằm trong `config/sources.yaml`. Nếu selector chưa được điền (còn `<...>`), dừng lại và báo người dùng khảo sát trang bằng DevTools, đừng đoán.
 - Nếu trong DevTools có endpoint JSON trả danh sách tài liệu, ưu tiên gọi endpoint đó thay vì parse HTML.
+  Đã khảo sát (11/11/2026): `mwg.vn/bao-cao` lấy danh sách từ JSON API `api.bhxwork.vn/gw/ir-api`
+  (`CategoryAPI` → danh mục theo năm, `PostAPI` → tài liệu). Cấu hình nằm trong `sources.yaml > listing`.
 - Mọi request đi qua `src/ingestion/http_utils.get()`:
   - Session dùng chung, header trình duyệt thật (User-Agent xoay vòng, `Accept-Language: vi-VN`, `Referer`).
   - Nghỉ ngẫu nhiên 2–5 giây giữa request, 5–10 giây khi tải PDF.
   - Retry exponential backoff (tối đa 4 lần) cho 429/5xx/timeout.
   - **Gặp 403 thì dừng và ghi log, không tìm cách vượt qua.** Không giải CAPTCHA, không dùng proxy.
-- **Incremental bằng manifest** (`data/_state/manifest.parquet`, khóa là URL): chỉ xem 1–2 trang danh sách đầu, early-stop khi gặp `early_stop_known` tài liệu đã biết liên tiếp.
+- **Incremental bằng manifest** (`data/_state/manifest.parquet`, khóa là URL): API trả nguyên một năm mỗi request, nên incremental chỉ xem `incremental_years` (= 2) năm mới nhất; `--backfill` xem tất cả. Dùng `--dry-run` để xem trước tài liệu sẽ tải.
 - Tài liệu cùng kỳ nhưng sha256 khác (bản điều chỉnh, bản kiểm toán thay bản tự lập) vẫn được lưu; tầng Silver quyết định bản nào thắng.
 - Tôn trọng `robots.txt` và Điều khoản sử dụng mwg.vn (chỉ dùng cho mục đích cá nhân, phi thương mại, học thuật).
 
@@ -103,6 +105,7 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 - Loại tài liệu: `FS_CONSOLIDATED_Q`, `FS_CONSOLIDATED_H`, `FS_CONSOLIDATED_Y`, `MONTHLY_RESULT` (có thể thêm loại khác qua `doc_rules`).
 
 ### Bóc tách PDF
+- Lưu ý: BCTC hợp nhất Q3/2026 là PDF scan (51 trang ảnh, không có lớp text), nên OCR có thể là đường chính chứ không chỉ dự phòng. Kiểm tra lớp text của từng file trước khi chọn cách bóc.
 - Neo theo cột **"Mã số"** của Thông tư 200 (B01: 100, 110, 270, 300, 400...; B02: 01, 10, 20, 60...), không neo theo tên chỉ tiêu.
 - Xác định trang theo tiêu đề báo cáo (tiếng Việt và tiếng Anh), so sánh trên chuỗi đã bỏ dấu, chữ thường.
 - Số tiền kiểu Việt Nam: `1.234.567` là số dương, `(1.234)` là số âm, `-` hoặc rỗng là null. Đọc dòng "Đơn vị tính" để quy đổi về VND.

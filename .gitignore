@@ -11,3 +11,7 @@ __pycache__/
 
 # requests-cache khi debug crawler (MWG_HTTP_CACHE=1)
 data/_state/http_cache.sqlite
+
+# PDF gốc ở Bronze (backfill ~150 file, có file ~19 MB): chưa đưa lên git.
+# Quyết định lại ở tuần 9 khi làm GitHub Actions (commit PDF hay chỉ commit Silver/Gold).
+data/bronze/**/*.pdf
