@@ -89,7 +89,7 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 - Nếu trong DevTools có endpoint JSON trả danh sách tài liệu, ưu tiên gọi endpoint đó thay vì parse HTML.
   Đã khảo sát (11/11/2026): `mwg.vn/bao-cao` lấy danh sách từ JSON API `api.bhxwork.vn/gw/ir-api`
   (`CategoryAPI` → danh mục theo năm, `PostAPI` → tài liệu). Cấu hình nằm trong `sources.yaml > listing`.
-- **Hai ngôn ngữ, cùng do MWG công bố:** `vi-VN` (danh mục gốc 7) là nguồn chính, luôn tải. `en-US` (danh mục gốc 61, chỉ nhóm BCTC) là nguồn dự phòng: một tài liệu en-US chỉ được tải khi kỳ `(doc_type, period)` chưa có bản vi-VN tải được (link vi-VN chết hoặc không đăng), hoặc khi kỳ đó nằm trong `listing.cross_check` (hiện là Q3/2020 và FY2020, để đối chiếu hai bản trong `docs/dq_report.md`). Manifest ghi `lang` và `fetch_reason` (`primary` / `fallback` / `cross_check`).
+- **Hai ngôn ngữ, cùng do MWG công bố:** `vi-VN` (danh mục gốc 7) là nguồn chính, luôn tải. `en-US` (danh mục gốc 61, nhóm BCTC và nhóm báo cáo tháng "YTD … report") là nguồn dự phòng: một tài liệu en-US chỉ được tải khi kỳ `(doc_type, period)` chưa có bản vi-VN tải được (link vi-VN chết hoặc không đăng), hoặc khi kỳ đó nằm trong `listing.cross_check` (hiện là Q3/2020 và FY2020, để đối chiếu hai bản trong `docs/dq_report.md`). Manifest ghi `lang` và `fetch_reason` (`primary` / `fallback` / `cross_check`).
 - Link chết (404/410) ghi vào `data/_state/download_errors.csv` rồi đi tiếp; lần backfill sau vẫn thử lại. **Không dùng Wayback Machine** hay bản lưu của bên thứ ba; kỳ không lấy lại được ghi vào `docs/limitations.md`.
 - Mọi request đi qua `src/ingestion/http_utils.get()`:
   - Session dùng chung, header trình duyệt thật (User-Agent xoay vòng, `Accept-Language: vi-VN`, `Referer`).

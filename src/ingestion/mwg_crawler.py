@@ -132,6 +132,8 @@ _EN_HALF_YEAR = re.compile(r"\b1h(\d{4}|\d{2})\b")             # "1h18", "1h2020
 _EN_FISCAL_YEAR = re.compile(r"\bfy\s*(\d{4}|\d{2})\b")        # "fy2019", "fy 2017"
 _MONTH = re.compile(r"\b(1[0-2]|[1-9])\s*(?:thang|months?)\b|\bthang\s*(1[0-2]|[1-9])\b")
 _MONTH_RANGE = re.compile(r"\bthang\s*(1[0-2]|[1-9])\s*\+\s*(1[0-2]|[1-9])\b")  # "tháng 1+2"
+_EN_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+_EN_MONTH = re.compile(r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b")  # "ytd mar 2018"
 _HALF_HINTS = ("soat xet", "ban nien", "giua nien do", "6 thang", "sau thang",
                "semi-annual", "half-year", "half year", "1st half", "6 months", "six months")
 
@@ -174,7 +176,10 @@ def parse_period(title: str, doc_type: str | None = None,
         if rng:  # báo cáo gộp nhiều tháng: lấy tháng cuối (số lũy kế tới tháng đó)
             return f"{year}-M{int(rng.group(2)):02d}"
         m = _MONTH.search(t)
-        return f"{year}-M{int(m.group(1) or m.group(2)):02d}" if m else None
+        if m:
+            return f"{year}-M{int(m.group(1) or m.group(2)):02d}"
+        en = _EN_MONTH.search(t)
+        return f"{year}-M{_EN_MONTHS.index(en.group(1)) + 1:02d}" if en else None
 
     q = _QUARTER.search(t)
     if q:

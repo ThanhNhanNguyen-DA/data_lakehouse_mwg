@@ -29,8 +29,9 @@ listing:
     - lang_id: en-US
       root_category_id: 61
       referer: https://mwg.vn/bao-cao
-      sections:              # chỉ BCTC; báo cáo tháng en-US ("YTD ... report") chưa dùng
+      sections:
         - "ANNUAL, CORPORATE GOVERNANCE & FINANCIAL REPORTS"
+        - "MONTHLY PERFORMANCE UPDATES"   # "YTD October 2026 report" -> MONTHLY_RESULT (rule "ytd")
 
   # Tải bản dự phòng dù đã có bản chính, để đối chiếu hai ngôn ngữ (ghi vào docs/dq_report.md).
   cross_check:

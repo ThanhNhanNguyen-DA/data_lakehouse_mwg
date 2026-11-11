@@ -54,8 +54,10 @@ Các kỳ đánh ✗ sẽ không có trong Gold. Dashboard cần hiển thị kh
 
 ## 4. Báo cáo kết quả kinh doanh tháng
 
-- **Không lấy được:** 01/2017 → 08/2020 (44 kỳ). Bản vi-VN đều nằm trên `mwg.vn/wp-content` (404), kể cả 13 ảnh của 2017 – 01/2018.
-- **Có trên bản en-US** ("YTD <tháng> <năm> report"): phần lớn các kỳ này, link trên `bhxcdn.vn`, trừ 01/2019 và 02/2019 (cũng nằm trên `wp-content`). Phạm vi hiện tại chưa dùng báo cáo tháng en-US. Muốn bổ sung chỉ cần thêm nhóm "MONTHLY PERFORMANCE UPDATES" vào `sources.yaml` và viết quy tắc nhận diện tháng bằng tiếng Anh.
+- **Bản vi-VN không lấy được:** 01/2017 → 08/2020 (44 kỳ). Tất cả nằm trên `mwg.vn/wp-content` (404), kể cả 13 ảnh của 2017 – 01/2018.
+- **Lấp bằng bản en-US** ("YTD <tháng> <năm> report", `fetch_reason = fallback`): 42/44 kỳ. Bản en-US 2017 phần lớn là ảnh `.jpg`, cần OCR.
+- **Vẫn thiếu:** 01/2019 và 02/2019, vì bản en-US cũng nằm trên `wp-content`. Có thể dùng 03/2019 (lũy kế 3 tháng) để có số quý 1, nhưng không tách được từng tháng.
+- Báo cáo tháng là số lũy kế từ đầu năm. Nội dung là bản tóm tắt (doanh thu, số cửa hàng theo chuỗi), không phải BCTC, nên không áp dụng quy tắc `is_comparative`.
 
 ## 5. Giới hạn khác
 

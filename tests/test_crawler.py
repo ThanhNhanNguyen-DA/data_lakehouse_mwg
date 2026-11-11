@@ -104,7 +104,9 @@ def _sample_api(**kw):
               _post(23, "Audited Consolidated FS 1H2026", f"{CDN}/en/1h2026.pdf", 2)],
         213: [_post(24, "Audited Consolidated FS FY2025", f"{CDN}/en/fy2025.pdf", 4)],
         198: [_post(25, "Consolidated FS Q1/2024", f"{CDN}/en/q1-2024.pdf", 1)],
-        # 197, 212, 434 (báo cáo tháng en-US) không nằm trong sections nên không bao giờ được gọi
+        434: [_post(26, "YTD September 2026 report", f"{CDN}/en/ytd-sep-2026.pdf"),
+              _post(27, "YTD August 2026 report", f"{CDN}/en/ytd-aug-2026.pdf"),
+              _post(28, "MWG | Investor meeting - Q3 2026", f"{CDN}/en/im-q3-2026.pdf")],
     }
     return FakeApi(years, posts, **kw)
 
@@ -122,10 +124,10 @@ def test_crawl_tai_ban_chinh_va_du_phong_khi_thieu(env):
     api = install(_sample_api())
     rows = mwg_crawler.crawl()
 
-    # vi-VN: bỏ BCTC riêng, bài ẩn, link rỗng, .docx. en-US: chỉ 1H2026 vì vi-VN không có kỳ này;
-    # Q3/2026 và FY2025 đã có bản vi-VN nên không tải bản en-US.
-    assert api.downloads() == ["/en/1h2026.pdf", "/vi/fy2025.pdf", "/vi/m8.jpg",
-                               "/vi/m9.pdf", "/vi/q3-2026.pdf"]
+    # vi-VN: bỏ BCTC riêng, bài ẩn, link rỗng, .docx. en-US: chỉ 1H2026 và báo cáo tháng 8/2026
+    # vì vi-VN không có hai kỳ này; Q3/2026, FY2025, tháng 9/2026 đã có bản vi-VN.
+    assert api.downloads() == ["/en/1h2026.pdf", "/en/ytd-aug-2026.pdf", "/vi/fy2025.pdf",
+                               "/vi/m8.jpg", "/vi/m9.pdf", "/vi/q3-2026.pdf"]
     got = {(r["lang"], r["fetch_reason"], r["doc_type"], r["file_type"], r["period"],
             r["assurance_level"]) for r in rows}
     assert got == {
@@ -134,9 +136,8 @@ def test_crawl_tai_ban_chinh_va_du_phong_khi_thieu(env):
         ("vi-VN", "primary", "FS_CONSOLIDATED_Y", "pdf", "2025", 3),
         ("vi-VN", "primary", "MONTHLY_RESULT", "jpg", "2025-M08", 1),
         ("en-US", "fallback", "FS_CONSOLIDATED_H", "pdf", "2026-H1", 2),
+        ("en-US", "fallback", "MONTHLY_RESULT", "pdf", "2026-M08", 1),
     }
-    # không gọi danh mục báo cáo tháng en-US
-    assert not any("categoryID=434" in u for u, _ in api.calls)
 
     q3 = next((tmp / "bronze").rglob("MWG_2026Q3_*.pdf"))
     assert q3.parent.parent.name == "doc_type=FS_CONSOLIDATED_Q"
@@ -148,7 +149,7 @@ def test_crawl_tai_ban_chinh_va_du_phong_khi_thieu(env):
     assert q3.name == f"MWG_2026Q3_{meta['sha256'][:8]}.pdf"
 
     mf = pl.read_parquet(mwg_crawler.MANIFEST_PATH)
-    assert mf.height == 5 and set(mf["url"]) == {r["url"] for r in rows}
+    assert mf.height == 6 and set(mf["url"]) == {r["url"] for r in rows}
     assert mf.columns == list(mwg_crawler.MANIFEST_SCHEMA)
 
 
@@ -197,7 +198,7 @@ def test_dry_run_khong_tai_va_khong_ghi(env):
     tmp, install = env
     api = install(_sample_api())
     rows = mwg_crawler.crawl(dry_run=True)
-    assert len(rows) == 5
+    assert len(rows) == 6
     assert api.downloads() == []
     assert not mwg_crawler.MANIFEST_PATH.exists()
     assert not (tmp / "bronze").exists()
