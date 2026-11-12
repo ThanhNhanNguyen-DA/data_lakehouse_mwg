@@ -60,3 +60,17 @@ Mỗi mục: quyết định, lý do, cách đảo lại nếu cần.
   chuỗi TT99 của mã đổi nội dung để biểu đồ không nối liền; cột `has_semantic_break` cho dashboard ghi chú.
 - **Đối chiếu KPI với PDF (DoD).** Số của FY2024 và Q3/2025 đọc trực tiếp trên ảnh trang PDF Bronze, ghi kèm sha256 và
   trang trong `tests/fixtures/kpi_pdf_values.csv`; `tests/test_kpi_pdf.py` so với `v_kpi_year`/`v_kpi_quarter`.
+
+## Phần D – Dashboard và pipeline
+
+- **Dashboard một file** (`dashboard/app.py`, chọn trang ở sidebar) thay vì multipage: ít file, đủ 6 trang. Kỳ thiếu
+  số giữ ô trống trên trục (không nội suy, đường đứt quãng). Màu theo thứ tự categorical cố định đã kiểm định CVD;
+  mỗi biểu đồ một trục y (không dual-axis).
+- **Ghi chú "đổi chuẩn TT99"** chỉ vẽ trên biểu đồ có mã `semantic_break` (cơ cấu tài sản, mã 120/130) tại kỳ TT99
+  đầu tiên trong Gold; biểu đồ doanh thu/LNST/biên không dùng mã đổi nội dung nên không vẽ.
+- **Lineage** hiện ảnh trang PDF bằng `pypdfium2` khi file Bronze có trên máy; đây là hiển thị, không phải transform.
+- **run_pipeline.py** dừng sau crawl khi không có tài liệu mới (CLAUDE.md); `--force` chạy lại bóc tách/Silver/Gold,
+  `--no-crawl` cho máy offline. Bóc tách luôn chạy cho mọi BCTC (dùng cache OCR, ~20 giây), không chỉ file mới, vì
+  bỏ phiếu giữa các lần in lại và đối chiếu đầu năm/cuối năm cần mọi báo cáo.
+- **Ảnh chụp headless** bằng Playwright (có trong stack CLAUDE.md). WSL thiếu `libasound2` và không có sudo: lấy gói
+  `.deb` bằng `apt-get download`, giải nén vào thư mục tạm và đặt `LD_LIBRARY_PATH` (ghi trong README).

@@ -551,5 +551,10 @@ chính lượt đó (báo cáo có mọi phép kiểm phương trình B01 đúng
 | `1438645` (12/11 15:46) | 49/52 (94%) | 34/52 (65%) | 3/52 | – | – | – | – |
 | `399ed86` (12/11 16:05) | 49/52 (94%) | 34/52 (65%) | 5/52 | 28/52 (54%) | – | 7.089/11.860 (60%) | 3.917 (chặn cả báo cáo) |
 | commit thêm file này (12/11) | 50/52 (96%) | 34/52 (65%) | 7/52 | 25/52 (48%) | 50/52 (96%) / 25/52 (48%) | 8.004/11.950 (67%) | B01 5.807, B02 950 (chặn theo từng báo cáo) |
+| Phần A–D (13/11 01:40, `run_pipeline.py --force`) | 50/52 (96%) | 34/52 (65%) | 7/52 | 25/52 (48%) | 50/52 (96%) / 25/52 (48%); cột B02: 90/128 | 8.004/11.950 (67%) | B01 5.807, B02 1.446 (chặn theo cột, DBG-30); Gold fact 3.204 dòng |
 
 Ghi chú: "qua DQ toàn bộ" 0/52 ở hai lượt đầu là tiêu chí cũ (DBG-27); "qua critical" có từ `399ed86`. Qua critical cả hai báo cáo giảm 54% → 48% ở lượt cuối vì B02 critical chặt hơn: thêm `60 = 61 + 62` và `30 = ...` (trước đó TT200 B02 30 và 60 không kiểm được, coi như không trượt). Ô vào Gold tăng 3.917 → 6.757 vì chặn theo từng báo cáo (DBG-27) và đồng nhất thức 440 (DBG-12).
+
+Lượt Phần A–D: số ô Gold tính trên `fs_extracted_raw`; sau khi quy về kỳ thật và chọn bản thắng ở Silver
+(`fin_statement_long`, 6.648 dòng gồm 1.560 ô suy ra), Gold `fact_financial` có 3.204 dòng (B01 2.335/2.580,
+B02 869/1.849 dòng Silver).
