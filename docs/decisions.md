@@ -39,3 +39,24 @@ Mỗi mục: quyết định, lý do, cách đảo lại nếu cần.
   kiểm toán, so hai phiên bản.
 - **Dữ liệu trong git.** Không commit thêm file Delta của `data/silver`, `data/gold` (sinh lại được, lớn dần theo phiên
   bản). Repo hiện vẫn theo dõi các file `fs_extracted_raw` đã commit ở `e67711b`; quyết định cuối ở phần deploy.
+
+## Phần C – Gold
+
+- **fact_financial** chỉ nhận ô `gold_eligible` của Silver (ô suy ra chỉ eligible khi cả hai vế eligible), B01/B02.
+  Grain kiểm trước khi ghi (trùng khóa → không ghi). Ghi đè mỗi lần chạy (Gold dựng lại toàn bộ từ Silver), partition
+  `fiscal_year`; lịch sử phiên bản vẫn còn trong Delta log. CHECK: `scope ∈ {consolidated, segment}`, consolidated ⇔
+  `chain_key = MWG_TOTAL`, `amount_vnd` NOT NULL. Chưa có số theo chuỗi (chain_kpi để sau): bảng chỉ có scope
+  consolidated, mọi view KPI lọc `scope = 'consolidated'`.
+- **dim_date** gồm mọi ngày cuối quý trong khoảng năm của fact (kể cả quý không có số) để thấy khoảng trống.
+  `dim_account` chỉ mã chuẩn TT200.
+- **mwg.duckdb chỉ chứa view** (`delta_scan`/`read_parquet` theo đường dẫn tương đối từ gốc repo), tạo lại mỗi lần chạy
+  qua file tạm rồi thay (view hỏng thì giữ file cũ). Người đọc phải mở với thư mục làm việc = gốc repo (dashboard tự
+  `chdir`). Lý do: chạy được cả trên WSL lẫn Windows, không chép dữ liệu hai lần.
+- **KPI.** ROE/ROA quý năm hóa ×4 trên bình quân đầu/cuối quý; ROE/ROA năm trên bình quân 31/12 năm trước và năm nay;
+  thiếu một đầu thì NULL (không lấp bằng số chưa trusted). Số ngày tồn kho = bình quân 140 / |giá vốn| × 91,25 (quý)
+  hoặc × 365 (năm). YoY/QoQ nối với đúng kỳ liền trước (không dùng `lag`, để kỳ thiếu không làm lệch). Mọi phép chia
+  dùng `NULLIF`.
+- **semantic_break.** Không có KPI tăng trưởng nào dùng mã 120/130; view `v_balance_structure` có `series_key` tách
+  chuỗi TT99 của mã đổi nội dung để biểu đồ không nối liền; cột `has_semantic_break` cho dashboard ghi chú.
+- **Đối chiếu KPI với PDF (DoD).** Số của FY2024 và Q3/2025 đọc trực tiếp trên ảnh trang PDF Bronze, ghi kèm sha256 và
+  trang trong `tests/fixtures/kpi_pdf_values.csv`; `tests/test_kpi_pdf.py` so với `v_kpi_year`/`v_kpi_quarter`.

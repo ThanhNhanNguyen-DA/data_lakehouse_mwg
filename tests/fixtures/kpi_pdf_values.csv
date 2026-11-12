@@ -1,0 +1,10 @@
+period,statement,account_code,column,amount_vnd,source_doc_sha256,page,read_by,read_at
+FY2024,B02,10,current,134341152848802,b9d0e4bd9e3938560bab10821bf3465a9af747238f15c69cda1ed4e2764f2c46,9,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
+FY2024,B02,20,current,27499210077021,b9d0e4bd9e3938560bab10821bf3465a9af747238f15c69cda1ed4e2764f2c46,9,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
+FY2024,B02,60,current,3733288228720,b9d0e4bd9e3938560bab10821bf3465a9af747238f15c69cda1ed4e2764f2c46,9,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
+FY2024,B01,410,closing,28121576823855,b9d0e4bd9e3938560bab10821bf3465a9af747238f15c69cda1ed4e2764f2c46,8,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
+FY2024,B01,410,opening,23359557967338,b9d0e4bd9e3938560bab10821bf3465a9af747238f15c69cda1ed4e2764f2c46,8,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
+Q3/2025,B02,10,q_current,39852507152646,e6842f15bbe4b57035106fdf51f507641c9dacf280200589fad0f859d92a65f2,7,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
+Q3/2025,B02,20,q_current,7478186877900,e6842f15bbe4b57035106fdf51f507641c9dacf280200589fad0f859d92a65f2,7,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
+Q3/2025,B02,60,q_current,1783665633985,e6842f15bbe4b57035106fdf51f507641c9dacf280200589fad0f859d92a65f2,8,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
+Q3/2025,B02,10,q_prior,34146668687951,e6842f15bbe4b57035106fdf51f507641c9dacf280200589fad0f859d92a65f2,7,"Claude, đọc trên ảnh trang PDF Bronze (300 dpi)",2026-11-13
