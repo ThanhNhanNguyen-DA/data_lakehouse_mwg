@@ -372,9 +372,10 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
         # Số của các cột có thể lệch dòng nhau (OCR riêng từng cột), nên gom trên mọi dòng thuộc mã này:
         # mỗi cột lấy giá trị đầu tiên tìm thấy.
         values, filled, raw, name = [None] * len(cols), [False] * len(cols), [], []
-        origin = [None] * len(cols)
+        origin, y1 = [None] * len(cols), None
         for k, line in enumerate(lines[i:end], start=i):
             used.add(k)
+            y1 = max(w["y1"] for w in line)
             vals, found, origs = values_of(line)
             if not any(filled):
                 name += [w["text"] for w in line if w["x1"] < (note_band[0] if note_band else cols[0] - 4 * h)
@@ -392,7 +393,7 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
         if statement in ("B02", "B03") and len(code) == 1:
             code = code.zfill(2)  # BCTC quý in "1", "2"
         rows.append({"account_code": code, "item_name": " ".join(name).strip(), "values": values, "raw": raw,
-                     "origins": origin})
+                     "origins": origin, "y0": min(w["y0"] for w in lines[i]), "y1": y1})  # vùng dòng: để cắt ảnh review
     body_start = min(first_row, first_amount)
     # Dòng có số tiền mà không thuộc mã nào (mã bị OCR làm mất): OCR lại dải mã của dòng đó
     orphans = [(min(w["y0"] for w in lines[k]), max(w["y1"] for w in lines[k]))

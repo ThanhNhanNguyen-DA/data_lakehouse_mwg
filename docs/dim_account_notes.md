@@ -94,3 +94,20 @@ Không có chỉ tiêu **cùng tên** trong mẫu TT200/TT202. Nhiều mã chỉ
 | B02 | **27** | (không có trong mẫu TT99) | MWG in mã này trên mẫu B01a/B02a-DN/HN (Phần lãi/lỗ trong công ty liên doanh) nhưng mẫu TT99 PL IV không có: chưa map |
 | B02 | **61** | (không có trong mẫu TT99) | MWG in mã này trên mẫu B01a/B02a-DN/HN (Lợi nhuận sau thuế của công ty mẹ) nhưng mẫu TT99 PL IV không có: chưa map |
 | B02 | **62** | (không có trong mẫu TT99) | MWG in mã này trên mẫu B01a/B02a-DN/HN (Lợi nhuận sau thuế của cổ đông không kiểm soát) nhưng mẫu TT99 PL IV không có: chưa map |
+
+<!-- numeric-map:start -->
+
+## Map bằng số liệu ngày 31/12/2025 (tự sinh bởi `tools/map_tt99_numeric.py`)
+
+So cột đầu năm B01 của BCTC 2026 (TT99) với cột cuối kỳ B01 của BCTC 2025-Q4 bản vi-VN (TT200), chỉ giữa các mã cùng cấp. Khớp đúng một mã thì ghép (`mapping_basis = numeric_31122025`).
+
+| Kết quả | Số mã | Mã TT99 → mã TT200 khớp số |
+|---|---|---|
+| mới ghép | 5 | 123 → 123, 265 → 255, 271 → 261, 412 → 412, 415 → 415 |
+| khớp với ghép theo tên | 28 | 111 → 111, 140 → 140, 141 → 141, 142 → 149, 162 → 152, 163 → 153, 210 → 210, 215 → 216, 220 → 220, 221 → 221, 222 → 222, 223 → 223, 227 → 227, 228 → 228, 229 → 229, 250 → 240, 252 → 242, 260 → 250, 262 → 252, 270 → 260, 312 → 312, 315 → 314, 320 → 319, 321 → 320, 322 → 321, 330 → 330, 411 → 411, 411a → 411a |
+| mâu thuẫn với ghép theo tên | 1 | 261 → 251/261 |
+| khớp nhiều mã | 0 |  |
+| không khớp | 26 | 100 → –, 110 → –, 112 → –, 120 → –, 130 → –, 131 → –, 132 → –, 135 → –, 160 → –, 161 → –, 200 → –, 272 → –, 280 → –, 300 → –, 310 → –, 311 → –, 314 → –, 316 → –, 319 → –, 337 → –, 400 → –, 420 → –, 420a → –, 420b → –, 440 → –, 429 → – |
+| bằng 0 | 0 |  |
+
+<!-- numeric-map:end -->

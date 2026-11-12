@@ -76,6 +76,8 @@ def apply_consensus(docs: list[dict]) -> int:
             template = cells[0]
             for kind in ("closing", "opening"):
                 for d in members.get((ye, kind), []):
+                    if d.get("regime", "TT200") != "TT200":
+                        continue  # chỉ báo cáo TT200 có mã in = mã chuẩn; TT99 cùng số mã có thể là chỉ tiêu khác
                     if not any(c["statement"] == "B01" and c.get("canonical_code") == code and c["period_kind"] == kind
                                for c in d["cells"]):
                         d["cells"].append({**template, "page": None, "period_kind": kind, "raw_text": "",

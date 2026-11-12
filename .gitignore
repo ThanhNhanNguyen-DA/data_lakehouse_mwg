@@ -20,3 +20,6 @@ data/bronze/**/*.png
 
 # Cache OCR theo sha256 + trang (tạo lại được)
 data/_cache/
+
+# Trang duyệt ô gợi ý sửa (sinh lại được, chứa ảnh crop từ PDF)
+review/
