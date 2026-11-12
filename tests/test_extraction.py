@@ -364,3 +364,13 @@ def test_o_mot_hai_chu_so_la_dang_ngo():
              W("440", 40, 240), right("3", 640, 240), right("4.444.444.444", 790, 240)]
     res = parse_statement_page(words, "B01")
     assert len(res["suspects"]) == 1 and res["suspects"][0][1] == 240
+
+
+def test_ma_tuy_chon_khong_in_tinh_la_0():
+    eq = {"regime": "R", "statement": "B02", "lhs": "30", "rhs": "20+24-25", "label": "30",
+          "terms": [(1, "20"), (1, "24"), (-1, "25")], "optional": {"24"}}
+    values = {("B02", "20", "c"): 100, ("B02", "25", "c"): -30, ("B02", "30", "c"): 70}
+    assert check_equations(values, [eq], "R", {("B02", "25"): -1})[0]["ok"]
+    # vế không tùy chọn vẫn là thiếu
+    del values[("B02", "25", "c")]
+    assert check_equations(values, [eq], "R", {("B02", "25"): -1})[0]["note"] == "thiếu 25"

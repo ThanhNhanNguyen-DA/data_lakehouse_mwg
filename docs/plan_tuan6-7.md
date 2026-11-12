@@ -6,8 +6,8 @@ xác nhận ô trong `config/manual_overrides.csv` (trang duyệt: `python -m sr
 
 ## Điểm xuất phát (bảng `data/silver/fs_extracted_raw`)
 
-- 52 BCTC (2014-Q3 → 2026-Q3), 109 báo cáo tháng. Qua critical 28/52 (54%), ô trusted 60%, ô `gold_eligible` ≈ 3.900
-  (B01 ≈ 3.300, B02 ≈ 650, B03 = 0 vì B03 chưa có phương trình kiểm).
+- 52 BCTC (2014-Q3 → 2026-Q3), 109 báo cáo tháng. Critical B01 50/52, B02 25/52; ô trusted 67%; ô `gold_eligible`
+  (chặn theo từng báo cáo) B01 5.807, B02 950, B03 = 0 (B03 chưa có phương trình kiểm).
 - `period_kind`: B01 `closing/opening`; B02 năm/bán niên `current/prior`, B02 quý `q_current/q_prior/ytd_current/ytd_prior`;
   B03 `current/prior`.
 - Đã có: `canonical_code` (mã TT200 chuẩn), `regime`, `lang`, `value_origin`, `is_trusted`, `passed_critical`, `gold_eligible`.
@@ -72,8 +72,7 @@ thấy rõ khoảng trống thay vì đường biểu đồ nối qua kỳ thi�
   dùng xác nhận ô pending / nhập tay từ PDF gốc. TT200 B02 30 và 60 chưa có công thức kiểm chắc chắn → ô 60 chỉ trusted
   khi nằm trong phương trình khác đúng hoặc bỏ phiếu.
 - **Nhãn cột B02 Q2/2026 chưa chứng minh được** (TT99) → không vào Gold.
-- **Bảng map TT99:** nên đổi mốc so số từ Q4/2025 sang BCTC năm 2025 đã kiểm toán (khớp 48 mã thay vì 33); TT99 261
-  mâu thuẫn tên (251) và số (261), cần người dùng xác nhận. Dựng lại `dim_account` khi có bản TT202 chính thức trong
-  `docs/reference/`.
-- **2024 mã 153, 228:** đầu năm 2025 lệch cuối năm 2024 đúng một chữ số thừa → nhiều khả năng BCTC 2024 bị OCR sai,
-  không phải trình bày lại; cần xem PDF gốc trước khi Gold dùng số 31/12/2024 của hai mã này.
+- **Bảng map TT99:** đã đổi mốc so số sang BCTC năm 2025 (khớp 47 mã); `semantic_break = true` ở 120, 130 → Gold/KPI
+  không nối chuỗi qua hai mã này. Dựng lại `dim_account` khi có bản TT202 chính thức trong `docs/reference/`.
+- **2024 mã 153, 228:** đã sinh gợi ý pending (`suggested_by = adjacent_period`); Gold dùng số 31/12/2024 của hai mã
+  này sau khi người dùng xác nhận trên PDF.

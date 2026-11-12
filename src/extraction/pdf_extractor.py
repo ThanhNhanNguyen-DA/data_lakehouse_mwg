@@ -519,7 +519,9 @@ def load_equations(path: Path) -> list[dict]:
     if not Path(path).exists():
         return []
     with Path(path).open(encoding="utf-8", newline="") as f:
-        return [{**r, "terms": _terms(r["rhs"])} for r in csv.DictReader(f) if r.get("lhs", "").strip()]
+        # optional: mã vế phải được phép không in (báo cáo bỏ dòng không có số liệu) -> tính là 0
+        return [{**r, "terms": _terms(r["rhs"]), "optional": set((r.get("optional") or "").split())}
+                for r in csv.DictReader(f) if r.get("lhs", "").strip()]
 
 
 def load_dim_account(path: Path) -> list[dict]:
@@ -542,14 +544,15 @@ def _contribution(op: int, v: int, sign: int | None) -> int:
 
 
 def _evaluate(label: str, statement: str, lhs: str, terms: list[tuple[int, str]],
-              values: dict, signs: dict, tol: int) -> list[dict]:
+              values: dict, signs: dict, tol: int, optional: set[str] = frozenset()) -> list[dict]:
     kinds = sorted({k for (s, c, k) in values if s == statement and c == lhs})
     if not kinds:
         return [{"check": label, "kind": None, "ok": False, "note": f"thiếu mã {lhs}"}]
     out = []
     for kind in kinds:
         left = values.get((statement, lhs, kind))
-        parts = [values.get((statement, code, kind)) for _, code in terms]
+        parts = [values.get((statement, code, kind), 0 if code in optional else None) for _, code in terms]
+        parts = [0 if v is None and code in optional else v for (_, code), v in zip(terms, parts)]
         if left is None or None in parts:
             missing = [c for (_, c), v in zip(terms, parts) if v is None] + ([lhs] if left is None else [])
             out.append({"check": label, "kind": kind, "ok": False, "note": f"thiếu {', '.join(missing)}"})
@@ -567,7 +570,8 @@ def check_equations(values: dict[tuple[str, str, str], int | None], equations: l
     for eq in equations:
         if eq["regime"] == regime:
             out += [{**r, "equation": eq}
-                    for r in _evaluate(eq["label"], eq["statement"], eq["lhs"], eq["terms"], values, signs or {}, tol)]
+                    for r in _evaluate(eq["label"], eq["statement"], eq["lhs"], eq["terms"], values, signs or {}, tol,
+                                       eq.get("optional", frozenset()))]
     return out
 
 
@@ -592,8 +596,11 @@ def check_q1_columns(values: dict, tol: int = 1) -> list[dict]:
     return out
 
 
-def check_parent_sums(values: dict, dim: list[dict], regime: str, tol: int = 1) -> list[dict]:
-    """Dòng tổng = tổng các dòng con có is_additive = 1 (theo parent_code trong dim_account)."""
+def check_parent_sums(values: dict, dim: list[dict], regime: str, tol: int = 1,
+                      skip: set[tuple[str, str]] = frozenset()) -> list[dict]:
+    """Dòng tổng = tổng các dòng con có is_additive = 1 (theo parent_code trong dim_account).
+
+    skip: (báo cáo, mã) không kiểm, vd. dòng tổng đã gán bằng đồng nhất thức (config/dq_identities.csv)."""
     signs = signs_of(dim, regime)
     children: dict[tuple[str, str], list[str]] = {}
     uncertain: set[tuple[str, str]] = set()
@@ -607,7 +614,7 @@ def check_parent_sums(values: dict, dim: list[dict], regime: str, tol: int = 1) 
             uncertain.add(key)  # có dòng con chưa chắc cộng hay trừ (vd. 52 trong 60): không kiểm dòng tổng này
     out = []
     for (st, parent), kids in sorted(children.items()):
-        if (st, parent) in uncertain:
+        if (st, parent) in uncertain or (st, parent) in skip:
             continue
         present = [k for k in kids if any(s == st and c == k for (s, c, _) in values)]
         if present:

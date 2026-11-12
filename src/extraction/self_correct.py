@@ -54,7 +54,7 @@ def apply_consensus(docs: list[dict]) -> int:
                 members[(ye, kind)].append(d)
         for c in d["cells"]:
             ye = _year_end_of(d, c["period_kind"]) if c["statement"] == "B01" else None
-            if ye is not None and c.get("canonical_code"):
+            if ye is not None and c.get("canonical_code") and not c.get("semantic_break"):
                 groups[(ye, c["canonical_code"])].append(c)
     fixed = 0
     for (ye, code), cells in groups.items():
@@ -135,8 +135,8 @@ def suggest_fixes(doc: dict, failed: list[dict], values: dict, signs: dict) -> l
     return out
 
 
-def write_suggestions(path: Path, doc: dict, suggestions: list[dict]) -> int:
-    """Thêm gợi ý vào manual_overrides.csv với suggested_by=equation, status=pending (bỏ qua ô đã có dòng)."""
+def write_suggestions(path: Path, doc: dict, suggestions: list[dict], suggested_by: str = "equation") -> int:
+    """Thêm gợi ý vào manual_overrides.csv với suggested_by (mặc định equation), status=pending (bỏ qua ô đã có dòng)."""
     rows = []
     if Path(path).exists():
         with Path(path).open(encoding="utf-8", newline="") as f:
@@ -155,7 +155,7 @@ def write_suggestions(path: Path, doc: dict, suggestions: list[dict]) -> int:
                      "period_kind": s["period_kind"], "account_code": s["account_code"],
                      "amount_vnd": s["amount_vnd"], "ocr_value": s["ocr_value"], "source_doc_sha256": doc["sha256"],
                      "page": page, "reason": s["reason"], "entered_by": "", "entered_at": date.today().isoformat(),
-                     "suggested_by": "equation", "status": "pending"})
+                     "suggested_by": suggested_by, "status": "pending"})
         have.add(key)
         added += 1
     with Path(path).open("w", encoding="utf-8", newline="") as f:

@@ -1,152 +1,152 @@
-regime,statement,account_code,canonical_code,mapping_basis,source,note
-TT99,B01,100,100,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,110,110,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,111,111,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,112,112,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,120,120,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,121,121,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,122,122,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,123,123,numeric_31122025,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC 2025-Q4, cùng cấp",
-TT99,B01,124,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,125,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,126,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,130,130,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,131,131,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,132,132,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,133,133,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,134,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,135,136,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,136,137,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,137,139,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,140,140,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,141,141,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,142,149,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,150,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,151,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,152,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,153,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,160,150,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,161,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,162,152,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,163,153,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,164,154,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,165,155,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,200,200,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,210,210,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,211,211,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,212,212,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,213,213,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,214,214,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,215,216,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,216,219,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,220,220,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,221,221,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,222,222,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,223,223,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,224,224,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,225,225,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,226,226,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,227,227,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,228,228,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,229,229,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,230,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,231,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,232,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,233,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,234,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,235,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,236,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,237,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,238,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,240,230,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,241,231,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,242,232,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,250,240,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,251,241,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,252,242,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,260,250,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,261,251,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),"số liệu 31/12/2025 khớp mã 261, khác ghép theo tên (251): cần xác nhận"
-TT99,B01,262,252,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,263,253,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,264,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,265,255,numeric_31122025,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC 2025-Q4, cùng cấp",
-TT99,B01,266,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,270,260,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,271,261,numeric_31122025,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC 2025-Q4, cùng cấp",
-TT99,B01,272,262,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,273,263,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,274,268,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,280,270,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,300,300,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,310,310,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,311,311,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,312,312,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,313,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,314,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,315,314,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,316,315,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,317,316,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,318,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,319,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,320,319,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,321,320,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,322,321,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,323,322,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,324,323,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,325,324,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,330,330,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,331,331,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,332,332,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,333,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,334,333,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,335,334,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,336,335,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,337,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B01,338,337,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,339,338,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,340,339,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,341,340,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,342,341,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,343,342,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,344,343,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,400,400,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,411,411,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,411a,411a,name+numeric_31122025,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,411b,411b,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,412,412,numeric_31122025,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC 2025-Q4, cùng cấp",
-TT99,B01,413,413,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,414,414,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,415,415,numeric_31122025,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC 2025-Q4, cùng cấp",
-TT99,B01,416,416,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,417,417,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,418,418,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,419,420,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,420,421,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,420a,421a,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,420b,421b,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,440,440,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,01,01,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,02,02,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,10,10,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,11,11,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,20,20,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,21,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B02,22,21,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,23,22,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,24,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
-TT99,B02,25,25,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,26,26,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,30,30,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,31,31,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,32,32,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,40,40,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,50,50,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,51,51,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,52,52,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,60,60,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,70,70,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B02,71,71,name,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,429,,,,MWG in mã này trên mẫu B01a/B02a-DN/HN (Lợi ích cổ đông không kiểm soát) nhưng mẫu TT99 PL IV không có: chưa map
-TT99,B02,27,,,,MWG in mã này trên mẫu B01a/B02a-DN/HN (Phần lãi/lỗ trong công ty liên doanh) nhưng mẫu TT99 PL IV không có: chưa map
-TT99,B02,61,,,,MWG in mã này trên mẫu B01a/B02a-DN/HN (Lợi nhuận sau thuế của công ty mẹ) nhưng mẫu TT99 PL IV không có: chưa map
-TT99,B02,62,,,,MWG in mã này trên mẫu B01a/B02a-DN/HN (Lợi nhuận sau thuế của cổ đông không kiểm soát) nhưng mẫu TT99 PL IV không có: chưa map
+regime,statement,account_code,canonical_code,mapping_basis,semantic_break,source,note
+TT99,B01,100,100,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,110,110,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,111,111,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,112,112,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,120,120,name,true,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),"số liệu 31/12/2025: TT99 120 = 41,883,889,962,478 khác TT200 120 = 33,874,270,102,700, không giống lỗi OCR: cùng tên nhưng khác nội dung"
+TT99,B01,121,121,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,122,122,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,123,,,,,
+TT99,B01,124,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,125,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,126,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,130,130,name,true,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),"số liệu 31/12/2025: TT99 130 = 2,172,981,816,979 khác TT200 130 = 10,182,835,978,469, không giống lỗi OCR: cùng tên nhưng khác nội dung"
+TT99,B01,131,131,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,132,132,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,133,133,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,134,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,135,136,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,136,137,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,137,139,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,140,140,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,141,141,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,142,149,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,150,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,151,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,152,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,153,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,160,150,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,161,151,numeric_31122025,,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC None, cùng cấp",
+TT99,B01,162,152,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,163,153,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,164,154,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,165,155,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,200,200,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,210,210,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,211,211,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,212,212,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,213,213,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,214,214,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,215,216,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,216,219,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,220,220,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,221,221,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,222,222,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,223,223,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,224,224,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,225,225,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,226,226,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,227,227,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,228,228,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,229,229,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,230,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,231,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,232,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,233,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,234,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,235,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,236,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,237,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,238,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,240,230,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,241,231,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,242,232,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,250,240,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,251,241,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,252,242,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,260,250,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,261,251,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,262,252,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,263,253,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,264,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,265,255,numeric_31122025,,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC None, cùng cấp",
+TT99,B01,266,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,270,260,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,271,261,numeric_31122025,,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC None, cùng cấp",
+TT99,B01,272,262,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,273,263,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,274,268,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,280,270,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,300,300,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,310,310,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,311,311,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,312,312,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,313,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,314,313,numeric_31122025,,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC 50769502237457, cùng cấp",
+TT99,B01,315,314,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,316,315,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,317,316,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,318,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,319,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,320,319,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,321,320,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,322,321,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,323,322,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,324,323,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,325,324,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,330,330,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,331,331,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,332,332,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,333,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,334,333,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,335,334,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,336,335,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,337,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B01,338,337,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,339,338,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,340,339,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,341,340,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,342,341,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,343,342,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,344,343,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,400,400,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,411,411,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,411a,411a,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,411b,411b,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,412,412,numeric_31122025,,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC None, cùng cấp",
+TT99,B01,413,413,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,414,414,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,415,415,numeric_31122025,,"số liệu 31/12/2025: đầu năm BCTC 2026 = cuối kỳ BCTC None, cùng cấp",
+TT99,B01,416,416,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,417,417,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,418,418,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,419,420,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,420,421,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,420a,421a,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,420b,421b,name+numeric_31122025,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,440,440,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,01,01,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,02,02,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,10,10,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,11,11,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,20,20,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,21,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B02,22,21,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,23,22,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,24,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
+TT99,B02,25,25,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,26,26,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,30,30,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,31,31,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,32,32,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,40,40,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,50,50,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,51,51,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,52,52,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,60,60,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,70,70,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B02,71,71,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
+TT99,B01,429,,,,,MWG in mã này trên mẫu B01a/B02a-DN/HN (Lợi ích cổ đông không kiểm soát) nhưng mẫu TT99 PL IV không có: chưa map
+TT99,B02,27,,,,,MWG in mã này trên mẫu B01a/B02a-DN/HN (Phần lãi/lỗ trong công ty liên doanh) nhưng mẫu TT99 PL IV không có: chưa map
+TT99,B02,61,,,,,MWG in mã này trên mẫu B01a/B02a-DN/HN (Lợi nhuận sau thuế của công ty mẹ) nhưng mẫu TT99 PL IV không có: chưa map
+TT99,B02,62,,,,,MWG in mã này trên mẫu B01a/B02a-DN/HN (Lợi nhuận sau thuế của cổ đông không kiểm soát) nhưng mẫu TT99 PL IV không có: chưa map

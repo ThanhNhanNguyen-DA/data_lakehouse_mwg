@@ -9,6 +9,12 @@ mapping_basis = numeric_31122025; khớp nhiều mã, không khớp, hay mâu th
 
 Chỉ ghép mã cùng cấp (level trong dim_account): dòng tổng bằng dòng con duy nhất của nó (vd. 330 = 336 khi
 chỉ có một khoản nợ dài hạn) không được ghép nhầm.
+
+semantic_break = true: mã ghép theo tên nhưng số 31/12/2025 của MỌI báo cáo 2026 lệch số TT200 và không giống lỗi
+OCR (khác số chữ số hoặc sai > 2 chữ số) -> cùng tên nhưng khác nội dung (vd. TT99 130 gồm khác TT200 130). Kỳ trước/sau mốc chuyển
+chế độ không được so chéo (đầu năm 2026 vs cuối năm 2025) và KPI không nối chuỗi qua mã này.
+
+Mỗi lần chạy tính lại từ đầu phần do số liệu sinh ra (ghép numeric, semantic_break, ghi chú), giữ ghép theo tên.
 """
 import csv
 import sys
@@ -17,12 +23,15 @@ from pathlib import Path
 
 import polars as pl
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.extraction.self_correct import ocr_like  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "config" / "account_code_regime_map.csv"
 NOTES = ROOT / "docs" / "dim_account_notes.md"
 RAW = ROOT / "data" / "silver" / "fs_extracted_raw"
 BASIS = "numeric_31122025"
-FIELDS = ["regime", "statement", "account_code", "canonical_code", "mapping_basis", "source", "note"]
+FIELDS = ["regime", "statement", "account_code", "canonical_code", "mapping_basis", "semantic_break", "source", "note"]
 MARK_START, MARK_END = "<!-- numeric-map:start -->", "<!-- numeric-map:end -->"
 
 
@@ -39,18 +48,27 @@ def main(argv: list[str]) -> int:
     # mỗi mã TT99: giá trị đa số giữa các báo cáo 2026 (giảm ảnh hưởng của một ô OCR sai)
     v99 = {code: Counter(g["amount_vnd"].to_list()).most_common(1)[0][0]
            for (code,), g in tt99.group_by(["account_code"])}
+    all99 = {code: set(g["amount_vnd"].to_list()) for (code,), g in tt99.group_by(["account_code"])}
     v200 = dict(zip(q4["account_code"], q4["amount_vnd"]))
 
     rows = list(csv.DictReader(MAP.open(encoding="utf-8")))
     result = {"mới ghép": [], "khớp với ghép theo tên": [], "mâu thuẫn với ghép theo tên": [],
-              "khớp nhiều mã": [], "không khớp": [], "bằng 0": []}
+              "khớp nhiều mã": [], "không khớp": [], "bằng 0": [], "semantic_break": [],
+              "báo cáo 2026 không thống nhất": []}
     for r in rows:
-        r.setdefault("mapping_basis", "")
-        if r["canonical_code"] and not r["mapping_basis"]:
-            r["mapping_basis"] = "name"
+        basis = r.get("mapping_basis") or ""
+        if basis == BASIS:  # ghép do lần chạy trước sinh ra: tính lại
+            r.update(canonical_code="", source="")
+        r["mapping_basis"] = "name" if r["canonical_code"] else ""
+        r["semantic_break"] = ""
+        if (r.get("note") or "").startswith("số liệu 31/12/2025"):
+            r["note"] = ""
         if r["statement"] != "B01" or r["account_code"] not in v99:
             continue
         v = v99[r["account_code"]]
+        if len(all99[r["account_code"]]) > 1:
+            result["báo cáo 2026 không thống nhất"].append(
+                (r["account_code"], v, [f"{x:,}" for x in sorted(all99[r["account_code"]])]))
         if v == 0:
             result["bằng 0"].append((r["account_code"], v, []))
             continue
@@ -72,6 +90,12 @@ def main(argv: list[str]) -> int:
             result["khớp nhiều mã"].append(item)
         else:
             result["không khớp"].append(item)
+            ref = v200.get(r["canonical_code"]) if r["canonical_code"] else None
+            if ref is not None and all(abs(x - ref) > 1 and not ocr_like(x, ref) for x in all99[r["account_code"]]):
+                r["semantic_break"] = "true"
+                r["note"] = (f"số liệu 31/12/2025: TT99 {r['account_code']} = {v:,} khác TT200 {r['canonical_code']} = "
+                             f"{ref:,}, không giống lỗi OCR: cùng tên nhưng khác nội dung")
+                result["semantic_break"].append((r["account_code"], v, [r["canonical_code"]]))
     for k, items in result.items():
         print(f"{k}: {len(items)}", [(c, h) for c, _, h in items])
     if dry:
@@ -83,7 +107,8 @@ def main(argv: list[str]) -> int:
 
     lines = [MARK_START, "", "## Map bằng số liệu ngày 31/12/2025 (tự sinh bởi `tools/map_tt99_numeric.py`)", "",
              f"So cột đầu năm B01 của BCTC 2026 (TT99) với cột cuối kỳ B01 của BCTC {ref} bản vi-VN (TT200), "
-             "chỉ giữa các mã cùng cấp. Khớp đúng một mã thì ghép (`mapping_basis = numeric_31122025`).", "",
+             "chỉ giữa các mã cùng cấp. Khớp đúng một mã thì ghép (`mapping_basis = numeric_31122025`). "
+             "`semantic_break`: mã ghép theo tên mà số lệch, không giống lỗi OCR (cùng tên, khác nội dung).", "",
              "| Kết quả | Số mã | Mã TT99 → mã TT200 khớp số |", "|---|---|---|"]
     for k, items in result.items():
         shown = ", ".join(f"{c} → {'/'.join(h) or '–'}" for c, _, h in items)
