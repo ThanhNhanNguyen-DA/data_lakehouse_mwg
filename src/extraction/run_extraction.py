@@ -391,7 +391,9 @@ def relabel_b02_numeric(d: dict, docs: list[dict]) -> bool:
                     evidence.append("Q1: hai cột năm nay bằng nhau")
             else:
                 prev = by_period.get(f"{year}-Q1") if part == "Q2" else by_period.get(f"{year}-H1")
-                pv = _b02_columns(prev).get("ytd_current" if part == "Q2" else "current") if prev else None
+                pcols = _b02_columns(prev) if prev else {}
+                # báo cáo Q1 hai cột ghi nhãn current/prior: cột current chính là lũy kế Q1
+                pv = pcols.get("ytd_current" if part == "Q2" else "current") or pcols.get("current")
                 for ytd, q in ((a, b), (b, a)):
                     m = _matches(_diff(cols[ytd], cols[q]), pv)
                     if m >= MIN_LABEL_MATCH:
@@ -406,6 +408,40 @@ def relabel_b02_numeric(d: dict, docs: list[dict]) -> bool:
             c["period_kind"] = mapping.get(c["period_kind"], c["period_kind"])
     d.update(columns_ok=True, b02_label_method="numeric", label_note="; ".join(evidence))
     return True
+
+
+QUARTER_ORDERS = (("q_current", "ytd_current", "q_prior", "ytd_prior"),   # thứ tự gán theo vị trí (BCTC 2023+)
+                  ("q_current", "q_prior", "ytd_current", "ytd_prior"))   # BCTC quý cũ (2014, 2016)
+REVENUE_CODES = ("10", "01")
+
+
+def check_positional_order(d: dict) -> bool:
+    """B02 quý 4 cột gán nhãn theo vị trí (Q2–Q4): lũy kế phải lớn hơn quý cùng năm (doanh thu dương).
+
+    Chỉ thứ tự cũ đúng -> gắn lại nhãn (b02_label_method = numeric), trả True; không thứ tự nào đúng
+    -> giữ nguyên (lỗi OCR ở số doanh thu, phương trình DQ sẽ bắt). Q1 (quý = lũy kế) và báo cáo hai cột không kiểm được bằng cách này."""
+    if d["b02_label_method"] != "positional" or d["period"][5:] not in ("Q2", "Q3", "Q4"):
+        return False
+    cols = _b02_columns(d)
+    if set(cols) != set(QUARTER_ORDERS[0]):
+        return False
+    code = next((c for c in REVENUE_CODES if all(c in cols[k] for k in cols)), None)
+    if code is None:
+        return False
+
+    def valid(order):  # order: nhãn mới theo thứ tự cột của nhãn vị trí
+        v = {new: cols[old][code] for old, new in zip(QUARTER_ORDERS[0], order)}
+        return v["ytd_current"] > v["q_current"] > 0 and v["ytd_prior"] > v["q_prior"] > 0
+    ok = [o for o in QUARTER_ORDERS if valid(o)]
+    if ok == [QUARTER_ORDERS[1]]:
+        mapping = dict(zip(QUARTER_ORDERS[0], ok[0]))
+        for c in d["cells"]:
+            if c["statement"] == "B02":
+                c["period_kind"] = mapping.get(c["period_kind"], c["period_kind"])
+        d.update(b02_label_method="numeric",
+                 label_note=f"thứ tự cột quý này, quý năm trước, lũy kế, lũy kế năm trước (lũy kế > quý, mã {code})")
+        return True
+    return False  # thứ tự vị trí đúng, hoặc số OCR sai đến mức không thứ tự nào đúng (phương trình sẽ bắt)
 
 
 def _prepare_cells(cells: list[dict], row: dict, regime: str | None, ctx: dict) -> list[dict]:
@@ -628,6 +664,9 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
             stats["consensus"] += apply_consensus(docs)
             for d in docs:
                 _evaluate(d, ctx)
+    for d in docs:  # sau PaddleOCR: kiểm thứ tự cột trên số cuối cùng
+        if check_positional_order(d):
+            _evaluate(d, ctx)
     for d in docs:
         stats["suggested"] += write_suggestions(OVERRIDES, d, suggest_fixes(d, d["eligible_failed"], d["values"], d["signs"]))
 

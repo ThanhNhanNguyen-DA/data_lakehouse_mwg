@@ -36,6 +36,36 @@ Khi cùng một ô (kỳ, báo cáo, mã số) có cả số gốc (báo cáo c�
 |---|---|---|---|---|---|---|---|
 | | | | | | | | |
 
+<!-- silver:start -->
+
+### Kỳ bị trình bày lại – Silver (tự sinh, 2026-11-13 01:23)
+
+Ô có cả số gốc (báo cáo của chính kỳ đó) và số so sánh (cột kỳ trước của báo cáo kỳ sau), **cả hai trusted**, lệch > 0,1%: 17 ô. Silver giữ số gốc. Ô chưa trusted không so (lệch có thể do OCR).
+
+Silver: 6648 dòng; loại 337 ô rỗng, 0 ô của báo cáo không qua kiểm tra kỳ/nhãn cột B02, 438 ô không ánh xạ được mã (88 mã, `data/_state/unmapped_items.csv`), 8 ô TT99 đổi nội dung rơi vào ngày theo TT200; thêm 1560 ô suy ra (Q2 = H1 − Q1, Q3 = 9T − H1, Q4 = năm − 9T).
+
+| Kỳ | Báo cáo | Kỳ cột | Mã | Số gốc (VND) | Số so sánh (VND) | Chênh lệch | Tài liệu gốc | Tài liệu so sánh |
+|---|---|---|---|---|---|---|---|---|
+| 2017-4 | B01 | instant | 421a | 492,893,118,039 | 461,763,398,338 | -31,129,719,701 (-6.32%) | 2017 en | 2018-Q3 en |
+| 2017-4 | B01 | instant | 421a | 492,893,118,039 | 461,763,398,338 | -31,129,719,701 (-6.32%) | 2017 en | 2018-Q1 en |
+| 2017-4 | B01 | instant | 421b | 2,205,679,630,420 | 2,236,809,350,121 | 31,129,719,701 (1.41%) | 2017 en | 2018-Q1 en |
+| 2017-4 | B01 | instant | 421b | 2,205,679,630,420 | 2,236,809,350,121 | 31,129,719,701 (1.41%) | 2017 en | 2018-Q3 en |
+| 2023-4 | B02 | quarter | 26 | -300,975,912,573 | -272,271,950,844 | 28,703,961,729 (-9.54%) | 2023-Q4 vi | 2024-Q4 vi |
+| 2023-4 | B02 | quarter | 30 | 463,218,816,528 | 492,435,275,900 | 29,216,459,372 (6.31%) | 2023-Q4 vi | 2024-Q4 vi |
+| 2023-4 | B02 | quarter | 32 | -251,242,339,368 | -280,458,798,740 | -29,216,459,372 (11.63%) | 2023-Q4 vi | 2024-Q4 vi |
+| 2023-4 | B02 | quarter | 40 | -244,293,593,216 | -273,510,052,588 | -29,216,459,372 (11.96%) | 2023-Q4 vi | 2024-Q4 vi |
+| 2025-4 | B01 | instant | 112 | 39,550,000,000 | 39,784,301,712 | 234,301,712 (0.59%) | 2025 vi | 2026-H1 vi |
+| 2025-4 | B01 | instant | 112 | 39,550,000,000 | 39,784,301,712 | 234,301,712 (0.59%) | 2025 vi | 2026-Q3 vi |
+| 2025-4 | B01 | instant | 136 | 2,834,602,952,391 | 1,777,995,790,901 | -1,056,607,161,490 (-37.28%) | 2025-Q4 vi | 2026-Q2 vi |
+| 2025-4 | B01 | instant | 136 | 2,834,602,952,391 | 1,777,995,790,901 | -1,056,607,161,490 (-37.28%) | 2025-Q4 vi | 2026-Q3 vi |
+| 2025-4 | B01 | instant | 136 | 2,834,602,952,391 | 1,777,995,790,901 | -1,056,607,161,490 (-37.28%) | 2025-Q4 vi | 2026-Q1 vi |
+| 2025-4 | B01 | instant | 136 | 2,834,602,952,391 | 1,777,995,790,901 | -1,056,607,161,490 (-37.28%) | 2025-Q4 vi | 2026-H1 vi |
+| 2025-4 | B01 | instant | 310 | 50,769,502,237,457 | 50,380,613,547,353 | -388,888,690,104 (-0.77%) | 2025 vi | 2026-Q2 vi |
+| 2025-4 | B01 | instant | 310 | 50,769,502,237,457 | 50,380,613,547,353 | -388,888,690,104 (-0.77%) | 2025 vi | 2026-H1 vi |
+| 2025-4 | B01 | instant | 310 | 50,769,502,237,457 | 50,380,613,547,353 | -388,888,690,104 (-0.77%) | 2025 vi | 2026-Q3 vi |
+
+<!-- silver:end -->
+
 Bảng tự sinh nằm ở mục 5, phần "Kỳ bị trình bày lại (tự sinh)".
 
 ## 4. Đối soát với vnstock (tuần 6)
@@ -44,19 +74,19 @@ Chưa thực hiện. Gói `vnstock` không còn trên PyPI, xem ghi chú trong `
 
 <!-- extraction:start -->
 
-## 5. Bóc tách và DQ theo kỳ (tự sinh, 2026-11-13 01:12)
+## 5. Bóc tách và DQ theo kỳ (tự sinh, 2026-11-13 01:21)
 
 **B01 cân đối: 50/52 (96%). BCTC qua DQ toàn bộ: 7/52 (13%).** Chưa áp dụng gợi ý sửa tay nào; **15 ô đang chờ xác nhận** trong `config/manual_overrides.csv` (`status=pending`).
 
 **Độ chính xác OCR thô** (trước mọi bước tự sửa): B01 cân đối 34/52 (65%); 82/108 (76%) phép kiểm phương trình B01 đúng. **Sau tự sửa**: B01 cân đối 50/52 (96%).
 
-**Qua critical (chặn Gold theo từng báo cáo): B01 50/52 (96%), B02 25/52 (48%)** (cả hai: 25/52 (48%)). Ô trusted (nằm trong một phương trình/tổng dòng con đúng, >= 2 nguồn bỏ phiếu khớp, hoặc đồng nhất thức với ô trusted): 8004/11950 (67%). **Ô vào được Gold** (trusted và critical của chính báo cáo đó qua): B01 5807/6287 (92%), B02 1446/2716 (53%); B03 chưa có critical nên chưa vào Gold. B02 chặn theo từng cột (`period_kind`): cột B02 qua critical 90/128.
+**Qua critical (chặn Gold theo từng báo cáo): B01 50/52 (96%), B02 25/52 (48%)** (cả hai: 25/52 (48%)). Ô trusted (nằm trong một phương trình/tổng dòng con đúng, >= 2 nguồn bỏ phiếu khớp, hoặc đồng nhất thức với ô trusted): 8004/11950 (67%). **Ô vào được Gold** (trusted và critical của chính báo cáo đó qua): B01 5807/6287 (92%), B02 1446/2716 (53%); B03 chưa có critical nên chưa vào Gold. B02 chặn theo từng cột (`period_kind`): cột B02 qua critical 90/132.
 
 Critical B01: phương trình cân đối B01, kỳ/ngày báo cáo, có trang B01. Critical B02: phương trình B02 có vế trái 10, 20, 30, 50, 60, kỳ/ngày báo cáo, có trang B02, nhãn cột B02 TT99. Đồng nhất thức (`config/dq_identities.csv`, `value_origin = identity`) thay phép kiểm tổng dòng con của dòng đích. Warning (chỉ ghi lại): tổng dòng con các mục nhỏ, Q1 quý này = lũy kế, đầu năm ≠ cuối năm trước. Critical chưa kiểm được (thiếu công thức chắc chắn): TT200: B02 50.
 
-Nguồn gốc giá trị (`value_origin`): consensus_filled 164, consensus_fixed 34, identity 86, ocr 9832, ocr_reocr 63, paddle 1771. Nhãn cột B02 (`b02_label_method`): header 7, không có B02 1, numeric 3, positional 41.
+Nguồn gốc giá trị (`value_origin`): consensus_filled 164, consensus_fixed 34, identity 86, ocr 9832, ocr_reocr 63, paddle 1771. Nhãn cột B02 (`b02_label_method`): header 7, không có B02 1, numeric 6, positional 38.
 
-Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa các lần in lại số B01; PaddleOCR chạy 52 trang, thay kết quả cho 26 báo cáo; 141 mã và 108 ô số được OCR lại riêng (400 dpi); 0 gợi ý mới cho ô lệch đúng một chữ số so với kỳ liền kề (`suggested_by = adjacent_period`); 0 gợi ý mới từ đối soát báo cáo tháng (`suggested_by = monthly_crosscheck`).
+Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa các lần in lại số B01; PaddleOCR chạy 50 trang, thay kết quả cho 26 báo cáo; 141 mã và 108 ô số được OCR lại riêng (400 dpi); 0 gợi ý mới cho ô lệch đúng một chữ số so với kỳ liền kề (`suggested_by = adjacent_period`); 0 gợi ý mới từ đối soát báo cáo tháng (`suggested_by = monthly_crosscheck`).
 
 Điều kiện qua: tìm thấy B01 và B02; mọi phương trình trong `config/dq_equations.csv` của đúng regime đúng trên mọi cột; báo cáo Q1 có cột quý này = lũy kế; cột B02 TT99 đọc được tiêu đề; ngày báo cáo trong PDF khớp kỳ; số đầu năm khớp số cuối năm trước (so theo mã chuẩn). Khoản giảm trừ chỉ lấy trị tuyệt đối khi `sign = -1` trong `config/dim_account.csv` (hiện có 287 dòng).
 
@@ -112,53 +142,53 @@ Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa c
 | TT200 | 224 = Σ con | 1/1 | 100% |
 | TT99 | 40 = Σ con | 2/4 | 50% |
 | TT99 | 310 = Σ con | 1/4 | 25% |
-| TT99 | 420 = Σ con | 1/4 | 25% |
-| TT99 | 221 = Σ con | 1/4 | 25% |
-| TT99 | 227 = Σ con | 1/4 | 25% |
 | TT99 | 20 = Σ con | 1/4 | 25% |
+| TT99 | 420 = Σ con | 1/4 | 25% |
+| TT99 | 227 = Σ con | 1/4 | 25% |
+| TT99 | 221 = Σ con | 1/4 | 25% |
 | TT200 | 20 = Σ con | 11/45 | 24% |
 | TT200 | 421 = Σ con | 11/46 | 24% |
-| TT200 | 310 = Σ con | 10/48 | 21% |
 | TT200 | 410 = Σ con | 10/48 | 21% |
+| TT200 | 310 = Σ con | 10/48 | 21% |
 | TT200 | 411 = Σ con | 8/47 | 17% |
 | TT200 | 130 = Σ con | 7/48 | 15% |
+| TT200 | 150 = Σ con | 6/48 | 12% |
 | TT200 | 260 = Σ con | 6/48 | 12% |
 | TT200 | 200 = Σ con | 6/48 | 12% |
-| TT200 | 150 = Σ con | 6/48 | 12% |
 | TT200 | 40 = Σ con | 5/45 | 11% |
-| TT200 | 221 = Σ con | 5/48 | 10% |
 | TT200 | 227 = Σ con | 5/48 | 10% |
+| TT200 | 221 = Σ con | 5/48 | 10% |
 | TT200 | 50 = Σ con | 4/45 | 9% |
 | TT200 | 100 = Σ con | 4/48 | 8% |
-| TT200 | 300 = Σ con | 3/48 | 6% |
 | TT200 | 270 = Σ con | 3/48 | 6% |
+| TT200 | 300 = Σ con | 3/48 | 6% |
 | TT200 | 250 = Σ con | 2/38 | 5% |
 | TT200 | 10 = Σ con | 2/45 | 4% |
-| TT200 | 110 = Σ con | 2/48 | 4% |
 | TT200 | 400 = Σ con | 2/48 | 4% |
+| TT200 | 110 = Σ con | 2/48 | 4% |
 | TT200 | 330 = Σ con | 1/33 | 3% |
 | TT200 | 240 = Σ con | 1/47 | 2% |
-| TT200 | 220 = Σ con | 1/48 | 2% |
 | TT200 | 140 = Σ con | 1/48 | 2% |
+| TT200 | 220 = Σ con | 1/48 | 2% |
 | TT200 | 210 = Σ con | 0/47 | 0% |
 | TT200 | 120 = Σ con | 0/40 | 0% |
-| TT99 | 411 = Σ con | 0/4 | 0% |
+| TT99 | 140 = Σ con | 0/4 | 0% |
 | TT99 | 210 = Σ con | 0/4 | 0% |
-| TT99 | 10 = Σ con | 0/4 | 0% |
-| TT99 | 50 = Σ con | 0/4 | 0% |
+| TT99 | 120 = Σ con | 0/4 | 0% |
 | TT99 | 250 = Σ con | 0/4 | 0% |
-| TT99 | 280 = Σ con | 0/4 | 0% |
+| TT99 | 100 = Σ con | 0/4 | 0% |
+| TT99 | 10 = Σ con | 0/4 | 0% |
+| TT99 | 160 = Σ con | 0/4 | 0% |
+| TT99 | 110 = Σ con | 0/4 | 0% |
+| TT99 | 260 = Σ con | 0/4 | 0% |
+| TT99 | 50 = Σ con | 0/4 | 0% |
+| TT99 | 270 = Σ con | 0/4 | 0% |
 | TT99 | 330 = Σ con | 0/3 | 0% |
 | TT99 | 300 = Σ con | 0/4 | 0% |
-| TT99 | 220 = Σ con | 0/4 | 0% |
-| TT99 | 270 = Σ con | 0/4 | 0% |
-| TT99 | 260 = Σ con | 0/4 | 0% |
-| TT99 | 120 = Σ con | 0/4 | 0% |
+| TT99 | 411 = Σ con | 0/4 | 0% |
 | TT99 | 200 = Σ con | 0/4 | 0% |
-| TT99 | 160 = Σ con | 0/4 | 0% |
-| TT99 | 100 = Σ con | 0/4 | 0% |
-| TT99 | 110 = Σ con | 0/4 | 0% |
-| TT99 | 140 = Σ con | 0/4 | 0% |
+| TT99 | 220 = Σ con | 0/4 | 0% |
+| TT99 | 280 = Σ con | 0/4 | 0% |
 | TT99 | 130 = Σ con | 0/4 | 0% |
 
 ### Đối soát B02 mã 10, 60 với báo cáo tháng lũy kế (thay vnstock)
@@ -265,11 +295,11 @@ Mọi báo cáo năm N+1 (>= 2 báo cáo) in cùng một số đầu năm nhưng
 
 | Kỳ | Lang | Regime | Trang B01 / B02 / B03 | Số ô | 270 = 300 + 400 | 10 = 01 - 02 | 20 = 10 - 11 | 60 = 61 + 62 | 30 = 20 + (21 - 22) + 24 - (25 + 26) | 280 = 100 + 200 | 440 = 300 + 400 | 280 = 300 + 400 | 30 = 20 + 22 - (23 + 25 + 26) + 27 | 40 = 31 - 32 | 50 = 30 + 40 | 60 = 50 - 51 - 52 | Đầu năm = cuối năm trước | Ngày trong PDF | Khớp kỳ | Kết quả | Ghi chú |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| 2014-Q3 | vi | TT200 | 7,8/9,10/11 | 233 | ✗ (0/2) | ✓ (4/4) | ✓ (4/4) | ✗ (3/4) | ✗ (0/4) | – | – | – | – | – | – | – | – | 2014-09-30 | ✓ | không qua | 270 = 300 + 400: lệch -1,994,932,003,020; 270 = 300 + 400: lệch 24,352,276,746; 60 = 61 + 62: lệch -170,000,000,000; không có BCTC năm trước |
+| 2014-Q3 | vi | TT200 | 7,8/9,10/11 | 233 | ✗ (0/2) | ✓ (4/4) | ✓ (4/4) | ✗ (3/4) | ✗ (0/4) | – | – | – | – | – | – | – | – | 2014-09-30 | ✓ | không qua | 270 = 300 + 400: lệch -1,994,932,003,020; 270 = 300 + 400: lệch 24,352,276,746; 60 = 61 + 62: lệch -170,000,000,000; không có BCTC năm trước; nhãn cột B02: thứ tự cột quý này, quý năm trước, lũy kế, lũy kế năm trước (lũy kế > quý, mã 10) |
 | 2016 | en | TT200 | 7/8/9,10 | 208 | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | – | – | – | – | – | – | – | – | 2016-12-31 | ✓ | **qua** | không có BCTC năm trước |
 | 2016-H1 | en | TT200 | 7,8/9/10,11 | 201 | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | – | – | – | – | – | – | – | – | 2016-06-30 | ✓ | **qua** | không có BCTC năm trước; dùng paddle:B02 |
 | 2016-Q1 | en | TT200 | 6,7/8/9,10 | 200 | ✓ (2/2) | ✓ (2/2) | ✗ (1/2) | ✓ (2/2) | ✓ (2/2) | – | – | – | – | – | – | – | – | 2016-03-31 | ✓ | không qua | 20 = 10 - 11: thiếu 11; 20 = Σ con: lệch -8,037,820,417,725; không có BCTC năm trước; dùng paddle:B02 |
-| 2016-Q3 | en | TT200 | 7,8/9,10/11,12 | 247 | ✓ (2/2) | ✓ (4/4) | ✓ (4/4) | ✓ (4/4) | ✓ (4/4) | – | – | – | – | – | – | – | – | 2016-09-30 | ✓ | không qua | 260 = Σ con: lệch -300,000; không có BCTC năm trước |
+| 2016-Q3 | en | TT200 | 7,8/9,10/11,12 | 247 | ✓ (2/2) | ✓ (4/4) | ✓ (4/4) | ✓ (4/4) | ✓ (4/4) | – | – | – | – | – | – | – | – | 2016-09-30 | ✓ | không qua | 260 = Σ con: lệch -300,000; không có BCTC năm trước; nhãn cột B02: thứ tự cột quý này, quý năm trước, lũy kế, lũy kế năm trước (lũy kế > quý, mã 10) |
 | 2017 | en | TT200 | 7,8/9/10,11 | 212 | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | – | – | – | – | – | – | – | ✓ | 2017-12-31 | ✓ | **qua** |  |
 | 2017-Q1 | en | TT200 | 7,8/9/10,11 | 198 | ✓ (2/2) | ✓ (2/2) | ✗ (0/2) | ✓ (2/2) | ✓ (2/2) | – | – | – | – | – | – | – | ✓ | 2017-03-31 | ✓ | không qua | 20 = 10 - 11: thiếu 11; 20 = 10 - 11: thiếu 11; 20 = Σ con: lệch -12,934,074,171,216; dùng paddle:B02 |
 | 2017-Q3 | en | TT200 | 7,8/9,10/11,12 | 206 | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | – | – | – | – | – | – | – | ✓ | 2017-09-30 | ✓ | **qua** |  |
@@ -315,7 +345,7 @@ Mọi báo cáo năm N+1 (>= 2 báo cáo) in cùng một số đầu năm nhưng
 | 2025-Q4 | vi | TT200 | 5,6/7,8/9,10 | 269 | ✓ (2/2) | ✓ (4/4) | ✓ (4/4) | ✗ (0/1) | ✓ (4/4) | – | – | – | – | – | – | – | ✓ | 2025-12-31 | ✓ | không qua | 60 = 61 + 62: thiếu mã 60; 200 = Σ con: lệch 23,761,517; 200 = Σ con: lệch 358,454,413,877 |
 | 2026-H1 | vi | TT99 | 7,8,9/10,11/12,13 | 224 | – | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | – | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✗ | 2026-06-30 | ✓ | không qua | 221 = Σ con: lệch -17,577,435,877,524; lệch 3/52 mã: 110, 112, 310; nhãn cột B02: cột năm trước khớp 2025-H1 (9 mã); dùng paddle:B01 |
 | 2026-Q1 | vi | TT99 | 5,6/7/8,9 | 218 | – | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | – | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✗ (0/2) | ✓ | 2026-03-31 | ✓ | không qua | 60 = 50 - 51 - 52: lệch 453,969,849,936; 60 = 50 - 51 - 52: lệch 21,789,594,078; nhãn cột B02: cột năm trước khớp 2025-Q1 (17 mã) |
-| 2026-Q2 | vi | TT99 | 5,6/7,8/9,10 | 274 | – | ✓ (4/4) | ✗ (3/4) | ✗ (3/4) | – | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✗ (2/4) | ✗ (3/4) | ✓ (4/4) | ✗ (0/4) | ✗ | 2026-06-30 | ✓ | không qua | 20 = 10 - 11: thiếu 11; 30 = 20 + 22 - (23 + 25 + 26) + 27: thiếu 25; 30 = 20 + 22 - (23 + 25 + 26) + 27: lệch -400,000,000,000; lệch 1/52 mã: 310; không đọc được tiêu đề cột B02 (TT99): không đưa sang Silver; nhãn cột B02: không chứng minh được nhãn cột bằng số: cột năm trước khớp 2025-Q2 (17/17 mã); dùng paddle:B01 |
+| 2026-Q2 | vi | TT99 | 5,6/7,8/9,10 | 274 | – | ✓ (4/4) | ✗ (3/4) | ✗ (3/4) | – | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✗ (2/4) | ✗ (3/4) | ✓ (4/4) | ✗ (0/4) | ✗ | 2026-06-30 | ✓ | không qua | 20 = 10 - 11: thiếu 11; 30 = 20 + 22 - (23 + 25 + 26) + 27: thiếu 25; 30 = 20 + 22 - (23 + 25 + 26) + 27: lệch -400,000,000,000; lệch 1/52 mã: 310; nhãn cột B02: cột năm trước khớp 2025-Q2 (17/17 mã); lũy kế - quý này = 2026-Q1 (15 mã); dùng paddle:B01 |
 | 2026-Q3 | vi | TT99 | 5,6,7/8,9/10,11 | 240 | – | ✓ (4/4) | ✓ (4/4) | ✗ (0/1) | – | ✓ (2/2) | ✓ (2/2) | ✓ (2/2) | ✓ (4/4) | ✗ (3/4) | ✓ (4/4) | ✗ (0/1) | ✗ | 2026-09-30 | ✓ | không qua | 40 = 31 - 32: lệch -180,000,000,000; 60 = 50 - 51 - 52: thiếu mã 60; 60 = 61 + 62: thiếu mã 60; lệch 4/51 mã: 110, 112, 310, 321; nhãn cột B02: cột năm trước khớp 2025-Q3 (8/7 mã); lũy kế - quý này = 2026-H1 (14 mã) |
 
 \* regime suy ra theo năm (`regime_inferred`): không đọc được tên B01, năm < 2026 nên coi là TT200.

@@ -399,3 +399,22 @@ def test_monthly_suggestions_chi_goi_y_khi_doc_lai_khop(monkeypatch):
     assert len(out) == 1 and out[0][1]["amount_vnd"] == 73_655_100_000_000 and out[0][1]["ocr_value"] == cell["amount_vnd"]
     monkeypatch.setattr(R, "reread_cell", lambda d, c, accept: None)
     assert R.monthly_suggestions(rows) == []
+
+
+def _b02_doc(period, values, method="positional"):
+    cells = [{"statement": "B02", "account_code": "10", "canonical_code": "10", "period_kind": k, "amount_vnd": v}
+             for k, v in values.items()]
+    return {"period": period, "b02_label_method": method, "cells": cells, "label_note": ""}
+
+
+def test_check_positional_order_doi_thu_tu_cot_cu():
+    from src.extraction.run_extraction import check_positional_order
+    # thứ tự cột cũ: quý này, quý năm trước, lũy kế, lũy kế năm trước -> nhãn vị trí gán sai
+    d = _b02_doc("2016-Q3", {"q_current": 110, "ytd_current": 66, "q_prior": 300, "ytd_prior": 175})
+    assert check_positional_order(d) is True and d["b02_label_method"] == "numeric"
+    got = {c["period_kind"]: c["amount_vnd"] for c in d["cells"]}
+    assert got == {"q_current": 110, "q_prior": 66, "ytd_current": 300, "ytd_prior": 175}
+    ok = _b02_doc("2024-Q3", {"q_current": 34, "ytd_current": 99, "q_prior": 30, "ytd_prior": 86})
+    assert check_positional_order(ok) is False and ok["b02_label_method"] == "positional"
+    q1 = _b02_doc("2024-Q1", {"q_current": 5, "ytd_current": 5, "q_prior": 4, "ytd_prior": 4})
+    assert check_positional_order(q1) is False

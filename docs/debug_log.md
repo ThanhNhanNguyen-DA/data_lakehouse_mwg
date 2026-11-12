@@ -465,6 +465,38 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 - Bài học / hạn chế còn lại: báo cáo tháng không phải nguồn chuẩn; chỉ dùng để chỉ ra ô cần xem. H1/2025 B02 cột
   `current` vẫn không vào Gold vì ô 11 đọc thành null (raw_text có số), không phải vì mã 10.
 
+### DBG-33 – Nhãn cột B02 quý cũ gán theo vị trí sai (2014-Q3, 2016-Q3) và Q2/2026 TT99 bị loại
+- Giai đoạn / tầng: bóc tách → Silver
+- Triệu chứng: Silver mục "Kỳ bị trình bày lại" có 17 ô B02 2016-Q3 lệch 100–4.000% với cột so sánh của BCTC
+  2017-Q3: "lũy kế 9T/2016" = 6.647 tỷ, trong khi BCTC 2017-Q3 in 9T/2016 = 30.776 tỷ. Q2/2026 (TT99) không vào Silver
+  vì `columns_ok = false`.
+- Nguyên nhân gốc: (1) gán nhãn theo vị trí giả định thứ tự cột của BCTC 2023+ (quý này, lũy kế, quý năm trước, lũy kế
+  năm trước); BCTC quý 2014 và 2016 in quý này, quý năm trước, lũy kế, lũy kế năm trước. Phương trình 10 = 01 − 02 vẫn
+  đúng trên từng cột nên nhãn sai qua critical và vào Gold. (2) `relabel_b02_numeric` tìm cột `ytd_current` của báo cáo
+  Q1 cùng năm, nhưng báo cáo Q1 chỉ có hai cột `current/prior`.
+- Cách phát hiện: so số gốc với số so sánh ở Silver (Phần B.4).
+- Cách xử lý: `run_extraction.check_positional_order()` (chạy sau PaddleOCR): B02 quý Q2–Q4 bốn cột gán theo vị trí
+  phải có lũy kế > quý (doanh thu, cả hai năm); chỉ thứ tự cũ đúng thì gắn lại nhãn (`b02_label_method = numeric`).
+  `relabel_b02_numeric` dùng cột `current` của báo cáo Q1 hai cột.
+- Kiểm chứng: `tests/test_extraction.py::test_check_positional_order_doi_thu_tu_cot_cu`; 2014-Q3, 2016-Q3 và 2026-Q2
+  chuyển sang `numeric`; ô trình bày lại ở Silver 55 → 38 (trước khi chuẩn hóa dấu, DBG-34).
+- Commit: commit Phần B (13/11/2026).
+- Bài học / hạn chế còn lại: báo cáo hai cột không kiểm được bằng lũy kế > quý; đối chiếu số gốc ↔ số so sánh là phép
+  kiểm nhãn cột mạnh nhất hiện có.
+
+### DBG-34 – Khoản giảm trừ in dấu khác nhau giữa các báo cáo
+- Giai đoạn / tầng: Silver
+- Triệu chứng: 21 ô "trình bày lại" lệch đúng −200% (vd. 2021 B02 11: BCTC 2021 = +95.325 tỷ, cột so sánh BCTC 2022
+  = −95.325 tỷ); Q2 = H1 − Q1 sẽ sai khi hai báo cáo in khác dấu.
+- Nguyên nhân gốc: TT200 in khoản giảm trừ trong ngoặc (âm), TT99 in dương, và OCR đôi khi mất ngoặc.
+- Cách phát hiện: bảng trình bày lại của Silver.
+- Cách xử lý: Silver lưu mọi mã chuẩn có `sign = -1` trong `dim_account` (TT200) là số âm (`-abs`), đúng tinh thần
+  "trị tuyệt đối chỉ cho mã có sign = -1" của DQ.
+- Kiểm chứng: `tests/test_silver.py::test_build_long_dau_ma_khong_anh_xa_va_cot_b02_chua_chung_minh`; trình bày lại
+  38 → 17 ô (còn lại: 421a/421b 2017, chi phí/lãi Q4/2023 trình bày lại ở BCTC Q4/2024, 112/136/310 đầu năm 2026 theo TT99).
+- Commit: commit Phần B (13/11/2026).
+- Bài học / hạn chế còn lại: mã sign trống (52) giữ dấu in.
+
 ---
 
 ## Bảng tóm tắt
@@ -503,6 +535,8 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 | DBG-30 | DQ → Gold | trung bình (B02 vào Gold 950 → 1.446) | đã sửa |
 | DBG-31 | map TT99 | thấp (chỉ chuỗi nguồn) | đã sửa, có test |
 | DBG-32 | Silver (đối soát) | thấp | đã xử lý: lệch thuộc báo cáo tháng |
+| DBG-33 | bóc tách | cao (nhãn sai lọt Gold) | đã sửa |
+| DBG-34 | Silver | cao (Q2/Q4 suy ra sai dấu) | đã sửa |
 
 ## Chỉ số chất lượng qua các lượt chạy
 

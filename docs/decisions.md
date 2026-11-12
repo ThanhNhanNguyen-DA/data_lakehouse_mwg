@@ -11,3 +11,31 @@ Mỗi mục: quyết định, lý do, cách đảo lại nếu cần.
   cáo tháng: báo cáo tháng làm tròn tỷ đồng nên không cho được số VND, và CLAUDE.md cấm số không đọc từ PDF gốc. Khi
   đọc lại vẫn ra số cũ thì ghi vào bảng đối soát ("nghi báo cáo tháng") thay vì sinh pending.
 - **A3. Tool một lần (`build_dim_account.py`) bọc `main()`** để import được trong test; cách gọi dòng lệnh không đổi.
+
+## Phần B – Silver `fin_statement_long`
+
+- **Khóa kỳ.** B01 là số tại một ngày: `period_kind = instant`, `fiscal_quarter` = quý của ngày (31/12 → 4), để BCTC
+  năm và BCTC Q4 (cùng ngày 31/12) cùng khóa và được xếp hạng với nhau (bản kiểm toán thắng). B02/B03:
+  `quarter` (3 tháng), `ytd` (lũy kế 6 hoặc 9 tháng), `year` (`fiscal_quarter = 0`, gồm cả cột lũy kế 12 tháng của BCTC
+  Q4). Lũy kế Q1 quy về `quarter` (bằng nhau). Mở rộng so với CLAUDE.md (chỉ nói "năm dùng fiscal_quarter = 0").
+- **Kỳ suy ra thêm Q3 = 9T − H1** (ngoài Q2 = H1 − Q1, Q4 = năm − 9T): BCTC Q3 2017–2022 chỉ in cột lũy kế, thiếu Q3
+  thì chuỗi quý thủng một quý mỗi năm. "Mã cộng được" hiểu là cộng được theo thời gian: mọi mã B02/B03 trừ lãi trên cổ
+  phiếu (B02 70, 71) và tiền đầu/cuối kỳ (B03 60, 70); cột `is_additive` của `dim_account` mô tả quan hệ cha–con (10,
+  20, 60 không có cha nên để trống), không dùng được cho việc này.
+- **Dấu.** Mã chuẩn có `sign = -1` lưu số âm (DBG-34).
+- **Xếp hạng trong MERGE.** `rank_score = (không so sánh)·1000 + (không suy ra)·100 + (vi-VN)·10 + source_priority`;
+  MERGE chỉ cập nhật khi `s.rank_score >= t.rank_score` và nội dung khác (`row_hash`). Hòa hạng: ô gold_eligible rồi
+  sha256 nhỏ hơn (ổn định giữa các lần chạy). Chạy đầy đủ thì xóa khóa không còn trong nguồn
+  (`when_not_matched_by_source_delete`); nạp một phần (demo) thì không.
+- **Override.** `status = confirmed` (hoặc trống) đã được áp ở bước bóc tách, trước khi xếp hạng; Silver chỉ mang cờ
+  `is_manual`. Pending bỏ qua.
+- **Lọc vào Silver.** `period_check_ok = false` và `period = pending`: loại cả báo cáo. `columns_ok = false`: chỉ loại
+  B02 của báo cáo đó (B01/B03 không phụ thuộc nhãn cột B02). Mã OCR sai (không có trong `dim_account`) và mã TT99 chưa
+  map: ghi `unmapped_items.csv` kèm lý do từng dòng. Ô TT99 `semantic_break` rơi vào ngày còn theo TT200 (đầu năm 2026):
+  loại khỏi Silver (giữ ở `fs_extracted_raw`); mọi ô TT99 của mã đó mang `semantic_break = true`.
+- **Ràng buộc Delta** (CHECK): `statement`, `fiscal_quarter` 0–4, `period_kind`, `amount_vnd` NOT NULL, `source_lang`.
+  Schema được ép bằng `pyarrow` trước khi ghi (`to_arrow`), Delta từ chối append sai kiểu.
+- **Demo time travel** chạy trên bảng tạm, không đụng Silver thật: nạp Silver không có BCTC năm 2025 rồi MERGE thêm bản
+  kiểm toán, so hai phiên bản.
+- **Dữ liệu trong git.** Không commit thêm file Delta của `data/silver`, `data/gold` (sinh lại được, lớn dần theo phiên
+  bản). Repo hiện vẫn theo dõi các file `fs_extracted_raw` đã commit ở `e67711b`; quyết định cuối ở phần deploy.
