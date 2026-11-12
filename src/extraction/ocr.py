@@ -12,14 +12,16 @@ from __future__ import annotations
 import csv
 import hashlib
 import io
+import json
 import os
+from functools import lru_cache
 from pathlib import Path
 
 import pdfplumber
 import pypdfium2 as pdfium
 import pytesseract
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageFilter, ImageOps
 
 from src.common.paths import DATA_DIR
 
@@ -30,6 +32,9 @@ PASS2_DPI = 300
 IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 OSD_DPI = 150
 CROP_BORDER = 20
+REOCR_DPI = 400
+REOCR_NUMBER = "--psm 7 -c tessedit_char_whitelist=0123456789.,()-"
+REOCR_CODE = "--psm 7 -c tessedit_char_whitelist=0123456789ab"
 NUMBER_LANG = "eng"
 NUMBER_CONFIG = "--psm 6 -c tessedit_char_whitelist=0123456789.,()-"
 CODE_CONFIG = "--psm 6 -c tessedit_char_whitelist=0123456789ab"  # mã số: 270, 421a, 01
@@ -180,6 +185,63 @@ def ocr_columns(path: Path, sha256: str, page: int, boxes: list[tuple[int, int, 
         out.append([{**w, "x0": w["x0"] + dx, "x1": w["x1"] + dx, "y0": w["y0"] + dy, "y1": w["y1"] + dy}
                     for w in parse_tsv(tsv)])
     return out
+
+
+@lru_cache(maxsize=4)
+def _upright(path: Path, sha256: str, page: int, dpi: int) -> Image.Image:
+    """Ảnh trang đã xoay đúng chiều; giữ vài trang trong bộ nhớ vì OCR lại nhiều ô trên cùng trang."""
+    return render(path, page, dpi).rotate(page_rotation(path, sha256, page), expand=True)
+
+
+def ocr_region(path: Path, sha256: str, page: int, box: tuple[float, float, float, float], config: str,
+               dpi: int = REOCR_DPI) -> str:
+    """OCR lại một ô/dải nhỏ: render 400 dpi, làm mảnh nét (bold hay dính nét), --psm 7 (một dòng).
+
+    box theo tọa độ pass 2 (300 dpi, đã xoay).
+    """
+    k = dpi / PASS2_DPI
+    x0, y0, x1, y1 = (int(v * k) for v in box)
+    tag = hashlib.md5(config.encode()).hexdigest()[:6]
+    cached = OCR_CACHE / sha256 / f"p{page:03d}_{dpi}_cell_{x0}_{y0}_{x1}_{y1}_{tag}.txt"
+    if cached.exists():
+        return cached.read_text(encoding="utf-8")
+    img = _upright(path, sha256, page, dpi)
+    cell = ImageOps.expand(img.crop((x0, y0, x1, y1)).convert("L").filter(ImageFilter.MaxFilter(3)),
+                           border=CROP_BORDER, fill=255)
+    text = pytesseract.image_to_string(cell, lang=NUMBER_LANG, config=config).strip()
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    cached.write_text(text, encoding="utf-8")
+    return text
+
+
+_PADDLE = None
+
+
+def paddle_words(path: Path, sha256: str, page: int, dpi: int = PASS2_DPI) -> list[Word]:
+    """Phương án cuối cho trang Tesseract đọc lỗi: PaddleOCR (mô hình mobile, CPU), cache JSON theo trang.
+
+    Mỗi hộp chữ của PaddleOCR (thường là một ô của bảng) thành một "từ", cùng hệ tọa độ với pass 2.
+    """
+    cached = _cache_file(sha256, page, dpi, "paddle.json")
+    if cached.exists():
+        return json.loads(cached.read_text(encoding="utf-8"))
+    global _PADDLE
+    if _PADDLE is None:
+        os.environ.setdefault("PADDLE_PDX_DISABLE_MODEL_SOURCE_CHECK", "True")
+        from paddleocr import PaddleOCR  # nặng, chỉ nạp khi cần
+
+        # enable_mkldnn=False: PaddlePaddle 3.x + oneDNN trên CPU lỗi ConvertPirAttribute2RuntimeAttribute
+        _PADDLE = PaddleOCR(text_detection_model_name="PP-OCRv5_mobile_det",
+                            text_recognition_model_name="latin_PP-OCRv5_mobile_rec",
+                            use_doc_orientation_classify=False, use_doc_unwarping=False,
+                            use_textline_orientation=False, enable_mkldnn=False)
+    img = render(path, page, dpi).rotate(page_rotation(path, sha256, page), expand=True).convert("RGB")
+    r = _PADDLE.predict(np.array(img))[0]
+    words = [{"text": t, "x0": int(b[0]), "y0": int(b[1]), "x1": int(b[2]), "y1": int(b[3])}
+             for t, b in zip(r["rec_texts"], r["rec_boxes"]) if t.strip()]
+    cached.parent.mkdir(parents=True, exist_ok=True)
+    cached.write_text(json.dumps(words, ensure_ascii=False), encoding="utf-8")
+    return words
 
 
 def text_layer_text(path: Path, page: int) -> str:

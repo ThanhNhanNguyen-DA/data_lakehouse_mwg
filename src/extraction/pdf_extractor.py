@@ -272,7 +272,8 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
     prev: kết quả trang trước của cùng báo cáo (dùng lại dải cột nếu trang này thiếu tiêu đề cột).
     """
     empty = {"rows": [], "kinds": [], "header_ok": False, "header_text": "", "code_band": None,
-             "note_band": None, "cols": [], "bounds": [], "table_top": None, "bottom": None, "h": None}
+             "note_band": None, "cols": [], "bounds": [], "table_top": None, "bottom": None, "h": None,
+             "orphans": [], "suspects": []}
     if not words:
         return empty
     h = median(w["y1"] - w["y0"] for w in words)
@@ -339,6 +340,8 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
         if prev and prev.get("kinds") and len(prev["kinds"]) == len(cols):
             kinds = prev["kinds"]  # trang tiếp theo thường không lặp tiêu đề cột
 
+    suspects: list[tuple[float, float, float, float]] = []  # ô số sai mẫu nhóm 3 chữ số: OCR lại riêng
+
     def values_of(line):
         vals, found = [None] * len(cols), False
         for w in line:
@@ -351,9 +354,11 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
                     vals[i], found = parse_amount(t), True
                 except ValueError:
                     vals[i], found = None, True
+                if len(re.sub(r"\D", "", t)) > 3 and not _is_grouped_amount(t):
+                    suspects.append((w["x0"], w["y0"], w["x1"], w["y1"]))
         return vals, found
 
-    rows, anchors = [], []
+    rows, anchors, used = [], [], set()
     for i in range(min(first_row, first_amount), len(lines)):
         code = next((c for w in lines[i] if code_band[0] <= _xc(w) <= code_band[1] and (c := _code_of(w["text"]))),
                     None)
@@ -364,7 +369,8 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
         # Số của các cột có thể lệch dòng nhau (OCR riêng từng cột), nên gom trên mọi dòng thuộc mã này:
         # mỗi cột lấy giá trị đầu tiên tìm thấy.
         values, filled, raw, name = [None] * len(cols), [False] * len(cols), [], []
-        for line in lines[i:end]:
+        for k, line in enumerate(lines[i:end], start=i):
+            used.add(k)
             vals, found = values_of(line)
             if not any(filled):
                 name += [w["text"] for w in line if w["x1"] < (note_band[0] if note_band else cols[0] - 4 * h)
@@ -383,7 +389,11 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
             code = code.zfill(2)  # BCTC quý in "1", "2"
         rows.append({"account_code": code, "item_name": " ".join(name).strip(), "values": values, "raw": raw})
     body_start = min(first_row, first_amount)
+    # Dòng có số tiền mà không thuộc mã nào (mã bị OCR làm mất): OCR lại dải mã của dòng đó
+    orphans = [(min(w["y0"] for w in lines[k]), max(w["y1"] for w in lines[k]))
+               for k in range(body_start, len(lines)) if k not in used and values_of(lines[k])[1]]
     return {"rows": rows, "kinds": kinds, "header_ok": header_ok, "header_text": header_text,
+            "orphans": orphans, "suspects": sorted(set(suspects)),
             "code_band": code_band, "note_band": note_band, "cols": cols, "bounds": bounds, "h": h,
             "col_widths": widths,
             "table_top": min(w["y0"] for w in lines[body_start]) if body_start < len(lines) else None,
@@ -550,7 +560,29 @@ def check_equations(values: dict[tuple[str, str, str], int | None], equations: l
     out = []
     for eq in equations:
         if eq["regime"] == regime:
-            out += _evaluate(eq["label"], eq["statement"], eq["lhs"], eq["terms"], values, signs or {}, tol)
+            out += [{**r, "equation": eq}
+                    for r in _evaluate(eq["label"], eq["statement"], eq["lhs"], eq["terms"], values, signs or {}, tol)]
+    return out
+
+
+def eligible_equations(equations: list[dict], signs: dict) -> list[dict]:
+    """Phương trình đánh giá được: chỉ có vế cộng, hoặc mọi vế trừ đã khai báo sign trong dim_account.
+
+    Chưa có sign thì vế trừ không biết nên lấy trị tuyệt đối hay không (TT200 in âm, TT99 in dương).
+    """
+    return [e for e in equations if all(op > 0 or (e["statement"], code) in signs for op, code in e["terms"])]
+
+
+def check_q1_columns(values: dict, tol: int = 1) -> list[dict]:
+    """Báo cáo Q1: cột "quý này" phải bằng cột "lũy kế" (lũy kế từ đầu năm = chính quý 1)."""
+    out = []
+    for q, ytd in (("q_current", "ytd_current"), ("q_prior", "ytd_prior")):
+        pairs = [(c, v, values.get((s, c, ytd))) for (s, c, k), v in values.items() if s == "B02" and k == q]
+        pairs = [(c, a, b) for c, a, b in pairs if a is not None and b is not None]
+        if pairs:
+            bad = sorted(c for c, a, b in pairs if abs(a - b) > tol)
+            out.append({"check": "Q1: quý này = lũy kế", "kind": q, "ok": not bad,
+                        "note": f"lệch mã {', '.join(bad[:5])}" if bad else ""})
     return out
 
 
@@ -575,8 +607,10 @@ def load_overrides(path: Path) -> dict[tuple[str, str, str, str], dict]:
     if not Path(path).exists():
         return {}
     with Path(path).open(encoding="utf-8", newline="") as f:
+        # gợi ý tự động (status=pending) chỉ áp dụng sau khi người dùng đổi status thành confirmed
         return {(r["source_doc_sha256"], r["statement"], r["account_code"], r["period_kind"]): r
-                for r in csv.DictReader(f) if r.get("amount_vnd", "").strip()}
+                for r in csv.DictReader(f)
+                if r.get("amount_vnd", "").strip() and (r.get("status") or "").strip() in ("", "confirmed")}
 
 
 def apply_overrides(rows: list[dict], overrides: dict) -> list[dict]:

@@ -15,7 +15,9 @@ from pathlib import Path
 import pytest
 
 from src.common.paths import ROOT
-from src.extraction.pdf_extractor import check_equations, load_dim_account, load_equations, signs_of
+from src.extraction.pdf_extractor import (
+    check_equations, eligible_equations, load_dim_account, load_equations, signs_of,
+)
 
 FIXTURES = ROOT / "tests" / "fixtures"
 CASES = {  # vị trí trang báo cáo trong file mẫu (đã xem bằng mắt khi cắt trang)
@@ -64,8 +66,7 @@ def test_phuong_trinh_ke_toan(name):
     res = _extract(name)
     values = {(c["statement"], c["account_code"], c["period_kind"]): c["amount_vnd"] for c in res["cells"]}
     signs = signs_of(load_dim_account(DIM_ACCOUNT), res["regime"])
-    eqs = [e for e in load_equations(EQUATIONS)
-           if all(op > 0 or (e["statement"], code) in signs for op, code in e["terms"])]
+    eqs = eligible_equations(load_equations(EQUATIONS), signs)
     assert eqs, "không có phương trình nào kiểm được"
     failed = [c for c in check_equations(values, eqs, res["regime"], signs) if not c["ok"]]
     assert not failed, failed

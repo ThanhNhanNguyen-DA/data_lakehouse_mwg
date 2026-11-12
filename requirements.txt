@@ -11,7 +11,10 @@ pyyaml==6.0.3
 # Bóc tách PDF + OCR (cần cài Tesseract và gói vie/eng, xem README)
 pdfplumber
 pypdfium2==5.15.2
-pytesseract          # pin sau lượt OCR thật đầu tiên
+pytesseract==0.3.13
+# Phương án cuối khi Tesseract đọc lỗi (CPU, tự tải mô hình mobile lần đầu)
+paddlepaddle==3.3.1
+paddleocr==3.7.0
 
 # Lakehouse + xử lý + truy vấn
 polars>=1.0
