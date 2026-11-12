@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2019/04/YTD-monthly-March-2019-2.pdf",
+  "post_id": 1031,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "YTD March 2019 Report",
+  "doc_type": "MONTHLY_RESULT",
+  "file_type": "pdf",
+  "has_text_layer": true,
+  "period": "2019-M03",
+  "published": "2019-04-26",
+  "category_year": 2019,
+  "assurance_level": 1,
+  "sha256": "e6cd4590b628a11d001d1f2753dc6fb956bb00a58b347bb7704d44354af2c1a3",
+  "size": 313061,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:40:13"
+}

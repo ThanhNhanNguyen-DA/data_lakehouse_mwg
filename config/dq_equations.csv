@@ -1,0 +1,13 @@
+regime,statement,lhs,rhs,label,source
+TT200,B01,270,300+400,270 = 300 + 400,CLAUDE.md (người dùng chỉ định)
+TT200,B02,10,01-02,10 = 01 - 02,CLAUDE.md (người dùng chỉ định)
+TT200,B02,20,10-11,20 = 10 - 11,CLAUDE.md (người dùng chỉ định)
+TT99,B01,280,100+200,280 = 100 + 200,"In trên B01 BCTC hợp nhất Q3/2026 của MWG ""(280 = 100 + 200)"""
+TT99,B01,440,300+400,440 = 300 + 400,"In trên B01 BCTC hợp nhất Q3/2026 của MWG ""(440 = 300 + 400)"""
+TT99,B01,280,300+400,280 = 300 + 400,Tổng tài sản (280) = tổng nguồn vốn (440 = 300 + 400) trên B01 Q3/2026
+TT99,B02,10,01-02,10 = 01 - 02,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(10 = 01 - 02)"""
+TT99,B02,20,10-11,20 = 10 - 11,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(20 = 10 - 11)"""
+TT99,B02,30,20+22-23-25-26+27,30 = 20 + 22 - (23 + 25 + 26) + 27,"In trên B02 BCTC hợp nhất Q3/2026 của MWG"
+TT99,B02,40,31-32,40 = 31 - 32,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(40 = 31 - 32)"""
+TT99,B02,50,30+40,50 = 30 + 40,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(50 = 30 + 40)"""
+TT99,B02,60,50-51-52,60 = 50 - 51 - 52,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(60 = 50 - 51 - 52)"""

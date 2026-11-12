@@ -1,0 +1,114 @@
+symbol: MWG
+base_url: https://mwg.vn
+
+# Khảo sát ngày 11/11/2026: trang https://mwg.vn/bao-cao (Next.js) không có tài liệu trong HTML,
+# danh sách được tải từ JSON API bên dưới (thấy trong DevTools > Network và file JS của trang).
+#   1. CategoryAPI?parentID=<root_category_id>  -> danh mục theo năm (categoryName = "2026", ...),
+#      mỗi năm có childrenIDList / childrenNameList là các nhóm con (sections).
+#   2. PostAPI?categoryID=<id nhóm con>         -> tài liệu: title, fileLink, publishDate, quarter, postID.
+#      Danh mục rỗng trả code 24000 "Không có dữ liệu".
+# robots.txt: mwg.vn "Allow: /"; api.bhxwork.vn 404; bhxcdn.vn 403 (RFC 9309: 4xx = không giới hạn).
+# Link cũ dạng mwg.vn/wp-content/... (thời WordPress) đã chết (404) -> xem docs/limitations.md.
+listing:
+  api_base: https://api.bhxwork.vn/gw/ir-api
+  category_endpoint: /api/CategoryAPI
+  post_endpoint: /api/PostAPI
+  page_size: 50
+  condition: -1              # tất cả bài, giống trang web
+
+  # Thứ tự = độ ưu tiên. Ngôn ngữ đầu tiên là nguồn chính, luôn được tải.
+  # Các ngôn ngữ sau chỉ là nguồn dự phòng: một tài liệu en-US chỉ được tải khi kỳ đó
+  # (doc_type, period) chưa có bản vi-VN tải được, hoặc khi kỳ đó nằm trong cross_check.
+  languages:
+    - lang_id: vi-VN
+      root_category_id: 7
+      referer: https://mwg.vn/bao-cao
+      sections:
+        - "Báo cáo tài chính, quản trị, thường niên"
+        - "Báo cáo kết quả kinh doanh theo tháng"
+    - lang_id: en-US
+      root_category_id: 61
+      referer: https://mwg.vn/bao-cao
+      sections:
+        - "ANNUAL, CORPORATE GOVERNANCE & FINANCIAL REPORTS"
+        - "MONTHLY PERFORMANCE UPDATES"   # "YTD October 2026 report" -> MONTHLY_RESULT (rule "ytd")
+
+  # Tải bản dự phòng dù đã có bản chính, để đối chiếu hai ngôn ngữ (ghi vào docs/dq_report.md).
+  cross_check:
+    - {lang_id: en-US, doc_type: FS_CONSOLIDATED_Q, period: "2020-Q3"}
+    - {lang_id: en-US, doc_type: FS_CONSOLIDATED_Y, period: "2020"}
+
+# API trả nguyên danh sách của một năm trong một request, nên incremental = chỉ xem các năm mới nhất.
+# Cần 2 năm vì BCTC quý 4 và BCTC năm kiểm toán của năm N được đăng vào năm N+1 trong danh mục năm N.
+incremental_years: 2
+
+# Nhận diện loại tài liệu từ tiêu đề, so trên chuỗi đã norm() (bỏ dấu, chữ thường, "_" coi như dấu cách).
+# Xét theo thứ tự, quy tắc đầu tiên khớp sẽ thắng.
+#   all: phải có đủ các từ khóa | any: có ít nhất một | none: không được có từ nào
+# Từ khóa khớp theo nguyên từ ("quy" không khớp "quyet"); từ khóa kết thúc bằng "*" khớp tiền tố
+# ("consolidat*" khớp "consolidate", "consolidated"; "3q*" khớp "3q19", "3q2020").
+# Ví dụ tiêu đề thật nằm trong tests/test_doc_rules.py.
+doc_rules:
+  # ---- vi-VN ----
+  # "Báo Cáo Tài Chính Hợp Nhất Quý 3 Năm 2026", "... Soát Xét Qúy 3 Năm 2020",
+  # "... Soát Xét Hợp Nhất Quý 1/2020", "... hợp nhất soát xét QIII năm 2017"
+  - doc_type: FS_CONSOLIDATED_Q
+    all: ["hop nhat"]
+    any: ["quy", "q1", "q2", "q3", "q4", "qi", "qii", "qiii", "qiv"]
+    none: ["quan tri"]
+  # "... Hợp Nhất Soát Xét Bán Niên Năm 2026", "BCTC Hợp Nhất Đã Kiểm Toán 6 Tháng Đầu Năm 2020"
+  - doc_type: FS_CONSOLIDATED_H
+    all: ["hop nhat"]
+    any: ["ban nien", "6 thang", "giua nien do"]
+    none: ["quan tri"]
+  # "... Hợp Nhất Kiểm Toán Năm 2025", "... Hợp Nhất Soát Xét Năm 2020", "Báo cáo tài chính hợp nhất năm 2014"
+  - doc_type: FS_CONSOLIDATED_Y
+    all: ["hop nhat"]
+    any: ["bao cao tai chinh", "bctc"]
+    none: ["quan tri"]
+  # 2014: "Báo cáo tài chính Quý III năm 2014" không ghi hợp nhất hay riêng.
+  # Tạm coi là hợp nhất; tầng bóc tách phải xác nhận lại bằng tiêu đề "hợp nhất" trong PDF.
+  - doc_type: FS_CONSOLIDATED_Q
+    all: ["bao cao tai chinh"]
+    any: ["quy", "q1", "q2", "q3", "q4", "qi", "qii", "qiii", "qiv"]
+    none: ["rieng", "quan tri"]
+  # "Cập Nhật Tình Hình Kinh Doanh 9 Tháng 2026", "Báo cáo tóm tắt KQKD 8 tháng đầu năm 2017",
+  # "Báo cáo KQKD cả năm 2021"
+  - doc_type: MONTHLY_RESULT
+    any: ["cap nhat tinh hinh kinh doanh", "kqkd", "luy ke", "ytd"]
+
+  # ---- en-US (loại trừ "separate*" và "parent") ----
+  # "Consolidated FS Q3/2026", "Consolidated FS 1Q2023", "Interim Consolidated FS 3Q19",
+  # "Audited Consolidated FS 3Q2020", "FS Consolidate QIII_2016", "Consolidated Financial Statements Q2 2022"
+  - doc_type: FS_CONSOLIDATED_Q
+    all: ["consolidat*"]
+    any: ["quarter", "q1", "q2", "q3", "q4", "qi", "qii", "qiii", "qiv", "1q*", "2q*", "3q*", "4q*"]
+    none: ["separate*", "parent"]
+  # "Audited Consolidated FS 1H2026", "Interim Consolidate FS 1H18", "FS Consolidate 1st half_2016"
+  - doc_type: FS_CONSOLIDATED_H
+    all: ["consolidat*"]
+    any: ["1h*", "half", "semi-annual", "6 months", "six months"]
+    none: ["separate*", "parent"]
+  # "Audited Consolidated FS FY2025", "Audited Consolidate FY 2017", "Consolidate FS 2016"
+  - doc_type: FS_CONSOLIDATED_Y
+    all: ["consolidat*"]
+    none: ["separate*", "parent"]
+
+# Mức tin cậy của tài liệu -> source_priority ở Silver: kiểm toán (3) > soát xét (2) > tự lập (1).
+# Lấy max(mặc định theo loại, từ khóa trong tiêu đề theo ngôn ngữ). BCTC năm (FY) của công ty
+# niêm yết bắt buộc kiểm toán, BCTC bán niên (1H) bắt buộc soát xét, nên mặc định 3 và 2.
+assurance:
+  keywords:
+    vi-VN:
+      kiem toan: 3
+      soat xet: 2
+    # Tiêu đề en-US ghi "Audited" cả cho BCTC quý/bán niên mà bản vi-VN cùng kỳ ghi "Soát Xét"
+    # (vd. "Audited Consolidated FS 3Q2020" <-> "... Soát Xét Qúy 3 Năm 2020"), nên chỉ tính là 2.
+    en-US:
+      audited: 2
+      reviewed: 2
+  default:
+    FS_CONSOLIDATED_Y: 3
+    FS_CONSOLIDATED_H: 2
+    FS_CONSOLIDATED_Q: 1
+    MONTHLY_RESULT: 1

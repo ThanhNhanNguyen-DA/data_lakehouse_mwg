@@ -1,0 +1,39 @@
+# Python 3.11. Gói có "==" đã được chạy thử (pytest pass); gói còn lại pin khi dùng tới.
+
+# Crawl
+requests==2.34.2
+beautifulsoup4
+lxml
+tenacity==9.2.1
+requests-cache
+pyyaml==6.0.3
+
+# Bóc tách PDF + OCR (cần cài Tesseract và gói vie/eng, xem README)
+pdfplumber
+pypdfium2==5.15.2
+pytesseract==0.3.13
+# Phương án cuối khi Tesseract đọc lỗi (CPU, tự tải mô hình mobile lần đầu)
+paddlepaddle==3.3.1
+paddleocr==3.7.0
+
+# Lakehouse + xử lý + truy vấn
+polars>=1.0
+pandas>=2.0
+pyarrow>=15
+deltalake>=0.18
+duckdb>=1.1
+
+# Chất lượng dữ liệu
+pandera
+
+# BI
+streamlit
+plotly
+
+# Đối soát (chỉ dùng trong src/ingestion/vnstock_check.py), cần từ tuần 6.
+# 11/11/2026: pypi.org/simple/vnstock trả 404, gói không còn trên PyPI.
+# Cần tìm kênh phân phối chính thức mới của vnstock trước khi bật lại dòng dưới.
+# vnstock
+
+# Kiểm thử
+pytest==9.2.0

@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2020/05/20QR-000-MWG-Consol-VAS-FS-E-31.03.pdf",
+  "post_id": 1011,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "Audited Consolidated FS 1Q2020",
+  "doc_type": "FS_CONSOLIDATED_Q",
+  "file_type": "pdf",
+  "has_text_layer": false,
+  "period": "2020-Q1",
+  "published": "2020-05-23",
+  "category_year": 2020,
+  "assurance_level": 2,
+  "sha256": "6c27adf4a706b762ba670140162e54cb60f4f072b91b3549690a31dce04b8e2c",
+  "size": 3975656,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:37:09"
+}

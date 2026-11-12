@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2020/02/2019-EN-report-Dec-Final.pdf",
+  "post_id": 1022,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "YTD December 2019 Report",
+  "doc_type": "MONTHLY_RESULT",
+  "file_type": "pdf",
+  "has_text_layer": true,
+  "period": "2019-M12",
+  "published": "2020-02-03",
+  "category_year": 2019,
+  "assurance_level": 1,
+  "sha256": "316b79ec2007a9c3ab61e21d2fb9700d50f8eb04bfda71906846d03503d2eb62",
+  "size": 715010,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:38:59"
+}

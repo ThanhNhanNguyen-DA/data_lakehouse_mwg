@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2020/06/MonthlyReport_-May-2020.pdf",
+  "post_id": 1003,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "YTD May 2020 Report",
+  "doc_type": "MONTHLY_RESULT",
+  "file_type": "pdf",
+  "has_text_layer": true,
+  "period": "2020-M05",
+  "published": "2020-06-19",
+  "category_year": 2020,
+  "assurance_level": 1,
+  "sha256": "eb7ef77343ef75c23c88c8e2a9d7a7ab178fef2067ac388c846d41b8c86b974b",
+  "size": 236802,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:37:37"
+}

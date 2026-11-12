@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2018/08/Report-1H18-ENG-Final.pdf",
+  "post_id": 1049,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "YTD June 2018 report",
+  "doc_type": "MONTHLY_RESULT",
+  "file_type": "pdf",
+  "has_text_layer": true,
+  "period": "2018-M06",
+  "published": "2018-07-30",
+  "category_year": 2018,
+  "assurance_level": 1,
+  "sha256": "1822036a64ad86aad5620f7e25adb83b7c22dc1e1a76f8a811664f17fb73ebd7",
+  "size": 410165,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:42:03"
+}

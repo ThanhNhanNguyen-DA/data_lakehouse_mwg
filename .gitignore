@@ -1,2 +1,22 @@
 /.docs
 /.vs
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.env
+
+# requests-cache khi debug crawler (MWG_HTTP_CACHE=1)
+data/_state/http_cache.sqlite
+
+# File gốc ở Bronze (PDF + ảnh, backfill ~170 file, có file ~19 MB): chưa đưa lên git.
+# Quyết định lại ở tuần 9 khi làm GitHub Actions (commit PDF hay chỉ commit Silver/Gold).
+data/bronze/**/*.pdf
+data/bronze/**/*.jpg
+data/bronze/**/*.png
+
+# Cache OCR theo sha256 + trang (tạo lại được)
+data/_cache/

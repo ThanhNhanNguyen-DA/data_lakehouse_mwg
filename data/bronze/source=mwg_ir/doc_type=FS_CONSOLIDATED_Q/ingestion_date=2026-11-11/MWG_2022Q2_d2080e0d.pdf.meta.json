@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2022/7/20220729---mwg---cosolidated-financial-statement--q2-2022-1.pdf",
+  "post_id": 2389,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "Consolidated Financial Statements Q2 2022",
+  "doc_type": "FS_CONSOLIDATED_Q",
+  "file_type": "pdf",
+  "has_text_layer": false,
+  "period": "2022-Q2",
+  "published": "2022-07-29",
+  "category_year": 2022,
+  "assurance_level": 1,
+  "sha256": "d2080e0db4ebee7a7c4bb529d8ad724c0853e4900cdd3ebcad3e4da261c3f36a",
+  "size": 18066692,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:36:24"
+}
