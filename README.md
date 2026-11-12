@@ -103,7 +103,34 @@ python tools/screenshot_dashboard.py --url http://localhost:8599
 WSL thiếu `libasound.so.2` mà không có sudo: `apt-get download libasound2t64`, `dpkg-deb -x <file>.deb <thư mục>`,
 rồi `export LD_LIBRARY_PATH=<thư mục>/usr/lib/x86_64-linux-gnu`.
 
-## 5. Sửa tay khi OCR sai
+## 5. Tự động hóa (GitHub Actions) và deploy dashboard (Streamlit Community Cloud)
+
+**Dữ liệu nào nằm trong git:** manifest + `*.meta.json` của Bronze, `data/silver/fin_statement_long`, `data/gold`
+(kể cả `mwg.duckdb`, chỉ chứa view) — khoảng 13 MB. **Không** có PDF Bronze (~800 MB), cache OCR và
+`data/silver/fs_extracted_raw`. Clone mới muốn chạy lại pipeline thì tải lại PDF theo manifest (kiểm sha256, chỉ ghi
+khi khớp; tự chạy trong `run_pipeline.py`):
+
+```bash
+python -m src.ingestion.mwg_crawler --restore
+```
+
+**GitHub Actions** (`.github/workflows/crawl.yml`, repo public nên miễn phí): 08:00 thứ Hai (giờ VN) crawl incremental;
+có tài liệu mới thì tải lại Bronze còn thiếu, OCR (Tesseract 5.3.4 trên `ubuntu-24.04`, cùng bản với máy phát triển),
+Silver, Gold, chạy `pytest` (gồm KPI khớp số đọc trên PDF gốc), rồi commit dữ liệu bằng `GITHUB_TOKEN`. PDF và cache
+OCR được giữ giữa các lần chạy bằng `actions/cache`; lần chạy đầu cache trống nên lâu (tải ~800 MB có nghỉ giữa
+request + OCR toàn bộ, giới hạn 340 phút). Chạy tay: tab **Actions → crawl → Run workflow** (tick `force` để dựng lại
+Silver/Gold). Lịch cron chỉ chạy trên **nhánh mặc định** (`master`): cần merge nhánh này vào `master`.
+
+**Streamlit Community Cloud:**
+1. Đẩy code lên GitHub và merge vào `master`.
+2. Vào <https://share.streamlit.io>, đăng nhập bằng GitHub → **Create app** → **Deploy a public app from GitHub**.
+3. Repository `<tài khoản>/data_lakehouse_mwg`, branch `master`, main file path `dashboard/app.py`.
+4. **Advanced settings → Python 3.11**. Cloud tự dùng `dashboard/requirements.txt` (cạnh `app.py`, không kèm
+   OCR/Paddle). Không cần secret.
+5. Deploy. Mỗi lần Actions commit Gold mới, app tự cập nhật. Trang Lineage trên Cloud không có ảnh PDF (Bronze không
+   lên git), chỉ hiện link gốc.
+
+## 6. Sửa tay khi OCR sai
 
 Kỳ không qua DQ được sửa bằng `config/manual_overrides.csv`: đọc số đúng **từ chính PDF gốc trong
 `data/bronze/`**, ghi `source_doc_sha256`, số trang, giá trị OCR sai (`ocr_value`) và lý do.

@@ -74,3 +74,22 @@ Mỗi mục: quyết định, lý do, cách đảo lại nếu cần.
   bỏ phiếu giữa các lần in lại và đối chiếu đầu năm/cuối năm cần mọi báo cáo.
 - **Ảnh chụp headless** bằng Playwright (có trong stack CLAUDE.md). WSL thiếu `libasound2` và không có sudo: lấy gói
   `.deb` bằng `apt-get download`, giải nén vào thư mục tạm và đặt `LD_LIBRARY_PATH` (ghi trong README).
+
+## Tuần 9 – GitHub Actions và Streamlit Cloud
+
+- **Không đưa PDF Bronze và cache OCR lên repo public** (giữ quyết định trong `.gitignore`: ~800 MB, và điều khoản
+  mwg.vn chỉ cho dùng cá nhân/học thuật, không phân phối lại). Runner giữ chúng bằng `actions/cache` (lưu cả khi job
+  lỗi, để lần sau không tải/OCR lại); cache bị xóa sau 7 ngày không dùng thì lần sau tải lại theo manifest.
+- **Tải lại Bronze theo manifest** (`restore_missing`): chỉ ghi khi sha256 trùng manifest, nên Bronze trên runner/clone
+  giống hệt bản gốc; nội dung nguồn đã đổi thì không ghi và báo lại. `run_pipeline.py` dừng (exit 1) nếu vẫn thiếu
+  file: bóc tách thiếu báo cáo sẽ xóa các kỳ đó khỏi Silver/Gold khi MERGE đầy đủ.
+- **Pipeline trên CI chỉ chạy bóc tách khi có tài liệu mới** (như local). Lần chạy không có tài liệu mới chỉ tốn vài
+  phút crawl.
+- **Kiểm thử trước khi commit dữ liệu:** `pytest` (gồm KPI khớp PDF) chạy sau pipeline; trượt thì job dừng, không commit.
+- **Gold commit lên git, vacuum mỗi lần dựng** (chỉ giữ file của phiên bản hiện tại; Delta log vẫn ghi lịch sử thao
+  tác). Time travel dùng ở Silver `fin_statement_long` (giữ đủ phiên bản, MERGE chỉ thêm file khi có thay đổi).
+- **Bỏ theo dõi `data/silver/fs_extracted_raw`** (`git rm --cached`, file vẫn ở máy): bảng sinh lại mỗi lần bóc tách,
+  lớn dần theo phiên bản, và trước đây chỉ được commit một phần (log v0–v4) nên bản clone thấy bảng không khớp máy
+  local. Dashboard không cần bảng này.
+- **Requirements riêng cho dashboard** (`dashboard/requirements.txt`): Streamlit Cloud cài gói cạnh `app.py`, tránh
+  PaddlePaddle/Tesseract. Phiên bản trùng `requirements.txt`.

@@ -497,6 +497,23 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 - Commit: commit Phần B (13/11/2026).
 - Bài học / hạn chế còn lại: mã sign trống (52) giữ dấu in.
 
+### DBG-35 – Clone mới / runner CI không có Bronze: pipeline sẽ xóa dữ liệu khỏi Gold
+- Giai đoạn / tầng: hạ tầng (CI, deploy)
+- Triệu chứng: PDF Bronze không có trong git. Trên clone mới, crawler coi mọi URL trong manifest là đã tải nên không
+  tải lại; `run_extraction` gặp lỗi mở file ở từng báo cáo, và MERGE đầy đủ ở Silver sẽ xóa các kỳ đó khỏi
+  Silver/Gold. `fs_extracted_raw` trong git chỉ có log v0–v4 trong khi máy local đã ở v19.
+- Nguyên nhân gốc: thiết kế Bronze append-only chỉ tính tới một máy.
+- Cách phát hiện: thiết kế workflow GitHub Actions; thử bằng clone sạch (13 MB, 161 file thiếu).
+- Cách xử lý: `mwg_crawler.restore_missing()` / `--restore` (chỉ ghi khi sha256 khớp manifest); `run_pipeline.py`
+  tải lại trước khi bóc tách và dừng (exit 1) nếu vẫn thiếu; Bronze + cache OCR giữ bằng `actions/cache`; bỏ theo dõi
+  `fs_extracted_raw`, commit Silver `fin_statement_long` + Gold (vacuum).
+- Kiểm chứng: `tests/test_crawler.py::test_restore_missing_chi_ghi_khi_sha_khop`; clone sạch:
+  `run_pipeline.py --no-crawl --force` dừng với "Thiếu 161 file Bronze", `pytest tests/test_gold.py tests/test_kpi_pdf.py`
+  qua, dashboard chạy đủ 6 trang không lỗi.
+- Commit: commit Actions + deploy (13/11/2026).
+- Bài học / hạn chế còn lại: chưa chạy workflow thật trên GitHub (cần push + merge vào `master`); nguồn bhxcdn.vn có
+  thể chặn IP runner (403 → job dừng, không vượt chặn); lần chạy đầu trên runner chưa đo thời gian.
+
 ---
 
 ## Bảng tóm tắt
@@ -537,6 +554,7 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 | DBG-32 | Silver (đối soát) | thấp | đã xử lý: lệch thuộc báo cáo tháng |
 | DBG-33 | bóc tách | cao (nhãn sai lọt Gold) | đã sửa |
 | DBG-34 | Silver | cao (Q2/Q4 suy ra sai dấu) | đã sửa |
+| DBG-35 | hạ tầng (CI/deploy) | cao nếu lọt (Gold mất kỳ) | đã xử lý, workflow chưa chạy thật |
 
 ## Chỉ số chất lượng qua các lượt chạy
 
