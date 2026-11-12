@@ -419,6 +419,52 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
   147.953) có thể do báo cáo tháng là số sơ bộ. Báo cáo tháng 2022-M07 trở đi nhiều file không có lớp text, OCR 100 dpi
   đọc kém (vd. 2023-M12 chỉ thấy "118 ngàn tỷ").
 
+### DBG-30 – Chặn Gold B02 theo cả báo cáo làm mất cột quý đúng
+- Giai đoạn / tầng: DQ → Gold
+- Triệu chứng: báo cáo quý có cột "lũy kế" trượt `20 = 10 − 11` (vd. thiếu ô 11) thì cả 4 cột B02 bị loại khỏi Gold,
+  kể cả cột "quý này" đã cân đối.
+- Nguyên nhân gốc: `passed_critical_b02` tính trên mọi phương trình critical của mọi cột.
+- Cách phát hiện: so số ô trusted B02 (nhiều) với ô `gold_eligible` B02 (950).
+- Cách xử lý: `run_extraction.critical_columns()`: critical B02 tính theo `(statement, period_kind)`; điều kiện chung
+  của báo cáo (trang B02, ngày/kỳ, nhãn cột TT99) vẫn áp cho mọi cột; cột không có phương trình critical nào kiểm được
+  thì không qua. `passed_critical_b02` cấp báo cáo giữ lại để báo cáo DQ.
+- Kiểm chứng: `tests/test_extraction.py::test_critical_columns_chan_b02_theo_cot`. Ô B02 vào Gold **950 → 1.446**
+  (2.716 ô có số); 90/128 cột B02 qua critical.
+- Commit: commit Phần A (13/11/2026).
+- Bài học / hạn chế còn lại: cột "năm trước" (`q_prior`, `prior`) giờ có thể vào Gold dù cột năm nay trượt; Silver
+  vẫn xếp số gốc trên số so sánh.
+
+### DBG-31 – `map_tt99_numeric.py` ghi "cuối kỳ BCTC None" vào bảng map
+- Giai đoạn / tầng: map TT99
+- Triệu chứng: cột `source` của 6 dòng `numeric_31122025` trong `config/account_code_regime_map.csv` ghi
+  "cuối kỳ BCTC None" hoặc "cuối kỳ BCTC 50769502237457".
+- Nguyên nhân gốc: trong vòng lặp, `ref = v200.get(...)` ghi đè biến `ref` (kỳ so sánh, `--ref 2025`). Ghép mã không
+  sai (bảng lọc theo `ref` trước vòng lặp), chỉ hỏng chuỗi nguồn.
+- Cách phát hiện: viết test cho tool (Phần A.3): assert `"cuối kỳ BCTC 2025" in source`.
+- Cách xử lý: tách lõi thành `match_numeric()` (thuần, test được), đổi tên biến thành `ref_v`; chạy lại
+  `python tools/map_tt99_numeric.py --ref 2025`: chỉ 6 chuỗi `source` đổi, không mã nào đổi ghép.
+- Kiểm chứng: `tests/test_tools.py::test_match_numeric_cac_truong_hop`. `tools/build_dim_account.py` cũng được bọc
+  `main()` để import được trong test (`test_build_rows_sign_va_cha` phủ DBG-24).
+- Commit: commit Phần A (13/11/2026).
+- Bài học / hạn chế còn lại: script "chạy một lần" vẫn cần test; biến dùng lại tên trong vòng lặp dài.
+
+### DBG-32 – Đối soát báo cáo tháng: lệch một chữ số → đọc lại ô trên PDF BCTC
+- Giai đoạn / tầng: Silver (đối soát)
+- Triệu chứng: 7 ô B02 (10/61) lệch báo cáo tháng đúng một chữ số (tỷ đồng), vd. H1/2025 mã 10: BCTC 73.755 tỷ, báo
+  cáo tháng 2025-M06 in 73.655 tỷ.
+- Nguyên nhân gốc: chưa xác định bên nào sai.
+- Cách phát hiện: bảng đối soát ở `docs/dq_report.md` (DBG-29).
+- Cách xử lý: `run_extraction.monthly_suggestions()`: với ô lệch ≥ 1 tỷ và khác đúng một chữ số, OCR lại riêng ô đó
+  trên PDF BCTC (400/500/600 dpi); số đọc lại khớp báo cáo tháng (±1 tỷ) thì ghi pending
+  (`suggested_by = monthly_crosscheck`), không thì ghi kết quả đọc lại vào bảng đối soát.
+- Kiểm chứng: lượt chạy 13/11: **0 gợi ý**. H1/2025 mã 10 đọc lại vẫn ra 73.755 tỷ; xem ảnh trang 9 của BCTC bán niên
+  2025 (sha `8317b8bf…`): in "73.754.927.078.179", và `10 = 01 − 02` đúng (74.177.074.158.082 − 422.147.079.903). Báo
+  cáo tháng 2025-M06 (lớp text, không OCR) in "73.655": lệch nằm ở báo cáo tháng. 2022-H1, 2022 mã 61 cũng đọc lại ra
+  số cũ (lệch 2 tỷ, nghi báo cáo tháng sơ bộ). `tests/test_extraction.py::test_monthly_suggestions_chi_goi_y_khi_doc_lai_khop`.
+- Commit: commit Phần A (13/11/2026).
+- Bài học / hạn chế còn lại: báo cáo tháng không phải nguồn chuẩn; chỉ dùng để chỉ ra ô cần xem. H1/2025 B02 cột
+  `current` vẫn không vào Gold vì ô 11 đọc thành null (raw_text có số), không phải vì mã 10.
+
 ---
 
 ## Bảng tóm tắt
@@ -454,6 +500,9 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 | DBG-27 | DQ | cao (0/52 vào Gold) | đã sửa |
 | DBG-28 | DQ | thấp (2 ô) | chờ người dùng xác nhận |
 | DBG-29 | Silver | trung bình | đã thay thế, còn hạn chế (làm tròn tỷ đồng) |
+| DBG-30 | DQ → Gold | trung bình (B02 vào Gold 950 → 1.446) | đã sửa |
+| DBG-31 | map TT99 | thấp (chỉ chuỗi nguồn) | đã sửa, có test |
+| DBG-32 | Silver (đối soát) | thấp | đã xử lý: lệch thuộc báo cáo tháng |
 
 ## Chỉ số chất lượng qua các lượt chạy
 

@@ -99,7 +99,7 @@ Không có chỉ tiêu **cùng tên** trong mẫu TT200/TT202. Nhiều mã chỉ
 
 ## Map bằng số liệu ngày 31/12/2025 (tự sinh bởi `tools/map_tt99_numeric.py`)
 
-So cột đầu năm B01 của BCTC 2026 (TT99) với cột cuối kỳ B01 của BCTC None bản vi-VN (TT200), chỉ giữa các mã cùng cấp. Khớp đúng một mã thì ghép (`mapping_basis = numeric_31122025`). `semantic_break`: mã ghép theo tên mà số lệch, không giống lỗi OCR (cùng tên, khác nội dung).
+So cột đầu năm B01 của BCTC 2026 (TT99) với cột cuối kỳ B01 của BCTC 2025 bản vi-VN (TT200), chỉ giữa các mã cùng cấp. Khớp đúng một mã thì ghép (`mapping_basis = numeric_31122025`). `semantic_break`: mã ghép theo tên mà số lệch, không giống lỗi OCR (cùng tên, khác nội dung).
 
 | Kết quả | Số mã | Mã TT99 → mã TT200 khớp số |
 |---|---|---|
@@ -110,7 +110,7 @@ So cột đầu năm B01 của BCTC 2026 (TT99) với cột cuối kỳ B01 củ
 | không khớp | 10 | 110 → –, 112 → –, 120 → –, 123 → –, 130 → –, 135 → –, 310 → –, 319 → –, 337 → –, 429 → – |
 | bằng 0 | 0 |  |
 | semantic_break | 2 | 120 → 120, 130 → 130 |
-| báo cáo 2026 không thống nhất | 8 | 110 → 4,999,925,717,187/5,000,160,018,899, 112 → 39,550,000,000/39,784,301,712, 120 → 41,883,889,962,478/41,884,124,264,190, 123 → 41,883,889,962,478/41,884,124,264,190, 310 → 50,380,613,547,353/50,769,502,237,457, 319 → 148,048,028,340/536,936,718,444, 322 → 89,498,061,130/899,498,061,130, 440 → 3,945,619,612,034/83,945,619,612,034 |
+| báo cáo 2026 không thống nhất | 7 | 110 → 4,999,925,717,187/5,000,160,018,899, 112 → 39,550,000,000/39,784,301,712, 120 → 41,883,889,962,478/41,884,124,264,190, 123 → 41,883,889,962,478/41,884,124,264,190, 310 → 50,380,613,547,353/50,769,502,237,457, 319 → 148,048,028,340/536,936,718,444, 322 → 89,498,061,130/899,498,061,130 |
 
 <!-- numeric-map:end -->
 

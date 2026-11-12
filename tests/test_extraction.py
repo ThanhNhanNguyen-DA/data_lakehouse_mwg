@@ -374,3 +374,28 @@ def test_ma_tuy_chon_khong_in_tinh_la_0():
     # vế không tùy chọn vẫn là thiếu
     del values[("B02", "25", "c")]
     assert check_equations(values, [eq], "R", {("B02", "25"): -1})[0]["note"] == "thiếu 25"
+
+
+def test_critical_columns_chan_b02_theo_cot():
+    from src.extraction.run_extraction import critical_columns
+    eq = {"statement": "B02", "lhs": "10"}
+    d = {"res": {"pages": {"B02": [5]}}, "period_check_ok": True, "columns_ok": True,
+         "checks": [{"level": "critical", "equation": eq, "kind": "q_current", "ok": True},
+                    {"level": "critical", "equation": {**eq, "lhs": "20"}, "kind": "q_current", "ok": True},
+                    {"level": "critical", "equation": eq, "kind": "ytd_current", "ok": False},
+                    {"level": "warning", "equation": {**eq, "lhs": "22"}, "kind": "q_prior", "ok": True}]}
+    assert critical_columns(d) == {"q_current": True, "ytd_current": False}
+    assert critical_columns({**d, "columns_ok": False}) == {}
+
+
+def test_monthly_suggestions_chi_goi_y_khi_doc_lai_khop(monkeypatch):
+    from src.extraction import run_extraction as R
+    cell = {"account_code": "10", "period_kind": "current", "amount_vnd": 73_755_000_000_000, "page": 9}
+    rows = [{"found": False, "nearest": 73_655, "billion": 73_755, "month": "2025-M06", "doc": {}, "cell": cell},
+            {"found": False, "nearest": 80_000, "billion": 73_755, "month": "2025-M06", "doc": {}, "cell": cell},
+            {"found": True, "nearest": 73_755, "billion": 73_755, "month": "2025-M06", "doc": {}, "cell": cell}]
+    monkeypatch.setattr(R, "reread_cell", lambda d, c, accept: next((v for v in (73_655_100_000_000,) if accept(v)), None))
+    out = R.monthly_suggestions(rows)
+    assert len(out) == 1 and out[0][1]["amount_vnd"] == 73_655_100_000_000 and out[0][1]["ocr_value"] == cell["amount_vnd"]
+    monkeypatch.setattr(R, "reread_cell", lambda d, c, accept: None)
+    assert R.monthly_suggestions(rows) == []

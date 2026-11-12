@@ -29,10 +29,10 @@ from src.extraction import ocr
 from src.extraction.pdf_extractor import (
     _is_grouped_amount, apply_overrides, check_equations, check_parent_sums, check_q1_columns, detect_regime,
     eligible_equations, expected_end, load_dim_account, load_equations, load_overrides, locate_statement_pages,
-    parse_statement_page, report_end_date, signs_of, unit_multiplier,
+    parse_statement_page, report_end_date, signs_of, to_number, unit_multiplier,
 )
 from src.extraction.self_correct import apply_consensus, suggest_fixes, write_suggestions
-from src.quality.monthly_check import monthly_crosscheck
+from src.quality.monthly_check import TOL_BILLION, monthly_crosscheck, one_digit_off
 from src.quality.monthly_check import report_lines as monthly_report_lines
 from src.ingestion.mwg_crawler import PENDING, load_manifest, parse_period, resolve_period
 
@@ -102,8 +102,9 @@ def extract_fs(row: dict, engine: str = "tesseract", statements: tuple[str, ...]
 def _cells_of(res: dict, st: str, page: int) -> list[dict]:
     return [{"statement": st, "page": page, "account_code": r["account_code"], "item_name": r["item_name"],
              "period_kind": kind, "amount_raw": v, "raw_text": r["raw"], "value_origin": origin or "ocr",
-             "row_y0": r["y0"], "row_y1": r["y1"]}
-            for r in res["rows"] for kind, v, origin in zip(res["kinds"], r["values"], r["origins"])]
+             "row_y0": r["y0"], "row_y1": r["y1"], "col_x1": x1, "col_w": w, "line_h": res["h"]}
+            for r in res["rows"]
+            for kind, v, origin, x1, w in zip(res["kinds"], r["values"], r["origins"], res["cols"], res["col_widths"])]
 
 
 def _with_header_ocr(path: Path, sha: str, page: int, words: list[dict], res: dict) -> list[dict]:
@@ -154,6 +155,51 @@ def _reocr_fixes(path: Path, sha: str, page: int, words: list[dict], res: dict) 
                                                               "origin": "ocr_reocr"}]
             n_cells += 1
     return out, n_codes, n_cells
+
+
+REREAD_DPIS = (400, 500, 600)
+
+
+def reread_cell(row: dict, c: dict, accept) -> int | None:
+    """OCR lại riêng một ô số tiền trên PDF BCTC gốc (400/500/600 dpi); trả số đầu tiên được accept(số) chấp nhận.
+
+    Chỉ cho bản scan (tọa độ ô theo pass 2, 300 dpi). Dùng để lấy giá trị gợi ý từ chính PDF, không bịa số."""
+    if row.get("has_text_layer") or c.get("col_x1") is None or c.get("row_y0") is None:
+        return None
+    h = c["line_h"]
+    box = (c["col_x1"] - 1.05 * c["col_w"] - 0.3 * h, c["row_y0"] - 0.3 * h, c["col_x1"] + 0.8 * h, c["row_y1"] + 0.3 * h)
+    for dpi in REREAD_DPIS:
+        text = ocr.ocr_region(ROOT / row["path"], row["sha256"], c["page"], box, ocr.REOCR_NUMBER, dpi=dpi)
+        if not _is_grouped_amount(text):
+            continue
+        try:
+            v = to_number(text)
+        except ValueError:
+            continue
+        if v is not None and accept(int(v)):
+            return int(v)
+    return None
+
+
+def monthly_suggestions(xcheck: list[dict]) -> list[tuple[dict, dict]]:
+    """Ô B02 lệch báo cáo tháng >= 1 tỷ và khác đúng một chữ số (tỷ đồng): đọc lại ô trên PDF BCTC; số đọc lại
+    khớp báo cáo tháng (±1 tỷ) thì gợi ý pending (suggested_by = monthly_crosscheck)."""
+    out = []
+    for r in xcheck:
+        near = r.get("nearest")
+        if r["found"] or near is None or abs(near - r["billion"]) < 1 or not one_digit_off(near, r["billion"]):
+            continue
+        d, c = r["doc"], r["cell"]
+        v = reread_cell(d, c, lambda x: abs(round(abs(x) / 1e9) - near) <= TOL_BILLION and x != abs(c["amount_vnd"]))
+        r["reread"] = v
+        if v is None:  # ghi số đọc lại được (nếu có) để người dùng thấy BCTC vẫn đọc ra số cũ
+            r["reread_any"] = reread_cell(d, c, lambda x: True)
+        if v is not None:
+            out.append((d, {"statement": "B02", "account_code": c["account_code"], "period_kind": c["period_kind"],
+                            "amount_vnd": v * (-1 if c["amount_vnd"] < 0 else 1), "ocr_value": c["amount_vnd"],
+                            "reason": f"Báo cáo tháng {r['month']} in {near:,} tỷ, BCTC OCR {r['billion']:,} tỷ "
+                                      f"(lệch một chữ số); số đọc lại từ PDF trang {c['page']}"}))
+    return out
 
 
 def check_monthly(row: dict) -> dict:
@@ -442,6 +488,18 @@ def dq_level(check: dict) -> str:
     return "warning"
 
 
+def critical_columns(d: dict) -> dict[str, bool]:
+    """{period_kind: qua critical B02 của riêng cột đó}. Điều kiện chung của báo cáo (trang B02, kỳ/ngày, nhãn cột
+    TT99) vẫn áp cho mọi cột; cột không có phương trình critical nào kiểm được thì không qua."""
+    if not (d["res"]["pages"].get("B02") and d["period_check_ok"] and d["columns_ok"]):
+        return {}
+    out: dict[str, bool] = {}
+    for c in d["checks"]:
+        if c["level"] == "critical" and c.get("equation", {}).get("statement") == "B02" and c.get("kind"):
+            out[c["kind"]] = out.get(c["kind"], True) and c["ok"]
+    return out
+
+
 def detect_restatements(docs: list[dict], closing_by_year: dict[int, dict]) -> dict[tuple[int, str], dict]:
     """Số đầu năm của MỌI báo cáo năm N+1 (>= 2 báo cáo) khớp nhau nhưng khác số cuối năm N: trình bày lại.
 
@@ -598,9 +656,13 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
                                                   and (st == "B01" or d["columns_ok"])
                                                   and bool(crit) and all(c["ok"] for c in crit))
         d["passed_critical"] = has_pages and d["passed_critical_b01"] and d["passed_critical_b02"]
+        b02_cols = critical_columns(d)
         for c in d["cells"]:
             c["is_trusted"] = (c["statement"], c["account_code"], c["period_kind"]) in d["trusted_keys"]
-            c["gold_eligible"] = c["is_trusted"] and d.get(f"passed_critical_{c['statement'].lower()}", False)
+            # B02 chặn theo từng cột (period_kind): cột lũy kế trượt không kéo cột quý này ra khỏi Gold
+            ok = b02_cols.get(c["period_kind"], False) if c["statement"] == "B02" else d.get("passed_critical_b01", False) \
+                if c["statement"] == "B01" else False
+            c["gold_eligible"] = c["is_trusted"] and ok
 
     monthly_docs = []
     for row, res in zip(mo_rows, mo_res):
@@ -610,6 +672,8 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
         monthly_docs.append({**row, **p, "found": res["found"], "error": res["error"]})
 
     stats["monthly_xcheck"] = monthly_crosscheck(docs, mo_rows)
+    stats["monthly_suggested"] = sum(write_suggestions(OVERRIDES, d, [s], suggested_by="monthly_crosscheck")
+                                     for d, s in monthly_suggestions(stats["monthly_xcheck"]))
     stats["pending"] = sum(1 for r in _read_overrides() if r.get("status") == "pending")
     stats["restated"] = restated
     _write_raw(docs)
@@ -669,6 +733,11 @@ def _trusted(docs: list[dict], gold: bool = False, statement: str | None = None)
              and (statement is None or c["statement"] == statement)]
     k = sum(c.get("gold_eligible" if gold else "is_trusted", False) for c in cells)
     return f"{k}/{len(cells)} ({k / len(cells):.0%})" if cells else "–"
+
+
+def _col_rate(docs: list[dict]) -> str:
+    cols = [ok for d in docs for ok in critical_columns(d).values()]
+    return f"{sum(cols)}/{len(cols)}" if cols else "–"
 
 
 def _unchecked(docs: list[dict]) -> dict[str, set[str]]:
@@ -774,7 +843,8 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
              f"trong một phương trình/tổng dòng con đúng, >= 2 nguồn bỏ phiếu khớp, hoặc đồng nhất thức với ô "
              f"trusted): {_trusted(docs)}. **Ô vào được Gold** (trusted và critical của chính báo cáo đó qua): "
              f"B01 {_trusted(docs, True, 'B01')}, B02 {_trusted(docs, True, 'B02')}; B03 chưa có critical nên chưa "
-             "vào Gold.", "",
+             "vào Gold. B02 chặn theo từng cột (`period_kind`): cột B02 qua critical "
+             f"{_col_rate(docs)}.", "",
              "Critical B01: phương trình cân đối B01, kỳ/ngày báo cáo, có trang B01. Critical B02: phương trình B02 có "
              "vế trái 10, 20, 30, 50, 60, kỳ/ngày báo cáo, có trang B02, nhãn cột B02 TT99. Đồng nhất thức "
              "(`config/dq_identities.csv`, `value_origin = identity`) thay phép kiểm tổng dòng con của dòng đích. Warning (chỉ ghi lại): tổng dòng con các mục nhỏ, Q1 quý này = lũy "
@@ -788,7 +858,8 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
              f"{sum(d['res']['stats']['codes_recovered'] for d in docs)} mã và "
              f"{sum(d['res']['stats']['cells_reocr'] for d in docs)} ô số được OCR lại riêng (400 dpi); "
              f"{stats.get('digit_suggested', 0)} gợi ý mới cho ô lệch đúng một chữ số so với kỳ liền kề "
-             "(`suggested_by = adjacent_period`).", "",
+             "(`suggested_by = adjacent_period`); "
+             f"{stats.get('monthly_suggested', 0)} gợi ý mới từ đối soát báo cáo tháng (`suggested_by = monthly_crosscheck`).", "",
              "Điều kiện qua: tìm thấy B01 và B02; mọi phương trình trong `config/dq_equations.csv` của đúng regime "
              "đúng trên mọi cột; báo cáo Q1 có cột quý này = lũy kế; cột B02 TT99 đọc được tiêu đề; ngày báo cáo "
              "trong PDF khớp kỳ; số đầu năm khớp số cuối năm trước (so theo mã chuẩn). Khoản giảm trừ chỉ lấy trị "

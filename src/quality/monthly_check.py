@@ -78,7 +78,8 @@ def monthly_crosscheck(docs: list[dict], mo_rows: list[dict]) -> list[dict]:
             billion = round(c["amount_vnd"] / 1e9)
             out.append({"month": month, "period": d["period"], "lang": d["lang"], "code": code, "billion": billion,
                         "found": any(abs(billion - n) <= TOL_BILLION for n in texts[month]),
-                        "nearest": nearest(billion, texts[month]), "gold_eligible": c.get("gold_eligible", False)})
+                        "nearest": nearest(billion, texts[month]), "gold_eligible": c.get("gold_eligible", False),
+                        "doc": d, "cell": c})
     return out
 
 
@@ -101,6 +102,12 @@ def report_lines(rows: list[dict]) -> list[str]:
         near = r.get("nearest")
         hint = "" if r["found"] or near is None else (
             f"{near:,}" + (" (lệch một chữ số: nghi OCR)" if one_digit_off(near, r["billion"]) else ""))
+        if r.get("reread") is not None:
+            hint += f"; đọc lại PDF: {r['reread']:,} → pending"
+        elif "reread" in r:
+            again = r.get("reread_any")
+            hint += ("; đọc lại PDF không ra số nào" if again is None else
+                     f"; đọc lại PDF vẫn ra {round(abs(again) / 1e9):,} tỷ: nghi báo cáo tháng (sơ bộ/OCR)")
         lines.append(f"| {r['period']} | {r['lang'][:2]} | {r['month']} | {r['code']} | {r['billion']:,} | "
                      f"{'✓' if r['found'] else '–'} | {hint} | {'✓' if r['gold_eligible'] else '–'} |")
     lines += ["", f"Kỳ có mã 10/60 không thấy trong báo cáo tháng: {len(missing)}. '–' không có nghĩa là sai: báo cáo "

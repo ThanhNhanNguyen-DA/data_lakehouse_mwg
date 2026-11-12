@@ -35,23 +35,9 @@ FIELDS = ["regime", "statement", "account_code", "canonical_code", "mapping_basi
 MARK_START, MARK_END = "<!-- numeric-map:start -->", "<!-- numeric-map:end -->"
 
 
-def main(argv: list[str]) -> int:
-    ref = argv[argv.index("--ref") + 1] if "--ref" in argv else "2025-Q4"
-    dry = "--dry" in argv
-    dim = list(csv.DictReader((ROOT / "config" / "dim_account.csv").open(encoding="utf-8")))
-    level = {(r["regime"], r["account_code"]): r["level"] for r in dim if r["statement"] == "B01"}
-    raw = pl.read_delta(str(RAW)).filter(pl.col("statement") == "B01")
-    tt99 = raw.filter((pl.col("regime") == "TT99") & (pl.col("period").str.starts_with("2026"))
-                      & (pl.col("period_kind") == "opening") & pl.col("amount_vnd").is_not_null())
-    q4 = raw.filter((pl.col("period") == ref) & (pl.col("lang") == "vi-VN") & (pl.col("period_kind") == "closing")
-                    & pl.col("amount_vnd").is_not_null())
-    # mỗi mã TT99: giá trị đa số giữa các báo cáo 2026 (giảm ảnh hưởng của một ô OCR sai)
-    v99 = {code: Counter(g["amount_vnd"].to_list()).most_common(1)[0][0]
-           for (code,), g in tt99.group_by(["account_code"])}
-    all99 = {code: set(g["amount_vnd"].to_list()) for (code,), g in tt99.group_by(["account_code"])}
-    v200 = dict(zip(q4["account_code"], q4["amount_vnd"]))
-
-    rows = list(csv.DictReader(MAP.open(encoding="utf-8")))
+def match_numeric(rows: list[dict], v99: dict, all99: dict, v200: dict, level: dict, ref: str) -> dict:
+    """Ghép mã TT99 -> TT200 bằng số 31/12/2025 (sửa rows tại chỗ). v99: số đa số mỗi mã TT99; all99: mọi số
+    đọc được của mã đó; v200: số TT200 cùng ngày; level: {(regime, mã): cấp}. Trả {kết quả: [(mã, số, mã khớp)]}."""
     result = {"mới ghép": [], "khớp với ghép theo tên": [], "mâu thuẫn với ghép theo tên": [],
               "khớp nhiều mã": [], "không khớp": [], "bằng 0": [], "semantic_break": [],
               "báo cáo 2026 không thống nhất": []}
@@ -90,12 +76,33 @@ def main(argv: list[str]) -> int:
             result["khớp nhiều mã"].append(item)
         else:
             result["không khớp"].append(item)
-            ref = v200.get(r["canonical_code"]) if r["canonical_code"] else None
-            if ref is not None and all(abs(x - ref) > 1 and not ocr_like(x, ref) for x in all99[r["account_code"]]):
+            ref_v = v200.get(r["canonical_code"]) if r["canonical_code"] else None
+            if ref_v is not None and all(abs(x - ref_v) > 1 and not ocr_like(x, ref_v) for x in all99[r["account_code"]]):
                 r["semantic_break"] = "true"
                 r["note"] = (f"số liệu 31/12/2025: TT99 {r['account_code']} = {v:,} khác TT200 {r['canonical_code']} = "
-                             f"{ref:,}, không giống lỗi OCR: cùng tên nhưng khác nội dung")
+                             f"{ref_v:,}, không giống lỗi OCR: cùng tên nhưng khác nội dung")
                 result["semantic_break"].append((r["account_code"], v, [r["canonical_code"]]))
+    return result
+
+
+def main(argv: list[str]) -> int:
+    ref = argv[argv.index("--ref") + 1] if "--ref" in argv else "2025-Q4"
+    dry = "--dry" in argv
+    dim = list(csv.DictReader((ROOT / "config" / "dim_account.csv").open(encoding="utf-8")))
+    level = {(r["regime"], r["account_code"]): r["level"] for r in dim if r["statement"] == "B01"}
+    raw = pl.read_delta(str(RAW)).filter(pl.col("statement") == "B01")
+    tt99 = raw.filter((pl.col("regime") == "TT99") & (pl.col("period").str.starts_with("2026"))
+                      & (pl.col("period_kind") == "opening") & pl.col("amount_vnd").is_not_null())
+    q4 = raw.filter((pl.col("period") == ref) & (pl.col("lang") == "vi-VN") & (pl.col("period_kind") == "closing")
+                    & pl.col("amount_vnd").is_not_null())
+    # mỗi mã TT99: giá trị đa số giữa các báo cáo 2026 (giảm ảnh hưởng của một ô OCR sai)
+    v99 = {code: Counter(g["amount_vnd"].to_list()).most_common(1)[0][0]
+           for (code,), g in tt99.group_by(["account_code"])}
+    all99 = {code: set(g["amount_vnd"].to_list()) for (code,), g in tt99.group_by(["account_code"])}
+    v200 = dict(zip(q4["account_code"], q4["amount_vnd"]))
+
+    rows = list(csv.DictReader(MAP.open(encoding="utf-8")))
+    result = match_numeric(rows, v99, all99, v200, level, ref)
     for k, items in result.items():
         print(f"{k}: {len(items)}", [(c, h) for c, _, h in items])
     if dry:

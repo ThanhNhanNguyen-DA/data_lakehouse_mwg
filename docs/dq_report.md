@@ -19,12 +19,12 @@
 
 ## 2. Link bất thường trên nguồn (một URL cho nhiều kỳ)
 
-Crawler gom toàn bộ danh sách rồi nhóm theo URL. Một URL được MWG gắn cho nhiều kỳ khác nhau thì được tải **một lần** với `period = pending`. Mọi mục của URL đó được ghi vào `data/_state/link_anomalies.csv`. Kỳ thật được gán sau khi đọc ngày báo cáo trong PDF (tuần 4–5). Kỳ còn lại của nhóm coi như **không có tài liệu gốc**, xem `docs/limitations.md`.
+Crawler gom toàn bộ danh sách rồi nhóm theo URL. Một URL được MWG gắn cho nhiều kỳ khác nhau thì được tải **một lần** với `period = pending`. Mọi mục của URL đó được ghi vào `data/_state/link_anomalies.csv`. Kỳ thật được gán sau khi đọc ngày báo cáo trong PDF (`mwg_crawler.resolve_period`, manifest đã cập nhật). Kỳ còn lại của nhóm coi như **không có tài liệu gốc**, xem `docs/limitations.md`.
 
 | URL | Các mục trên mwg.vn (kỳ theo tiêu đề) | Đoán theo tên file | Kỳ sau khi đọc PDF |
 |---|---|---|---|
-| `bhxcdn.vn/.../2018/01/IC-FS-30.09.2017-consolE2.pdf` | "Interim Audited Consolidate FS 3Q17" (2017-Q3), "Interim Audited Consolidate FS 1H17" (2017-H1) | 2017-Q3 | chờ |
-| `bhxcdn.vn/.../2018/06/Monthly-report-YTD-May-18-EN.pdf` | "YTD May 2018 report" (2018-M05), "YTD May 2017 report" (2017-M05) | 2018-M05 | chờ |
+| `bhxcdn.vn/.../2018/01/IC-FS-30.09.2017-consolE2.pdf` | "Interim Audited Consolidate FS 3Q17" (2017-Q3), "Interim Audited Consolidate FS 1H17" (2017-H1) | 2017-Q3 | **2017-Q3** (B01 "as at 30 September 2017", ngày đọc được 2017-09-30); H1/2017 không có tài liệu gốc |
+| `bhxcdn.vn/.../2018/06/Monthly-report-YTD-May-18-EN.pdf` | "YTD May 2018 report" (2018-M05), "YTD May 2017 report" (2017-M05) | 2018-M05 | **2018-M05** (tháng lũy kế đọc ở trang 1); 05/2017 không có tài liệu gốc |
 
 Phát hiện ngày 2026-11-11. Hai file này đã được tải trước khi có quy tắc nhóm theo URL. Tên file và `meta.json` trong Bronze vẫn ghi 2017Q3 và 2018M05; manifest đã chuyển sang `pending`.
 
@@ -44,19 +44,19 @@ Chưa thực hiện. Gói `vnstock` không còn trên PyPI, xem ghi chú trong `
 
 <!-- extraction:start -->
 
-## 5. Bóc tách và DQ theo kỳ (tự sinh, 2026-11-12 16:50)
+## 5. Bóc tách và DQ theo kỳ (tự sinh, 2026-11-13 01:12)
 
 **B01 cân đối: 50/52 (96%). BCTC qua DQ toàn bộ: 7/52 (13%).** Chưa áp dụng gợi ý sửa tay nào; **15 ô đang chờ xác nhận** trong `config/manual_overrides.csv` (`status=pending`).
 
 **Độ chính xác OCR thô** (trước mọi bước tự sửa): B01 cân đối 34/52 (65%); 82/108 (76%) phép kiểm phương trình B01 đúng. **Sau tự sửa**: B01 cân đối 50/52 (96%).
 
-**Qua critical (chặn Gold theo từng báo cáo): B01 50/52 (96%), B02 25/52 (48%)** (cả hai: 25/52 (48%)). Ô trusted (nằm trong một phương trình/tổng dòng con đúng, >= 2 nguồn bỏ phiếu khớp, hoặc đồng nhất thức với ô trusted): 8004/11950 (67%). **Ô vào được Gold** (trusted và critical của chính báo cáo đó qua): B01 5807/6287 (92%), B02 950/2716 (35%); B03 chưa có critical nên chưa vào Gold.
+**Qua critical (chặn Gold theo từng báo cáo): B01 50/52 (96%), B02 25/52 (48%)** (cả hai: 25/52 (48%)). Ô trusted (nằm trong một phương trình/tổng dòng con đúng, >= 2 nguồn bỏ phiếu khớp, hoặc đồng nhất thức với ô trusted): 8004/11950 (67%). **Ô vào được Gold** (trusted và critical của chính báo cáo đó qua): B01 5807/6287 (92%), B02 1446/2716 (53%); B03 chưa có critical nên chưa vào Gold. B02 chặn theo từng cột (`period_kind`): cột B02 qua critical 90/128.
 
 Critical B01: phương trình cân đối B01, kỳ/ngày báo cáo, có trang B01. Critical B02: phương trình B02 có vế trái 10, 20, 30, 50, 60, kỳ/ngày báo cáo, có trang B02, nhãn cột B02 TT99. Đồng nhất thức (`config/dq_identities.csv`, `value_origin = identity`) thay phép kiểm tổng dòng con của dòng đích. Warning (chỉ ghi lại): tổng dòng con các mục nhỏ, Q1 quý này = lũy kế, đầu năm ≠ cuối năm trước. Critical chưa kiểm được (thiếu công thức chắc chắn): TT200: B02 50.
 
 Nguồn gốc giá trị (`value_origin`): consensus_filled 164, consensus_fixed 34, identity 86, ocr 9832, ocr_reocr 63, paddle 1771. Nhãn cột B02 (`b02_label_method`): header 7, không có B02 1, numeric 3, positional 41.
 
-Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa các lần in lại số B01; PaddleOCR chạy 52 trang, thay kết quả cho 26 báo cáo; 141 mã và 108 ô số được OCR lại riêng (400 dpi); 0 gợi ý mới cho ô lệch đúng một chữ số so với kỳ liền kề (`suggested_by = adjacent_period`).
+Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa các lần in lại số B01; PaddleOCR chạy 52 trang, thay kết quả cho 26 báo cáo; 141 mã và 108 ô số được OCR lại riêng (400 dpi); 0 gợi ý mới cho ô lệch đúng một chữ số so với kỳ liền kề (`suggested_by = adjacent_period`); 0 gợi ý mới từ đối soát báo cáo tháng (`suggested_by = monthly_crosscheck`).
 
 Điều kiện qua: tìm thấy B01 và B02; mọi phương trình trong `config/dq_equations.csv` của đúng regime đúng trên mọi cột; báo cáo Q1 có cột quý này = lũy kế; cột B02 TT99 đọc được tiêu đề; ngày báo cáo trong PDF khớp kỳ; số đầu năm khớp số cuối năm trước (so theo mã chuẩn). Khoản giảm trừ chỉ lấy trị tuyệt đối khi `sign = -1` trong `config/dim_account.csv` (hiện có 287 dòng).
 
@@ -112,26 +112,26 @@ Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa c
 | TT200 | 224 = Σ con | 1/1 | 100% |
 | TT99 | 40 = Σ con | 2/4 | 50% |
 | TT99 | 310 = Σ con | 1/4 | 25% |
-| TT99 | 20 = Σ con | 1/4 | 25% |
-| TT99 | 227 = Σ con | 1/4 | 25% |
 | TT99 | 420 = Σ con | 1/4 | 25% |
 | TT99 | 221 = Σ con | 1/4 | 25% |
+| TT99 | 227 = Σ con | 1/4 | 25% |
+| TT99 | 20 = Σ con | 1/4 | 25% |
 | TT200 | 20 = Σ con | 11/45 | 24% |
 | TT200 | 421 = Σ con | 11/46 | 24% |
 | TT200 | 310 = Σ con | 10/48 | 21% |
 | TT200 | 410 = Σ con | 10/48 | 21% |
 | TT200 | 411 = Σ con | 8/47 | 17% |
 | TT200 | 130 = Σ con | 7/48 | 15% |
-| TT200 | 150 = Σ con | 6/48 | 12% |
-| TT200 | 200 = Σ con | 6/48 | 12% |
 | TT200 | 260 = Σ con | 6/48 | 12% |
+| TT200 | 200 = Σ con | 6/48 | 12% |
+| TT200 | 150 = Σ con | 6/48 | 12% |
 | TT200 | 40 = Σ con | 5/45 | 11% |
-| TT200 | 227 = Σ con | 5/48 | 10% |
 | TT200 | 221 = Σ con | 5/48 | 10% |
+| TT200 | 227 = Σ con | 5/48 | 10% |
 | TT200 | 50 = Σ con | 4/45 | 9% |
 | TT200 | 100 = Σ con | 4/48 | 8% |
-| TT200 | 270 = Σ con | 3/48 | 6% |
 | TT200 | 300 = Σ con | 3/48 | 6% |
+| TT200 | 270 = Σ con | 3/48 | 6% |
 | TT200 | 250 = Σ con | 2/38 | 5% |
 | TT200 | 10 = Σ con | 2/45 | 4% |
 | TT200 | 110 = Σ con | 2/48 | 4% |
@@ -142,31 +142,31 @@ Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa c
 | TT200 | 140 = Σ con | 1/48 | 2% |
 | TT200 | 210 = Σ con | 0/47 | 0% |
 | TT200 | 120 = Σ con | 0/40 | 0% |
-| TT99 | 220 = Σ con | 0/4 | 0% |
-| TT99 | 130 = Σ con | 0/4 | 0% |
-| TT99 | 100 = Σ con | 0/4 | 0% |
-| TT99 | 120 = Σ con | 0/4 | 0% |
-| TT99 | 160 = Σ con | 0/4 | 0% |
 | TT99 | 411 = Σ con | 0/4 | 0% |
-| TT99 | 140 = Σ con | 0/4 | 0% |
-| TT99 | 200 = Σ con | 0/4 | 0% |
 | TT99 | 210 = Σ con | 0/4 | 0% |
-| TT99 | 250 = Σ con | 0/4 | 0% |
-| TT99 | 110 = Σ con | 0/4 | 0% |
-| TT99 | 270 = Σ con | 0/4 | 0% |
-| TT99 | 50 = Σ con | 0/4 | 0% |
-| TT99 | 330 = Σ con | 0/3 | 0% |
 | TT99 | 10 = Σ con | 0/4 | 0% |
-| TT99 | 260 = Σ con | 0/4 | 0% |
+| TT99 | 50 = Σ con | 0/4 | 0% |
+| TT99 | 250 = Σ con | 0/4 | 0% |
 | TT99 | 280 = Σ con | 0/4 | 0% |
+| TT99 | 330 = Σ con | 0/3 | 0% |
 | TT99 | 300 = Σ con | 0/4 | 0% |
+| TT99 | 220 = Σ con | 0/4 | 0% |
+| TT99 | 270 = Σ con | 0/4 | 0% |
+| TT99 | 260 = Σ con | 0/4 | 0% |
+| TT99 | 120 = Σ con | 0/4 | 0% |
+| TT99 | 200 = Σ con | 0/4 | 0% |
+| TT99 | 160 = Σ con | 0/4 | 0% |
+| TT99 | 100 = Σ con | 0/4 | 0% |
+| TT99 | 110 = Σ con | 0/4 | 0% |
+| TT99 | 140 = Σ con | 0/4 | 0% |
+| TT99 | 130 = Σ con | 0/4 | 0% |
 
 ### Đối soát B02 mã 10, 60 với báo cáo tháng lũy kế (thay vnstock)
 
 Số BCTC làm tròn về tỷ đồng có xuất hiện (±1 tỷ) trong báo cáo KQKD tháng 3/6/9/12 cùng kỳ lũy kế không (`src/quality/monthly_check.py`). Chỉ ghi lại, không ghi vào Gold.
 
-- Mã 10: thấy trong báo cáo tháng 15/28 ô; trong đó 7 ô chưa vào được Gold (báo cáo tháng xác nhận thêm, làm tròn tỷ đồng).
-- Mã 60: thấy trong báo cáo tháng 12/25 ô; trong đó 6 ô chưa vào được Gold (báo cáo tháng xác nhận thêm, làm tròn tỷ đồng).
+- Mã 10: thấy trong báo cáo tháng 15/28 ô; trong đó 5 ô chưa vào được Gold (báo cáo tháng xác nhận thêm, làm tròn tỷ đồng).
+- Mã 60: thấy trong báo cáo tháng 12/25 ô; trong đó 5 ô chưa vào được Gold (báo cáo tháng xác nhận thêm, làm tròn tỷ đồng).
 
 | Kỳ BCTC | Lang | Báo cáo tháng | Mã | BCTC (tỷ đồng) | Thấy trong báo cáo tháng | Số cùng độ dài gần nhất | Ô vào Gold |
 |---|---|---|---|---|---|---|---|
@@ -184,10 +184,10 @@ Số BCTC làm tròn về tỷ đồng có xuất hiện (±1 tỷ) trong báo c
 | 2019-H1 | en | 2019-M06 | 61 | 2,120 | ✓ |  | – |
 | 2019 | en | 2019-M12 | 10 | 102,174 | ✓ |  | ✓ |
 | 2019 | en | 2019-M12 | 60 | 3,836 | ✓ |  | ✓ |
-| 2019 | en | 2019-M12 | 61 | 3,834 | – | 3,836 (lệch một chữ số: nghi OCR) | ✓ |
+| 2019 | en | 2019-M12 | 61 | 3,834 | – | 3,836 (lệch một chữ số: nghi OCR); đọc lại PDF không ra số nào | ✓ |
 | 2020-H1 | en | 2020-M06 | 10 | 55,639 | ✓ |  | – |
 | 2020-H1 | en | 2020-M06 | 60 | 2,027 | ✓ |  | – |
-| 2020-H1 | en | 2020-M06 | 61 | 2,025 | – | 2,027 (lệch một chữ số: nghi OCR) | – |
+| 2020-H1 | en | 2020-M06 | 61 | 2,025 | – | 2,027 (lệch một chữ số: nghi OCR); đọc lại PDF không ra số nào | – |
 | 2020 | en | 2020-M12 | 10 | 108,546 | ✓ |  | ✓ |
 | 2020 | en | 2020-M12 | 60 | 3,920 | ✓ |  | ✓ |
 | 2020 | en | 2020-M12 | 61 | 3,918 | – | 3,920 | ✓ |
@@ -199,12 +199,12 @@ Số BCTC làm tròn về tỷ đồng có xuất hiện (±1 tỷ) trong báo c
 | 2021 | vi | 2021-M12 | 61 | 4,899 | – | 4,901 | ✓ |
 | 2022-H1 | vi | 2022-M06 | 10 | 70,804 | ✓ |  | – |
 | 2022-H1 | vi | 2022-M06 | 60 | 2,576 | ✓ |  | – |
-| 2022-H1 | vi | 2022-M06 | 61 | 2,574 | – | 2,576 (lệch một chữ số: nghi OCR) | – |
-| 2022-Q2 | en | 2022-M06 | 60 | 2,576 | ✓ |  | – |
-| 2022-Q2 | en | 2022-M06 | 61 | 2,574 | – | 2,576 (lệch một chữ số: nghi OCR) | – |
+| 2022-H1 | vi | 2022-M06 | 61 | 2,574 | – | 2,576 (lệch một chữ số: nghi OCR); đọc lại PDF vẫn ra 2,574 tỷ: nghi báo cáo tháng (sơ bộ/OCR) | – |
+| 2022-Q2 | en | 2022-M06 | 60 | 2,576 | ✓ |  | ✓ |
+| 2022-Q2 | en | 2022-M06 | 61 | 2,574 | – | 2,576 (lệch một chữ số: nghi OCR); đọc lại PDF không ra số nào | ✓ |
 | 2022 | vi | 2022-M12 | 10 | 133,405 | ✓ |  | ✓ |
 | 2022 | vi | 2022-M12 | 60 | 4,102 | ✓ |  | ✓ |
-| 2022 | vi | 2022-M12 | 61 | 4,100 | – | 4,102 (lệch một chữ số: nghi OCR) | ✓ |
+| 2022 | vi | 2022-M12 | 61 | 4,100 | – | 4,102 (lệch một chữ số: nghi OCR); đọc lại PDF vẫn ra 4,100 tỷ: nghi báo cáo tháng (sơ bộ/OCR) | ✓ |
 | 2023-H1 | vi | 2023-M06 | 10 | 56,571 | – |  | ✓ |
 | 2023-H1 | vi | 2023-M06 | 60 | 39 | – | 41 | ✓ |
 | 2023-H1 | vi | 2023-M06 | 61 | 39 | – | 41 | ✓ |
@@ -214,24 +214,24 @@ Số BCTC làm tròn về tỷ đồng có xuất hiện (±1 tỷ) trong báo c
 | 2023 | vi | 2023-M12 | 10 | 118,280 | – | 133,405 | ✓ |
 | 2023 | vi | 2023-M12 | 60 | 168 | – | 180 | ✓ |
 | 2023 | vi | 2023-M12 | 61 | 168 | – | 180 | ✓ |
-| 2023-Q4 | vi | 2023-M12 | 10 | 118,280 | – | 133,405 | – |
-| 2023-Q4 | vi | 2023-M12 | 60 | 168 | – | 180 | – |
-| 2023-Q4 | vi | 2023-M12 | 61 | 168 | – | 180 | – |
+| 2023-Q4 | vi | 2023-M12 | 10 | 118,280 | – | 133,405 | ✓ |
+| 2023-Q4 | vi | 2023-M12 | 60 | 168 | – | 180 | ✓ |
+| 2023-Q4 | vi | 2023-M12 | 61 | 168 | – | 180 | ✓ |
 | 2024-H1 | vi | 2024-M06 | 10 | 65,621 | ✓ |  | ✓ |
 | 2024-H1 | vi | 2024-M06 | 60 | 2,075 | – | 2,093 | ✓ |
 | 2024-H1 | vi | 2024-M06 | 61 | 2,075 | – | 2,093 | ✓ |
-| 2024-Q2 | vi | 2024-M06 | 10 | 65,621 | ✓ |  | – |
-| 2024-Q3 | vi | 2024-M09 | 10 | 99,767 | ✓ |  | – |
+| 2024-Q2 | vi | 2024-M06 | 10 | 65,621 | ✓ |  | ✓ |
+| 2024-Q3 | vi | 2024-M09 | 10 | 99,767 | ✓ |  | ✓ |
 | 2024 | vi | 2024-M12 | 10 | 134,341 | ✓ |  | ✓ |
 | 2024 | vi | 2024-M12 | 60 | 3,733 | – | 3,000 | ✓ |
 | 2024 | vi | 2024-M12 | 61 | 3,722 | – | 3,000 | ✓ |
 | 2024-Q4 | vi | 2024-M12 | 10 | 134,341 | ✓ |  | – |
 | 2024-Q4 | vi | 2024-M12 | 60 | 3,733 | – | 3,000 | – |
 | 2024-Q4 | vi | 2024-M12 | 61 | 3,722 | – | 3,000 | – |
-| 2025-H1 | vi | 2025-M06 | 10 | 73,755 | – | 73,655 (lệch một chữ số: nghi OCR) | – |
+| 2025-H1 | vi | 2025-M06 | 10 | 73,755 | – | 73,655 (lệch một chữ số: nghi OCR); đọc lại PDF vẫn ra 73,755 tỷ: nghi báo cáo tháng (sơ bộ/OCR) | – |
 | 2025-H1 | vi | 2025-M06 | 60 | 3,205 | – | 2,184 | – |
 | 2025-H1 | vi | 2025-M06 | 61 | 3,194 | – | 2,184 | – |
-| 2025-Q2 | vi | 2025-M06 | 10 | 73,755 | – | 73,655 (lệch một chữ số: nghi OCR) | – |
+| 2025-Q2 | vi | 2025-M06 | 10 | 73,755 | – | 73,655 (lệch một chữ số: nghi OCR); đọc lại PDF không ra số nào | – |
 | 2025-Q2 | vi | 2025-M06 | 60 | 3,205 | – | 2,184 | – |
 | 2025-Q2 | vi | 2025-M06 | 61 | 3,194 | – | 2,184 | – |
 | 2025-Q3 | vi | 2025-M09 | 10 | 113,607 | – | 113,436 | ✓ |
@@ -240,13 +240,13 @@ Số BCTC làm tròn về tỷ đồng có xuất hiện (±1 tỷ) trong báo c
 | 2025 | vi | 2025-M12 | 10 | 155,928 | – | 156,166 | ✓ |
 | 2025 | vi | 2025-M12 | 60 | 7,073 | – | 2,559 | ✓ |
 | 2025 | vi | 2025-M12 | 61 | 7,034 | – | 2,559 | ✓ |
-| 2025-Q4 | vi | 2025-M12 | 10 | 156,458 | – | 156,166 | – |
+| 2025-Q4 | vi | 2025-M12 | 10 | 156,458 | – | 156,166 | ✓ |
 | 2025-Q4 | vi | 2025-M12 | 61 | 7,037 | – | 2,559 | – |
 | 2026-H1 | vi | 2026-M06 | 10 | 95,213 | – | 95,305 | ✓ |
 | 2026-H1 | vi | 2026-M06 | 60 | 6,112 | – | 3,191 | ✓ |
 | 2026-Q2 | vi | 2026-M06 | 10 | 95,213 | – | 95,305 | – |
 | 2026-Q2 | vi | 2026-M06 | 60 | 6,112 | – | 3,191 | – |
-| 2026-Q3 | vi | 2026-M09 | 10 | 147,827 | – | 147,953 | – |
+| 2026-Q3 | vi | 2026-M09 | 10 | 147,827 | – | 147,953 | ✓ |
 
 Kỳ có mã 10/60 không thấy trong báo cáo tháng: 16. '–' không có nghĩa là sai: báo cáo tháng có thể không in số đó (vd. báo cáo 2024–2026 chỉ in doanh thu).
 
