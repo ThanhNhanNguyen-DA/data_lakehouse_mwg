@@ -86,6 +86,10 @@ def write_gold(silver: pl.DataFrame, gold_dir: Path = GOLD_DIR) -> dict:
     missing = {k: v for k, v in FACT_CONSTRAINTS.items() if f"delta.constraints.{k}" not in have}
     if missing:
         dt.alter.add_constraint(missing)
+    # Gold dựng lại toàn bộ mỗi lần và được commit lên git cho Streamlit Cloud: chỉ giữ file của phiên bản hiện tại
+    # (time travel để ở Silver). Delta log vẫn ghi đủ lịch sử thao tác.
+    for name in ("dim_date", "dim_account", "dim_chain", "fact_financial"):
+        DeltaTable(str(gold_dir / name)).vacuum(retention_hours=0, enforce_retention_duration=False, dry_run=False)
     return {"fact": fact.height, "version": DeltaTable(path).version()}
 
 

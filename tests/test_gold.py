@@ -48,7 +48,7 @@ def _q(tmp_path, sql):
     os.chdir(tmp_path)
     try:
         con = duckdb.connect(str(tmp_path / "mwg.duckdb"), read_only=True)
-        con.sql("LOAD delta")
+        con.sql("INSTALL delta; LOAD delta")
         return con.sql(sql).fetchall()
     finally:
         os.chdir(cwd)

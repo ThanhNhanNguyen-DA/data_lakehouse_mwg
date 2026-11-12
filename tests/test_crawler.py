@@ -413,3 +413,24 @@ def test_url_da_biet_cung_ky_khong_phai_bat_thuong(env):
     install(_sample_api())
     mwg_crawler.crawl()
     assert not mwg_crawler.ANOMALIES_PATH.exists()
+
+
+def test_restore_missing_chi_ghi_khi_sha_khop(tmp_path, monkeypatch):
+    import hashlib
+    import polars as pl
+    from src.ingestion import mwg_crawler as C
+
+    good, changed = b"%PDF-1.4 a", b"%PDF-1.4 b"
+    mf = pl.DataFrame({"url": ["u1", "u2", "u3"], "lang": ["vi-VN"] * 3, "title": ["t"] * 3,
+                       "doc_type": ["FS_CONSOLIDATED_Y"] * 3, "period": ["2025", "2024", "2023"],
+                       "sha256": [hashlib.sha256(good).hexdigest(), hashlib.sha256(b"old").hexdigest(), "x"],
+                       "path": ["data/bronze/a.pdf", "data/bronze/b.pdf", "data/bronze/c.pdf"]})
+    (tmp_path / "data" / "bronze").mkdir(parents=True)
+    (tmp_path / "data" / "bronze" / "c.pdf").write_bytes(b"co san")
+    monkeypatch.setattr(C, "ROOT", tmp_path)
+    monkeypatch.setattr(C, "get", lambda url, **kw: type("R", (), {"content": {"u1": good, "u2": changed}[url]})())
+    assert C.missing_files(mf)["url"].to_list() == ["u1", "u2"]
+    res = C.restore_missing(mf)
+    assert res == {"missing": 2, "restored": 1, "mismatch": 1, "failed": 0}
+    assert (tmp_path / "data/bronze/a.pdf").read_bytes() == good
+    assert not (tmp_path / "data/bronze/b.pdf").exists()  # nội dung nguồn đã đổi: không ghi vào Bronze

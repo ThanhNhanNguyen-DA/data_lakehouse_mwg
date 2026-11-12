@@ -23,3 +23,7 @@ data/_cache/
 
 # Trang duyệt ô gợi ý sửa (sinh lại được, chứa ảnh crop từ PDF)
 review/
+
+# Bảng ô thô (sinh lại từ Bronze + cache OCR mỗi lần bóc tách, lớn dần theo phiên bản): không đưa lên git.
+# Silver fin_statement_long và Gold (data/gold) được commit để dashboard trên Streamlit Cloud đọc được.
+data/silver/fs_extracted_raw/

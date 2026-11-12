@@ -26,7 +26,7 @@ def _kpi(sql: str) -> tuple:
     os.chdir(ROOT)
     try:
         con = duckdb.connect(str(DB), read_only=True)
-        con.sql("LOAD delta")
+        con.sql("INSTALL delta; LOAD delta")
         return con.execute(sql).fetchone()
     finally:
         os.chdir(cwd)

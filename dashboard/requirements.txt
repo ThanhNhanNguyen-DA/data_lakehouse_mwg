@@ -1,0 +1,6 @@
+# Chỉ gói dashboard cần (Streamlit Community Cloud đọc file này vì nằm cạnh app.py), không kèm OCR/Paddle.
+streamlit==1.67.0
+plotly==7.1.0
+duckdb==2.0.0
+pandas==3.1.1
+pypdfium2==5.15.2

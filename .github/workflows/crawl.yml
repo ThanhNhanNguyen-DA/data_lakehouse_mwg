@@ -1,0 +1,80 @@
+# Crawl mwg.vn hằng tuần; có tài liệu mới thì bóc tách (OCR) -> Silver -> Gold, kiểm thử, rồi commit dữ liệu.
+# PDF Bronze và cache OCR không nằm trong git: giữ bằng actions/cache; thiếu thì run_pipeline tải lại theo manifest
+# (kiểm sha256). Gặp 403 thì crawler dừng (không vượt chặn) và job báo lỗi.
+name: crawl
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"   # 08:00 thứ Hai giờ Việt Nam
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Chạy lại bóc tách/Silver/Gold dù không có tài liệu mới"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # commit manifest, Silver, Gold bằng GITHUB_TOKEN mặc định
+
+concurrency:
+  group: crawl
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-24.04   # cùng Tesseract 5.3.4 với máy phát triển
+    timeout-minutes: 340    # lần đầu (cache trống): tải lại ~800 MB PDF có nghỉ + OCR toàn bộ
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Cài Tesseract (vie + eng)
+        run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-vie tesseract-ocr-eng
+
+      - name: Cài thư viện
+        run: pip install -r requirements.txt
+
+      - name: Khôi phục Bronze + cache OCR
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/bronze/**/*.pdf
+            data/bronze/**/*.jpg
+            data/bronze/**/*.png
+            data/_cache/ocr
+          key: lakehouse-data-${{ github.run_id }}
+          restore-keys: lakehouse-data-
+
+      - name: Chạy pipeline
+        run: python run_pipeline.py ${{ inputs.force && '--force' || '' }}
+
+      - name: Kiểm thử (gồm KPI khớp số đọc trên PDF gốc)
+        run: pytest -q
+
+      - name: Lưu Bronze + cache OCR
+        if: always()   # giữ phần đã tải/OCR được kể cả khi job dừng giữa chừng
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/bronze/**/*.pdf
+            data/bronze/**/*.jpg
+            data/bronze/**/*.png
+            data/_cache/ocr
+          key: lakehouse-data-${{ github.run_id }}
+
+      - name: Commit dữ liệu mới
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add data/_state/manifest.parquet data/_state/*.csv data/bronze \
+                  data/silver/fin_statement_long data/gold docs/dq_report.md config/manual_overrides.csv
+          if git diff --cached --quiet; then
+            echo "[pipeline] Không có thay đổi để commit"
+          else
+            git commit -m "Dữ liệu tự động $(date -u +%Y-%m-%d) (GitHub Actions)"
+            git push
+          fi

@@ -29,7 +29,7 @@ import yaml
 from src.common.paths import BRONZE_DIR, CONFIG_DIR, ROOT, STATE_DIR
 from src.common.text import norm
 from src.extraction.pdf_extractor import has_text_layer
-from src.ingestion.http_utils import get
+from src.ingestion.http_utils import RobotsDisallowed, get
 
 SOURCES_PATH = CONFIG_DIR / "sources.yaml"
 MANIFEST_PATH = STATE_DIR / "manifest.parquet"
@@ -566,7 +566,47 @@ def crawl(backfill: bool = False, dry_run: bool = False) -> list[dict]:
     return new_rows
 
 
+def missing_files(mf: pl.DataFrame | None = None) -> pl.DataFrame:
+    """Dòng manifest mà file Bronze không có trên máy (repo không chứa PDF: clone mới, runner GitHub Actions)."""
+    mf = load_manifest() if mf is None else mf
+    return mf.filter(~pl.col("path").map_elements(lambda p: (ROOT / p).exists(), return_dtype=pl.Boolean))
+
+
+def restore_missing(mf: pl.DataFrame | None = None) -> dict:
+    """Tải lại từ URL gốc các file Bronze có trong manifest mà thiếu trên máy, giữ nguyên đường dẫn.
+
+    Chỉ ghi khi sha256 nội dung tải về trùng sha256 trong manifest (Bronze không đổi); khác thì không ghi, báo lại.
+    Link chết ghi download_errors.csv như crawl; 403 dừng (PermissionError, không vượt chặn)."""
+    todo = missing_files(mf)
+    out = {"missing": todo.height, "restored": 0, "mismatch": 0, "failed": 0}
+    for r in todo.iter_rows(named=True):
+        try:
+            content = get(r["url"], kind="pdf").content
+        except (requests.HTTPError, RobotsDisallowed) as e:
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            print(f"[crawl] Không tải lại được (HTTP {status}): {r['url']}")
+            if status in DEAD_LINK_STATUS:
+                _log_download_error(r, r["doc_type"], r["period"], status)
+            out["failed"] += 1
+            continue
+        if hashlib.sha256(content).hexdigest() != r["sha256"]:
+            print(f"[crawl] Nội dung trên nguồn đã đổi (sha256 khác manifest), không ghi: {r['url']}")
+            out["mismatch"] += 1
+            continue
+        path = ROOT / r["path"]
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        out["restored"] += 1
+    if out["missing"]:
+        print(f"[bronze] Tải lại file thiếu: {out['restored']}/{out['missing']} "
+              f"(sha256 khác: {out['mismatch']}, lỗi: {out['failed']})")
+    return out
+
+
 def main(argv: list[str]) -> int:
+    if "--restore" in argv:
+        res = restore_missing()
+        return 0 if res["restored"] == res["missing"] else 1
     crawl(backfill="--backfill" in argv, dry_run="--dry-run" in argv)
     return 0
 

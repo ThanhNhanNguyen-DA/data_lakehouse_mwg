@@ -32,7 +32,7 @@ st.set_page_config(page_title="MWG Lakehouse", page_icon="📊", layout="wide")
 def connect() -> duckdb.DuckDBPyConnection:
     os.chdir(ROOT)  # view trong mwg.duckdb dùng đường dẫn tương đối từ gốc repo
     con = duckdb.connect(str(DB), read_only=True)
-    con.execute("LOAD delta")
+    con.execute("INSTALL delta; LOAD delta")  # Streamlit Cloud: lần đầu tự tải extension (không ghi vào file DB)
     return con
 
 
