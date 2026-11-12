@@ -1,0 +1,89 @@
+regime,statement,account_code,item_name,n_cells,periods,reason
+TT200,B01,0,TONG CONG NGUON VON,3,2014-Q3;2025-Q4,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,1,,1,2025,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,158,3. Tài sản ngăn hạn khác,2,2014-Q3,BCTC 2014 lập theo mẫu trước TT200 (mã số khác): chưa có bảng map cho mẫu cũ
+TT200,B01,1a,hóa nhận giữ hộ - VND,2,2014-Q3,BCTC 2014 lập theo mẫu trước TT200 (mã số khác): chưa có bảng map cho mẫu cũ
+TT200,B01,2,tệ - Đô la Mỹ,2,2014-Q3,BCTC 2014 lập theo mẫu trước TT200 (mã số khác): chưa có bảng map cho mẫu cũ
+TT200,B01,22,Nguyên giá,2,2021-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,24,Ill. Tài sản dở dang dài han,2,2021-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,25,IV. Đầu tự tài chính dàihạn,2,2021-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,256,IV. Đầu tư tài chính dài hạn,2,2021-Q1,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,26,1. Chi phí trả trước dài hạn,2,2021-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,266,V. Tài sản dài hạn khác,2,2021-Q1,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,27,TONG CONG TAI SAN,4,2021-Q1;2021-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,350,,2,2020-Q1,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,358,,2,2020-Q1,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,36,TÀI SAN,10,2024;2024-Q4;2025;2025-H1;2025-Q1;2025-Q2;2025-Q3;2025-Q4,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,4,ASSETS,3,2020-Q1;2024-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,41,411a - Shares with voting rights,7,2019;2020;2020-H1;2020-Q1;2020-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,425,,3,2018-Q3;2021-Q1,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,439,C. LỢI ÍCH CUA CO ĐÔNG THIẾU SO,2,2014-Q3,BCTC 2014 lập theo mẫu trước TT200 (mã số khác): chưa có bảng map cho mẫu cũ
+TT200,B01,44,,3,2021-Q1;2024-Q2,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,550,,2,2018-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,558,,2,2023-H1,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,598,,2,2018-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,6,NGUON VON,2,2023-Q1,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,7,of current period,3,2018-H1;2023-Q2,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,8,Se,1,2025-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B01,86,TAI SAN,2,2024-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,022,Các khoản giảm trừ doanh thu,2,2020,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,05,13. Other expenses,4,2022-Q2,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,06,TIỂU,3,2020;2024-Q4,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,103,Doanh thu thuần về bán hàng và cung cấp dịch vụ,2,2020,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,114,Giá vốn hàng bán va dịch vụ cung cap,2,2020,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,15,51 Chi phí thuế ° TNDN hiện hành,4,2023-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,18,61 Lợi nhuận sau thuế của,4,2023-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,205,Lợi nhuận gộp về bán hàng và cung cấp dich vụ,2,2020,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,216,Doanh thu hoạt động tài chính,2,2020,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,227,Chỉ phí tài chính,2,2020,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,248,Phần lỗ trong công ty liên kết,2,2020,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,259,Chiphi ban hang,2,2020,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,2e,20. Lãi co bn trên c phiu,4,2023-Q2,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,31a,2016,1,2016-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,33,11. Thu nhp khác,4,2023-Q2,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,46,Í s2 Chi phí thuế TNDN hoãn lại,4,2023-Q3,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT200,B02,55,15. Chi phí thu TNDN hin hành,4,2023-Q2,mã đọc được không có trong dim_account TT200: nghi OCR đọc sai mã; ô không đưa vào Silver
+TT99,B01,123,đáo hn ngn hn,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B01,313,3. Phi tr c tc,3,2026-H1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B01,319,ngn hn,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B01,337,dài hn,6,2026-H1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B01,4,,2,2026-Q1,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B01,410,I. Vn ch s hu,2,2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B01,429,kim soát,6,2026-H1;2026-Q1;2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B02,06,,4,2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B02,24,- Irong đó: Chi phí di vay,12,2026-H1;2026-Q1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B02,27,lién doanh,12,2026-H1;2026-Q1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B02,61,công ty mẹ,8,2026-H1;2026-Q1;2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B02,62,cô đông không kiểm soát,8,2026-H1;2026-Q1;2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B03,01,trước thuê,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,02,cố định,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,03,- Các khoản dự phòng,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,04,ngoại tệ,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,05,- Lãi từ hoạt động đầu tư,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,06,- Chi phí đi vay,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,08,vốn lưu động,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,09,- Tăng các khoản phải thu,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,10,- Tăng hàng tồn kho,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,11,- Tăng các khoản phải trả,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,12,"- Giảm, tăng chi phi chờ phan bổ|",8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,14,- Chi phí đi vay đã trả,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,15,đã nộp,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,20,hoạt động kinh doanh,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,21,hạn khác,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,22,hạn khác,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,23,công cụ nợ của đơn vị khác,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,24,công cụ nợ của don vị khác,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,25,đơn vị khác,7,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,27,được chia,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,28,Tiền chi lợi ích cổ đông không kiểm soát,2,2026-Q1;2026-Q2,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,30,hoạt động đầu tư,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,31,chủ sở hữu,4,2026-H1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,32,phát hành,7,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,33,"3, Tién thu từ di vay",8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,34,4. Tien trả nợ gôc vay,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,36,cho chủ sở hữu,3,2026-H1;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,40,hoạt động tài chính,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,50,(50 = 20 + 30 + 40),8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,60,tiên đâu kỳ,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,61,hôi đoái quy đôi ngoại tệ,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
+TT99,B03,70,tiên cudi kỳ (70 = 50 + 60 + 61),8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
