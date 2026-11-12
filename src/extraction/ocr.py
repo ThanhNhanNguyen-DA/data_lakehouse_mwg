@@ -33,6 +33,7 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png"}
 OSD_DPI = 150
 CROP_BORDER = 20
 REOCR_DPI = 400
+HEADER_DPI = 500
 REOCR_NUMBER = "--psm 7 -c tessedit_char_whitelist=0123456789.,()-"
 REOCR_CODE = "--psm 7 -c tessedit_char_whitelist=0123456789ab"
 NUMBER_LANG = "eng"
@@ -212,6 +213,24 @@ def ocr_region(path: Path, sha256: str, page: int, box: tuple[float, float, floa
     cached.parent.mkdir(parents=True, exist_ok=True)
     cached.write_text(text, encoding="utf-8")
     return text
+
+
+def ocr_band_words(path: Path, sha256: str, page: int, box: tuple[float, float, float, float],
+                   dpi: int = HEADER_DPI) -> list[Word]:
+    """OCR lại một dải (vd. tiêu đề cột in nghiêng nhỏ) ở dpi cao, trả về từ theo tọa độ pass 2 (300 dpi)."""
+    k = dpi / PASS2_DPI
+    x0, y0, x1, y1 = (int(v * k) for v in box)
+    cached = OCR_CACHE / sha256 / f"p{page:03d}_{dpi}_band_{x0}_{y0}_{x1}_{y1}.tsv"
+    if cached.exists():
+        tsv = cached.read_text(encoding="utf-8")
+    else:
+        crop = ImageOps.expand(_upright(path, sha256, page, dpi).crop((x0, y0, x1, y1)), border=CROP_BORDER, fill="white")
+        tsv = pytesseract.image_to_data(crop, lang=OCR_LANG, config="--psm 6")
+        cached.parent.mkdir(parents=True, exist_ok=True)
+        cached.write_text(tsv, encoding="utf-8")
+    return [{**w, "x0": (w["x0"] - CROP_BORDER + x0) / k, "x1": (w["x1"] - CROP_BORDER + x0) / k,
+             "y0": (w["y0"] - CROP_BORDER + y0) / k, "y1": (w["y1"] - CROP_BORDER + y0) / k}
+            for w in parse_tsv(tsv)]
 
 
 _PADDLE = None

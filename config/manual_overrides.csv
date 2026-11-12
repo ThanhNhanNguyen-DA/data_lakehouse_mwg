@@ -1,1 +1,13 @@
 symbol,statement,fiscal_year,fiscal_quarter,period_kind,account_code,amount_vnd,ocr_value,source_doc_sha256,page,reason,entered_by,entered_at,suggested_by,status
+MWG,B01,2016,3,closing,440,10176330564524,10176330564824,619526b31774f91aa07ca2bdac9faa71fb42bd574caa5d4f3277436f3dbfef22,8,Phương trình 440 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2018,H1,closing,152,102830791807,402830791807,09f085c6e05e9b47c80eef3ea2d5af60fd166aafd1ef36948cbd6e7a2c1579b2,7,Phương trình 150 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2018,1,closing,421a,2698572748459,-2698572748459,3110ff348013a587eb33d26fb010d593bea50129fb82b38920002896558f93d5,8,Phương trình 421 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2020,3,closing,242,122297130153,422297130153,662a6b1f1761660a34c6673e63179c142bb853b03c5e91ffe95c32e9ca6140c6,7,Phương trình 240 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2020,3,closing,330,1125541666654,-1125541666654,b9e7f458a681a2a741d37a1c9c8e126fc7f17c5a763ac92e2d467a8fcc25dd81,8,Phương trình 300 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2023,H1,closing,136,1523460679041,2223460679041,2889b76b3d90f4e2c0cdea113c17ee84fa9c9c2c48073e2aaad2134dd7ece2ae,8,Phương trình 130 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2023,1,closing,421a,8533934226370,8723934226370,c2c3c29d5b2a39f440c72978abbceb5c11329f5c9da1f8383844658c2726c5f1,6,Phương trình 421 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2023,4,closing,313,418173251592,418173251595,c6437a23636a0a98120c2c46a067a1441400fd6365e7bb7548df4103b5e65e7c,6,Phương trình 310 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B02,2024,H1,current,32,-288707721075,-198707721075,40d61def527750754ddd5951b64f8525bbc1506bfc3869e1ba5bdcc70e4cd327,10,Phương trình 40 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2024,1,closing,135,1820000000000,4820000000000,e2203947c44a5e56762dccaad75e1e7793f8ded670d0db0b18fbbbf919787d6b,5,Phương trình 130 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2025,H1,closing,150,934373881101,534373881101,8317b8bf48d52dc5846bcd66c003cd37ba78ee125a80c0560f981c020683de22,7,Phương trình 150 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending
+MWG,B01,2025,1,closing,312,74354490258,-74354490258,4303082cc5b304cfb90f75840bf5d1112d7ed01f45d75dee8b682e4595f11fa5,6,Phương trình 310 = Σ con: chỉ ô này sai,,2026-11-12,equation,pending

@@ -69,7 +69,8 @@ def apply_consensus(docs: list[dict]) -> int:
             if v == top:
                 c["is_consensus"] = True
             elif (v is None and len(votes) == 1) or (v is not None and ocr_like(v, top)):
-                c.update(amount_vnd=top, is_consensus=True, corrected_by="consensus", ocr_value=v)
+                c.update(amount_vnd=top, is_consensus=True, corrected_by="consensus", ocr_value=v,
+                         value_origin="consensus_fixed" if v is not None else "consensus_filled")
                 fixed += 1
         if len(votes) == 1:  # mọi nguồn khớp: điền ô OCR làm mất ở các báo cáo còn lại
             template = cells[0]
@@ -80,7 +81,7 @@ def apply_consensus(docs: list[dict]) -> int:
                         d["cells"].append({**template, "page": None, "period_kind": kind, "raw_text": "",
                                            "account_code": code, "source_doc_sha256": d["sha256"],
                                            "is_consensus": True, "corrected_by": "consensus", "ocr_value": None,
-                                           "is_manual": False})
+                                           "is_manual": False, "value_origin": "consensus_filled"})
                         fixed += 1
     return fixed
 

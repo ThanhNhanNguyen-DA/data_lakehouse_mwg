@@ -343,7 +343,7 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
     suspects: list[tuple[float, float, float, float]] = []  # ô số sai mẫu nhóm 3 chữ số: OCR lại riêng
 
     def values_of(line):
-        vals, found = [None] * len(cols), False
+        vals, found, origins = [None] * len(cols), False, [None] * len(cols)
         for w in line:
             t = _clean(w["text"])
             if w["x0"] <= left_limit - h or not _NUMERIC_CHARS.match(t):
@@ -354,9 +354,12 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
                     vals[i], found = parse_amount(t), True
                 except ValueError:
                     vals[i], found = None, True
-                if len(re.sub(r"\D", "", t)) > 3 and not _is_grouped_amount(t):
+                origins[i] = w.get("origin", "ocr")
+                n_digits = len(re.sub(r"\D", "", t))
+                # sai mẫu nhóm 3 chữ số, hoặc chỉ 1-2 chữ số (dòng tổng in đậm, gạch chân kép hay bị đọc thành "3")
+                if (n_digits > 3 and not _is_grouped_amount(t)) or 1 <= n_digits <= 2:
                     suspects.append((w["x0"], w["y0"], w["x1"], w["y1"]))
-        return vals, found
+        return vals, found, origins
 
     rows, anchors, used = [], [], set()
     for i in range(min(first_row, first_amount), len(lines)):
@@ -369,9 +372,10 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
         # Số của các cột có thể lệch dòng nhau (OCR riêng từng cột), nên gom trên mọi dòng thuộc mã này:
         # mỗi cột lấy giá trị đầu tiên tìm thấy.
         values, filled, raw, name = [None] * len(cols), [False] * len(cols), [], []
+        origin = [None] * len(cols)
         for k, line in enumerate(lines[i:end], start=i):
             used.add(k)
-            vals, found = values_of(line)
+            vals, found, origs = values_of(line)
             if not any(filled):
                 name += [w["text"] for w in line if w["x1"] < (note_band[0] if note_band else cols[0] - 4 * h)
                          and not (code_band[0] <= _xc(w) <= code_band[1])]
@@ -379,7 +383,7 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
                 raw.append(" ".join(w["text"] for w in line if w["x0"] > left_limit - h))
                 for j, v in enumerate(vals):
                     if not filled[j] and (v is not None or _has_cell(line, cols[j], h)):
-                        values[j], filled[j] = v, True
+                        values[j], filled[j], origin[j] = v, True, origs[j]
             if all(filled):
                 break
         raw = " ".join(raw)
@@ -387,7 +391,8 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
             continue  # mã không có ô số nào (kể cả '-'): rác OCR, vd. "19" của dòng ngày ký "19 February 2019"
         if statement in ("B02", "B03") and len(code) == 1:
             code = code.zfill(2)  # BCTC quý in "1", "2"
-        rows.append({"account_code": code, "item_name": " ".join(name).strip(), "values": values, "raw": raw})
+        rows.append({"account_code": code, "item_name": " ".join(name).strip(), "values": values, "raw": raw,
+                     "origins": origin})
     body_start = min(first_row, first_amount)
     # Dòng có số tiền mà không thuộc mã nào (mã bị OCR làm mất): OCR lại dải mã của dòng đó
     orphans = [(min(w["y0"] for w in lines[k]), max(w["y1"] for w in lines[k]))
@@ -590,14 +595,25 @@ def check_parent_sums(values: dict, dim: list[dict], regime: str, tol: int = 1) 
     """Dòng tổng = tổng các dòng con có is_additive = 1 (theo parent_code trong dim_account)."""
     signs = signs_of(dim, regime)
     children: dict[tuple[str, str], list[str]] = {}
+    uncertain: set[tuple[str, str]] = set()
     for r in dim:
-        if r["regime"] == regime and r.get("parent_code", "").strip() and r.get("is_additive", "").strip() == "1":
-            children.setdefault((r["statement"], r["parent_code"]), []).append(r["account_code"])
+        if r["regime"] != regime or not r.get("parent_code", "").strip():
+            continue
+        key, add = (r["statement"], r["parent_code"]), r.get("is_additive", "").strip()
+        if add == "1":
+            children.setdefault(key, []).append(r["account_code"])
+        elif add == "":
+            uncertain.add(key)  # có dòng con chưa chắc cộng hay trừ (vd. 52 trong 60): không kiểm dòng tổng này
     out = []
     for (st, parent), kids in sorted(children.items()):
+        if (st, parent) in uncertain:
+            continue
         present = [k for k in kids if any(s == st and c == k for (s, c, _) in values)]
         if present:
-            out += _evaluate(f"{parent} = Σ con", st, parent, [(1, k) for k in present], values, signs, tol)
+            # ô in "-" (null) là 0 khi cộng dòng con; ô không đọc được hẳn (không có trong values) vẫn là thiếu
+            zeroed = {k: (0 if v is None else v) for k, v in values.items()}
+            eq = {"statement": st, "lhs": parent, "terms": [(1, k) for k in present], "label": f"{parent} = Σ con"}
+            out += [{**r, "equation": eq} for r in _evaluate(eq["label"], st, parent, eq["terms"], zeroed, signs, tol)]
     return out
 
 

@@ -54,43 +54,59 @@ def extract_fs(row: dict, engine: str = "tesseract", statements: tuple[str, ...]
     stats = {"codes_recovered": 0, "cells_reocr": 0}
     try:
         pages = locate_statement_pages(lambda p: ocr.page_text(path, sha, p, text_layer), ocr.page_count(path))
-        cells, headers, units, b02_header_ok = [], [], {}, None
+        b01 = pages["B01"][0] if pages["B01"] else None
+        regime = detect_regime(ocr.page_text(path, sha, b01, text_layer)) if b01 else None
+        cells, raw_cells, headers, units, b02_method = [], [], [], {}, None
         for st in statements:
             prev = None
             for p in pages[st]:
+                raw_res = None
                 if engine == "paddle":
-                    res = parse_statement_page(ocr.paddle_words(path, sha, p), st, prev)
+                    words = [{**w, "origin": "paddle"} for w in ocr.paddle_words(path, sha, p)]
+                    res = parse_statement_page(words, st, prev)
                 else:
                     words = ocr.page_words(path, sha, p, text_layer)
                     res = parse_statement_page(words, st, prev)
                     if not text_layer and res["cols"]:
                         words = _with_column_ocr(path, sha, p, words, res)
-                        res = parse_statement_page(words, st, prev)
+                        res = raw_res = parse_statement_page(words, st, prev)
                         words, n_codes, n_cells = _reocr_fixes(path, sha, p, words, res)
                         if n_codes or n_cells:
                             res = parse_statement_page(words, st, prev)
                             stats["codes_recovered"] += n_codes
                             stats["cells_reocr"] += n_cells
-                if st == "B02" and b02_header_ok is None and res["cols"]:
-                    b02_header_ok = res["header_ok"]
+                        if st == "B02" and regime == "TT99" and b02_method is None and not res["header_ok"]:
+                            res2 = parse_statement_page(_with_header_ocr(path, sha, p, words, res), st, prev)
+                            if res2["header_ok"] and len(res2["kinds"]) == len(res["kinds"]):
+                                res, b02_method = res2, "header_reocr"
+                if st == "B02" and b02_method is None and res["cols"]:
+                    b02_method = "header" if res["header_ok"] else "positional"
                 prev = res if res["rows"] else prev
                 headers.append(res["header_text"])
                 units.setdefault(st, unit_multiplier(res["header_text"]))
-                for r in res["rows"]:
-                    for kind, v in zip(res["kinds"], r["values"]):
-                        cells.append({"statement": st, "page": p, "account_code": r["account_code"],
-                                      "item_name": r["item_name"], "period_kind": kind,
-                                      "amount_raw": v, "raw_text": r["raw"]})
-        for c in cells:  # không thấy dòng đơn vị tính: coi là VND (MWG in VND)
+                cells += _cells_of(res, st, p)
+                raw_cells += _cells_of(raw_res or res, st, p)
+        for c in cells + raw_cells:  # không thấy dòng đơn vị tính: coi là VND (MWG in VND)
             raw = c.pop("amount_raw")
             c["amount_vnd"] = None if raw is None else raw * (units.get(c["statement"]) or 1)
-        b01 = pages["B01"][0] if pages["B01"] else None
-        regime = detect_regime(ocr.page_text(path, sha, b01, text_layer)) if b01 else None
-        return {"pages": pages, "cells": cells, "end": report_end_date("\n".join(headers)), "regime": regime,
-                "b02_header_ok": b02_header_ok, "stats": stats, "error": None}
+        return {"pages": pages, "cells": cells, "raw_cells": raw_cells, "end": report_end_date("\n".join(headers)),
+                "regime": regime, "b02_method": b02_method, "stats": stats, "error": None}
     except Exception as e:  # một file lỗi không được làm dừng cả lần chạy
-        return {"pages": {}, "cells": [], "end": None, "regime": None, "b02_header_ok": None, "stats": stats,
-                "error": f"{type(e).__name__}: {e}"}
+        return {"pages": {}, "cells": [], "raw_cells": [], "end": None, "regime": None, "b02_method": None,
+                "stats": stats, "error": f"{type(e).__name__}: {e}"}
+
+
+def _cells_of(res: dict, st: str, page: int) -> list[dict]:
+    return [{"statement": st, "page": page, "account_code": r["account_code"], "item_name": r["item_name"],
+             "period_kind": kind, "amount_raw": v, "raw_text": r["raw"], "value_origin": origin or "ocr"}
+            for r in res["rows"] for kind, v, origin in zip(res["kinds"], r["values"], r["origins"])]
+
+
+def _with_header_ocr(path: Path, sha: str, page: int, words: list[dict], res: dict) -> list[dict]:
+    """OCR lại dải tiêu đề cột (chữ nghiêng nhỏ của B02 TT99) ở 500 dpi, thay cho chữ OCR cả trang."""
+    h, top = res["h"], res["table_top"]
+    box = (res["bounds"][0] - h, top - 7 * h, res["cols"][-1] + h, top - 0.2 * h)
+    return [w for w in words if not _inside(w, box)] + ocr.ocr_band_words(path, sha, page, box)
 
 
 def _inside(w: dict, box) -> bool:
@@ -121,14 +137,17 @@ def _reocr_fixes(path: Path, sha: str, page: int, words: list[dict], res: dict) 
         code = ocr.ocr_region(path, sha, page, (cx0, y0 - 0.3 * h, cx1, y1 + 0.3 * h), ocr.REOCR_CODE)
         if re.fullmatch(r"\d{1,3}[ab]?", code):
             mid = (cx0 + cx1) / 2
-            out.append({"text": code, "x0": mid - h, "y0": y0, "x1": mid + h, "y1": y1})
+            out.append({"text": code, "x0": mid - h, "y0": y0, "x1": mid + h, "y1": y1, "origin": "ocr_reocr"})
             n_codes += 1
     for box in res["suspects"]:
         x0, y0, x1, y1 = box
-        text = ocr.ocr_region(path, sha, page, (x0 - 0.3 * h, y0 - 0.3 * h, x1 + 0.3 * h, y1 + 0.3 * h),
-                              ocr.REOCR_NUMBER)
+        i = min(range(len(res["cols"])), key=lambda j: abs(x1 - res["cols"][j]))  # OCR lại cả bề ngang ô của cột
+        cx0, cx1 = res["cols"][i] - 1.05 * res["col_widths"][i] - 0.3 * h, res["cols"][i] + 0.8 * h
+        text = ocr.ocr_region(path, sha, page, (cx0, y0 - 0.3 * h, cx1, y1 + 0.3 * h), ocr.REOCR_NUMBER)
         if _is_grouped_amount(text):
-            out = [w for w in out if not _inside(w, box)] + [{"text": text, "x0": x0, "y0": y0, "x1": x1, "y1": y1}]
+            out = [w for w in out if not _inside(w, box)] + [{"text": text, "x0": cx0, "y0": y0,
+                                                              "x1": res["cols"][i], "y1": y1,
+                                                              "origin": "ocr_reocr"}]
             n_cells += 1
     return out, n_codes, n_cells
 
@@ -228,6 +247,77 @@ def _opening_check(doc: dict, closing_by_year: dict[int, dict]) -> tuple[bool | 
 
 # ---------- Ghép kết quả và kiểm tra ----------
 
+MIN_LABEL_MATCH = 3  # số mã chuẩn tối thiểu phải khớp để chứng minh nhãn cột bằng số
+
+
+def _b02_columns(d: dict) -> dict[str, dict[str, int]]:
+    """{nhãn cột hiện tại: {mã chuẩn: số}} của B02."""
+    out: dict[str, dict[str, int]] = {}
+    for c in d["cells"]:
+        if c["statement"] == "B02" and c["amount_vnd"] is not None and c.get("canonical_code"):
+            out.setdefault(c["period_kind"], {})[c["canonical_code"]] = c["amount_vnd"]
+    return out
+
+
+def _matches(a: dict | None, b: dict | None) -> int:
+    return sum(abs(a[k] - b[k]) <= 1 for k in set(a or {}) & set(b or {}))
+
+
+def _diff(a: dict, b: dict) -> dict:
+    return {k: a[k] - b[k] for k in set(a) & set(b)}
+
+
+def relabel_b02_numeric(d: dict, docs: list[dict]) -> bool:
+    """Gắn nhãn cột B02 bằng số khi không đọc được tiêu đề cột (không theo thứ tự cột).
+
+    Hai cột năm trước phải khớp báo cáo cùng kỳ năm trước (>= 3 mã chuẩn); hai cột năm nay phân biệt bằng
+    lũy kế - quý này = lũy kế kỳ trước cùng năm (Q2: Q1, Q3: bán niên); Q1: hai cột năm nay bằng nhau.
+    """
+    by_period = {}
+    for x in sorted(docs, key=lambda x: (x["lang"] != "vi-VN", not x["columns_ok"])):
+        by_period.setdefault(x["period"], x)
+    cols, part = _b02_columns(d), d["period"][5:]
+    year = int(d["period"][:4])
+    prior = by_period.get(f"{year - 1}-{part}" if part else str(year - 1))
+    pc = _b02_columns(prior) if prior else {}
+    mapping, evidence = {}, []
+    if len(cols) == 2:
+        score = {k: _matches(v, pc.get("current")) for k, v in cols.items()}
+        best = max(score, key=score.get)
+        if score[best] >= MIN_LABEL_MATCH and all(score[k] < MIN_LABEL_MATCH for k in score if k != best):
+            mapping = {best: "prior", next(k for k in cols if k != best): "current"}
+            evidence.append(f"cột năm trước khớp {prior['period']} ({score[best]} mã)")
+    elif len(cols) == 4 and pc.get("q_current") and pc.get("ytd_current"):
+        kq = max(cols, key=lambda k: _matches(cols[k], pc["q_current"]))
+        ky = max((k for k in cols if k != kq), key=lambda k: _matches(cols[k], pc["ytd_current"]))
+        mq, my = _matches(cols[kq], pc["q_current"]), _matches(cols[ky], pc["ytd_current"])
+        a, b = [k for k in cols if k not in (kq, ky)]
+        if mq >= MIN_LABEL_MATCH and my >= MIN_LABEL_MATCH:
+            mapping = {kq: "q_prior", ky: "ytd_prior"}
+            evidence.append(f"cột năm trước khớp {prior['period']} ({mq}/{my} mã)")
+            if part == "Q1":
+                if _matches(cols[a], cols[b]) >= MIN_LABEL_MATCH:
+                    mapping.update({a: "q_current", b: "ytd_current"})  # Q1: quý này = lũy kế, hai cột bằng nhau
+                    evidence.append("Q1: hai cột năm nay bằng nhau")
+            else:
+                prev = by_period.get(f"{year}-Q1") if part == "Q2" else by_period.get(f"{year}-H1")
+                pv = _b02_columns(prev).get("ytd_current" if part == "Q2" else "current") if prev else None
+                for ytd, q in ((a, b), (b, a)):
+                    m = _matches(_diff(cols[ytd], cols[q]), pv)
+                    if m >= MIN_LABEL_MATCH:
+                        mapping.update({ytd: "ytd_current", q: "q_current"})
+                        evidence.append(f"lũy kế - quý này = {prev['period']} ({m} mã)")
+                        break
+    if len(mapping) != len(cols) or len(cols) < 2:
+        d["label_note"] = "không chứng minh được nhãn cột bằng số" + (": " + "; ".join(evidence) if evidence else "")
+        return False
+    for c in d["cells"]:
+        if c["statement"] == "B02":
+            c["period_kind"] = mapping.get(c["period_kind"], c["period_kind"])
+    d.update(columns_ok=True, b02_label_method="numeric", label_note="; ".join(evidence))
+    return True
+
+
 def _make_doc(row: dict, res: dict, ctx: dict) -> dict:
     regime, inferred = res["regime"], False
     if regime is None and row["period"][:4].isdigit() and int(row["period"][:4]) < FIRST_TT99_YEAR:
@@ -236,10 +326,16 @@ def _make_doc(row: dict, res: dict, ctx: dict) -> dict:
     for c in cells:
         c["source_doc_sha256"] = row["sha256"]
         c["canonical_code"] = canonical(regime, c["statement"], c["account_code"], ctx["regime_map"])
+    cells = [{**c, "value_origin": "manual"} if c["is_manual"] else c for c in apply_overrides(cells, ctx["overrides"])]
+    raw_values = {(c["statement"], c["account_code"], c["period_kind"]): c["amount_vnd"]
+                  for c in _dedupe(res.get("raw_cells", []))}
     period = _period_result(row, res["end"], lambda p, d: d is not None and expected_end(p) == d)
-    return {**row, "res": res, "regime": regime, "regime_inferred": inferred,
-            "cells": apply_overrides(cells, ctx["overrides"]), "report_end": res["end"].isoformat() if res["end"] else None,
-            **period, "engine": "tesseract"}
+    method = res.get("b02_method")
+    return {**row, "res": res, "regime": regime, "regime_inferred": inferred, "cells": cells, "raw_values": raw_values,
+            "report_end": res["end"].isoformat() if res["end"] else None, **period, "engine": "tesseract",
+            "b02_label_method": method, "label_note": "",
+            # TT99 in thứ tự cột B02 khác TT200: chỉ tin nhãn đọc từ tiêu đề cột (hoặc chứng minh bằng số sau)
+            "columns_ok": not (regime == "TT99" and method not in ("header", "header_reocr"))}
 
 
 def _evaluate(d: dict, ctx: dict) -> None:
@@ -252,11 +348,12 @@ def _evaluate(d: dict, ctx: dict) -> None:
     if d["period"].endswith("-Q1"):
         checks += check_q1_columns(values)
     eligible = {e["label"] for e in eligible_equations(ctx["equations"], signs)}
-    d["columns_ok"] = not (regime == "TT99" and d["res"]["b02_header_ok"] is False)
     d["checks"] = checks
-    d["eligible_failed"] = [c for c in checks if not c["ok"] and c["check"] in eligible]
-    d["b01_ok"] = any(c["check"] in eligible and c.get("equation", {}).get("statement") == "B01" for c in checks) and \
-        all(c["ok"] for c in checks if c.get("equation", {}).get("statement") == "B01")
+    # phương trình (dq_equations) sai -> PaddleOCR; cả phương trình lẫn tổng dòng con sai -> gợi ý sửa một ô
+    d["eq_failed"] = [c for c in checks if not c["ok"] and c["check"] in eligible]
+    d["eligible_failed"] = [c for c in checks if not c["ok"] and (c["check"] in eligible or "Σ" in c["check"])]
+    b01 = [c for c in checks if c["check"] in eligible and c.get("equation", {}).get("statement") == "B01"]
+    d["b01_ok"] = bool(b01) and all(c["ok"] for c in b01)
     d["dq_balance_ok"] = bool(checks) and all(c["ok"] for c in checks) and d["columns_ok"]
     d["values"], d["signs"] = values, signs
 
@@ -265,8 +362,10 @@ def _paddle_fallback(docs: list[dict], ctx: dict) -> tuple[int, int]:
     """PaddleOCR riêng các báo cáo (B01/B02) còn sai phương trình đánh giá được; giữ kết quả nếu ít lỗi hơn."""
     pages_run = replaced = 0
     for d in docs:
-        stmts = sorted({c["equation"]["statement"] for c in d["eligible_failed"] if "equation" in c})
+        stmts = sorted({c["equation"]["statement"] for c in d["eq_failed"] if "equation" in c})
         for st in stmts:
+            if st == "B02" and d["b02_label_method"] == "numeric":
+                continue  # PaddleOCR sẽ gắn lại nhãn cột theo thứ tự, mất nhãn đã chứng minh bằng số
             pages_run += len(d["res"]["pages"].get(st, []))
             res = extract_fs(d, engine="paddle", statements=(st,))
             if res["error"]:
@@ -277,8 +376,8 @@ def _paddle_fallback(docs: list[dict], ctx: dict) -> tuple[int, int]:
                 c["canonical_code"] = canonical(d["regime"], c["statement"], c["account_code"], ctx["regime_map"])
             trial = {**d, "cells": [c for c in d["cells"] if c["statement"] != st] + apply_overrides(new, ctx["overrides"])}
             _evaluate(trial, ctx)
-            before = sum(1 for c in d["eligible_failed"] if c["equation"]["statement"] == st)
-            after = sum(1 for c in trial["eligible_failed"] if c.get("equation", {}).get("statement") == st)
+            before = sum(1 for c in d["eq_failed"] if c["equation"]["statement"] == st)
+            after = sum(1 for c in trial["eq_failed"] if c.get("equation", {}).get("statement") == st)
             if after < before:
                 d["cells"], d["engine"] = trial["cells"], f"paddle:{st}"
                 _evaluate(d, ctx)
@@ -308,6 +407,16 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
             resolve_period(d["url"], *d["resolved"])
             d["doc_type"], d["period"] = d["resolved"]
 
+    for d in sorted(docs, key=lambda d: d["period"]):  # H1 trước Q1-Q3: Q3 cần nhãn của H1 cùng năm
+        if not d["columns_ok"]:
+            relabel_b02_numeric(d, docs)
+    # Độ chính xác OCR thô: phương trình B01 đánh giá được trên giá trị trước mọi bước tự sửa
+    for d in docs:
+        signs = signs_of(ctx["dim"], d["regime"]) if d["regime"] else {}
+        b01_eqs = [e for e in eligible_equations(ctx["equations"], signs) if e["statement"] == "B01"]
+        raw = check_equations(d["raw_values"], b01_eqs, d["regime"], signs) if d["regime"] else []
+        d["b01_raw_ok"] = bool(raw) and all(c["ok"] for c in raw)
+        d["raw_checks"] = raw
     stats = {"consensus": apply_consensus(docs), "paddle_pages": 0, "paddle_replaced": 0, "suggested": 0}
     for d in docs:
         _evaluate(d, ctx)
@@ -364,6 +473,7 @@ def _write_raw(docs: list[dict]) -> None:
              "canonical_code": c["canonical_code"], "item_name": c["item_name"], "period_kind": c["period_kind"],
              "amount_vnd": c["amount_vnd"], "raw_text": c["raw_text"], "is_manual": c["is_manual"],
              "is_consensus": c.get("is_consensus", False), "corrected_by": c.get("corrected_by"),
+             "value_origin": c.get("value_origin", "ocr"), "b02_label_method": d["b02_label_method"],
              "ocr_engine": d["engine"], "dq_balance_ok": d["dq_balance_ok"], "columns_ok": d["columns_ok"],
              "period_check_ok": d["period_check_ok"], "ocr_date_suspect": d["ocr_date_suspect"],
              "extracted_at": datetime.now().isoformat(timespec="seconds")}
@@ -384,6 +494,23 @@ def _rate(group: list[dict], key: str = "passed") -> str:
     return f"{k}/{n} ({k / n:.0%})" if n else "–"
 
 
+def _eq_rate(docs: list[dict], key: str) -> str:
+    checks = [c for d in docs for c in d.get(key, [])]
+    ok = sum(c["ok"] for c in checks)
+    return f"{ok}/{len(checks)} ({ok / len(checks):.0%})" if checks else "–"
+
+
+def _origins(docs: list[dict]) -> list[tuple[str, int]]:
+    from collections import Counter
+    return sorted(Counter(c.get("value_origin", "ocr") for d in docs for c in d["cells"]
+                          if c["amount_vnd"] is not None).items())
+
+
+def _methods(docs: list[dict]) -> list[tuple[str, int]]:
+    from collections import Counter
+    return sorted(Counter(d["b02_label_method"] or "không có B02" for d in docs).items())
+
+
 def _breakdown(docs: list[dict], key, title: str) -> list[str]:
     groups: dict = {}
     for d in docs:
@@ -400,6 +527,11 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
              f"**B01 cân đối: {_rate(docs, 'b01_ok')}. BCTC qua DQ toàn bộ: {_rate(docs)}.** "
              f"Chưa áp dụng gợi ý sửa tay nào; **{stats['pending']} ô đang chờ xác nhận** trong "
              "`config/manual_overrides.csv` (`status=pending`).", "",
+             f"**Độ chính xác OCR thô** (trước mọi bước tự sửa): B01 cân đối {_rate(docs, 'b01_raw_ok')}; "
+             f"{_eq_rate(docs, 'raw_checks')} phép kiểm phương trình B01 đúng. **Sau tự sửa**: B01 cân đối "
+             f"{_rate(docs, 'b01_ok')}.", "",
+             "Nguồn gốc giá trị (`value_origin`): " + ", ".join(f"{k} {v}" for k, v in _origins(docs)) + ". "
+             "Nhãn cột B02 (`b02_label_method`): " + ", ".join(f"{k} {v}" for k, v in _methods(docs)) + ".", "",
              f"Tự sửa lỗi OCR lần này: {stats['consensus']} ô sửa/điền theo bỏ phiếu giữa các lần in lại số B01; "
              f"PaddleOCR chạy {stats['paddle_pages']} trang, thay kết quả cho {stats['paddle_replaced']} báo cáo; "
              f"{sum(d['res']['stats']['codes_recovered'] for d in docs)} mã và "
@@ -427,6 +559,8 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
             notes.append(d["opening_note"])
         if not d["columns_ok"]:
             notes.append("không đọc được tiêu đề cột B02 (TT99): không đưa sang Silver")
+        if d["label_note"]:
+            notes.append(f"nhãn cột B02: {d['label_note']}")
         if d["ocr_date_suspect"]:
             notes.append("ngày OCR khó tin (ocr_date_suspect), giữ kỳ theo tiêu đề")
         if d["engine"] != "tesseract":

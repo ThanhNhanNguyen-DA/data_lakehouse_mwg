@@ -1,1 +1,288 @@
 regime,statement,account_code,name_vi,name_en,level,parent_code,is_subtotal,is_additive,sign,source
+TT200,B01,100,A - TÀI SẢN NGẮN HẠN,,1,270,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,110,I. Tiền và các khoản tương đương tiền,,2,100,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,111,1. Tiền,,3,110,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,112,2. Các khoản tương đương tiền,,3,110,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,120,II. Đầu tư tài chính ngắn hạn,,2,100,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,121,1. Chứng khoán kinh doanh,,3,120,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,122,2. Dự phòng giảm giá chứng khoán kinh doanh (*),,3,120,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,123,3. Đầu tư nắm giữ đến ngày đáo hạn,,3,120,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,130,III. Các khoản phải thu ngắn hạn,,2,100,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,131,1. Phải thu ngắn hạn của khách hàng,,3,130,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,132,2. Trả trước cho người bán ngắn hạn,,3,130,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,133,3. Phải thu nội bộ ngắn hạn,,3,130,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,134,4. Phải thu theo tiến độ kế hoạch hợp đồng xây dựng,,3,130,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,135,5. Phải thu về cho vay ngắn hạn,,3,130,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,136,6. Phải thu ngắn hạn khác,,3,130,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,137,7. Dự phòng phải thu ngắn hạn khó đòi (*),,3,130,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,139,8. Tài sản thiếu chờ xử lý,,3,130,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,140,IV. Hàng tồn kho,,2,100,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,141,1. Hàng tồn kho,,3,140,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,149,2. Dự phòng giảm giá hàng tồn kho (*),,3,140,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,150,V. Tài sản ngắn hạn khác,,2,100,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,151,1. Chi phí trả trước ngắn hạn,,3,150,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,152,2. Thuế GTGT được khấu trừ,,3,150,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,153,3. Thuế và các khoản khác phải thu Nhà nước,,3,150,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,154,4. Giao dịch mua bán lại trái phiếu Chính phủ,,3,150,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,155,5. Tài sản ngắn hạn khác,,3,150,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,200,B - TÀI SẢN DÀI HẠN,,1,270,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,210,I. Các khoản phải thu dài hạn,,2,200,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,211,1. Phải thu dài hạn của khách hàng,,3,210,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,212,2. Trả trước cho người bán dài hạn,,3,210,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,213,3. Vốn kinh doanh ở đơn vị trực thuộc,,3,210,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,214,4. Phải thu nội bộ dài hạn,,3,210,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,215,5. Phải thu về cho vay dài hạn,,3,210,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,216,6. Phải thu dài hạn khác,,3,210,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,219,7. Dự phòng phải thu dài hạn khó đòi (*),,3,210,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,220,II. Tài sản cố định,,2,200,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,221,1. Tài sản cố định hữu hình,,3,220,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,222,- Nguyên giá,,4,221,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,223,- Giá trị hao mòn lũy kế (*),,4,221,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,224,2. Tài sản cố định thuê tài chính,,3,220,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,225,- Nguyên giá,,4,224,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,226,- Giá trị hao mòn lũy kế (*),,4,224,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,227,3. Tài sản cố định vô hình,,3,220,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,228,- Nguyên giá,,4,227,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,229,- Giá trị hao mòn lũy kế (*),,4,227,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,230,III. Bất động sản đầu tư,,2,,1,,1,"TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); KHÔNG CHẮC: công thức in trên mẫu TT200 PL2 '200 = 210 + 220 + 240 + 250 + 260' không có 230, bố cục mẫu thì 230 thuộc mục B"
+TT200,B01,231,- Nguyên giá,,4,230,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,232,- Giá trị hao mòn lũy kế (*),,4,230,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,240,IV. Tài sản dở dang dài hạn,,2,200,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,241,"1. Chi phí sản xuất, kinh doanh dở dang dài hạn",,3,240,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,242,2. Chi phí xây dựng cơ bản dở dang,,3,240,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,250,V. Đầu tư tài chính dài hạn,,2,200,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,251,1. Đầu tư vào công ty con,,3,250,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,252,"2. Đầu tư vào công ty liên doanh, liên kết",,3,250,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,253,3. Đầu tư góp vốn vào đơn vị khác,,3,250,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,254,4. Dự phòng đầu tư tài chính dài hạn (*),,3,250,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,255,5. Đầu tư nắm giữ đến ngày đáo hạn,,3,250,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,260,VI. Tài sản dài hạn khác,,2,200,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,261,1. Chi phí trả trước dài hạn,,3,260,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,262,2. Tài sản thuế thu nhập hoãn lại,,3,260,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,263,"3. Thiết bị, vật tư, phụ tùng thay thế dài hạn",,3,260,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,268,4. Tài sản dài hạn khác,,3,260,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,269,5. Lợi thế thương mại,,3,260,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,270,TỔNG CỘNG TÀI SẢN (270 = 100 + 200),,0,,1,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B01,300,C - NỢ PHẢI TRẢ,,1,440,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,310,I. Nợ ngắn hạn,,2,300,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,311,1. Phải trả người bán ngắn hạn,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,312,2. Người mua trả tiền trước ngắn hạn,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,313,3. Thuế và các khoản phải nộp Nhà nước,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,314,4. Phải trả người lao động,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,315,5. Chi phí phải trả ngắn hạn,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,316,6. Phải trả nội bộ ngắn hạn,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,317,7. Phải trả theo tiến độ kế hoạch hợp đồng xây dựng,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,318,8. Doanh thu chưa thực hiện ngắn hạn,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,319,9. Phải trả ngắn hạn khác,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,320,10. Vay và nợ thuê tài chính ngắn hạn,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,321,11. Dự phòng phải trả ngắn hạn,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,322,"12. Quỹ khen thưởng, phúc lợi",,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,323,13. Quỹ bình ổn giá,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,324,14. Giao dịch mua bán lại trái phiếu Chính phủ,,3,310,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,330,II. Nợ dài hạn,,2,300,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,331,1. Phải trả người bán dài hạn,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,332,2. Người mua trả tiền trước dài hạn,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,333,3. Chi phí phải trả dài hạn,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,334,4. Phải trả nội bộ về vốn kinh doanh,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,335,5. Phải trả nội bộ dài hạn,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,336,6. Doanh thu chưa thực hiện dài hạn,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,337,7. Phải trả dài hạn khác,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,338,8. Vay và nợ thuê tài chính dài hạn,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,339,9. Trái phiếu chuyển đổi,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,340,10. Cổ phiếu ưu đãi,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,341,11. Thuế thu nhập hoãn lại phải trả,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,342,12. Dự phòng phải trả dài hạn,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,343,13. Quỹ phát triển khoa học và công nghệ,,3,330,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,400,D - VỐN CHỦ SỞ HỮU,,1,440,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,410,I. Vốn chủ sở hữu,,2,400,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,411,1. Vốn góp của chủ sở hữu,,3,410,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,411a,- Cổ phiếu phổ thông có quyền biểu quyết,,4,411,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,411b,- Cổ phiếu ưu đãi,,4,411,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,412,2. Thặng dư vốn cổ phần,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,413,3. Quyền chọn chuyển đổi trái phiếu,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,414,4. Vốn khác của chủ sở hữu,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,415,5. Cổ phiếu quỹ (*),,3,410,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,416,6. Chênh lệch đánh giá lại tài sản,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,417,7. Chênh lệch tỷ giá hối đoái,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,418,8. Quỹ đầu tư phát triển,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,419,9. Quỹ hỗ trợ sắp xếp doanh nghiệp,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,420,10. Quỹ khác thuộc vốn chủ sở hữu,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,421,11. Lợi nhuận sau thuế chưa phân phối,,3,410,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,421a,- LNST chưa phân phối lũy kế đến cuối kỳ trước,,4,421,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,421b,- LNST chưa phân phối kỳ này,,4,421,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,422,12. Nguồn vốn đầu tư XDCB,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,429,13. Lợi ích cổ đông không kiểm soát,,3,410,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,430,II. Nguồn kinh phí và quỹ khác,,2,400,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B01,431,1. Nguồn kinh phí,,3,430,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,432,2. Nguồn kinh phí đã hình thành TSCĐ,,3,430,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: bố cục mẫu (I./1./-)
+TT200,B01,440,TỔNG CỘNG NGUỒN VỐN (440 = 300 + 400),,0,,1,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B02,01,1. Doanh thu bán hàng và cung cấp dịch vụ,,3,10,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,02,2. Các khoản giảm trừ doanh thu,,3,10,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,10,3. Doanh thu thuần về bán hàng và cung cấp dịch vụ (10 = 01 - 02),,3,20,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,11,4. Giá vốn hàng bán,,3,20,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,20,5. Lợi nhuận gộp về bán hàng và cung cấp dịch vụ (20 = 10 - 11),,3,,1,,1,"TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); KHÔNG CHẮC: công thức mã 30 trong bản TT202 này '{30 = 20 + (21 - 22) - (24 + 25)}' không khớp cấu trúc (24 là lãi/lỗ liên doanh, 25-26 là chi phí)"
+TT200,B02,21,6. Doanh thu hoạt động tài chính,,3,,0,,1,"TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); KHÔNG CHẮC: công thức mã 30 trong bản TT202 này '{30 = 20 + (21 - 22) - (24 + 25)}' không khớp cấu trúc (24 là lãi/lỗ liên doanh, 25-26 là chi phí)"
+TT200,B02,22,7. Chi phí tài chính,,3,,0,,-1,"TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); KHÔNG CHẮC: công thức mã 30 trong bản TT202 này '{30 = 20 + (21 - 22) - (24 + 25)}' không khớp cấu trúc (24 là lãi/lỗ liên doanh, 25-26 là chi phí)"
+TT200,B02,23,- Trong đó: Chi phí lãi vay,,4,22,0,0,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B02,24,"8. Phần lãi hoặc lỗ trong công ty liên doanh, liên kết",,3,,0,,1,"TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); KHÔNG CHẮC: công thức mã 30 trong bản TT202 này '{30 = 20 + (21 - 22) - (24 + 25)}' không khớp cấu trúc (24 là lãi/lỗ liên doanh, 25-26 là chi phí)"
+TT200,B02,25,9. Chi phí bán hàng,,3,,0,,-1,"TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); KHÔNG CHẮC: công thức mã 30 trong bản TT202 này '{30 = 20 + (21 - 22) - (24 + 25)}' không khớp cấu trúc (24 là lãi/lỗ liên doanh, 25-26 là chi phí)"
+TT200,B02,26,10. Chi phí quản lý doanh nghiệp,,3,,0,,-1,"TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); KHÔNG CHẮC: công thức mã 30 trong bản TT202 này '{30 = 20 + (21 - 22) - (24 + 25)}' không khớp cấu trúc (24 là lãi/lỗ liên doanh, 25-26 là chi phí)"
+TT200,B02,30,11. Lợi nhuận thuần từ hoạt động kinh doanh,,3,50,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,31,12. Thu nhập khác,,3,40,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,32,13. Chi phí khác,,3,40,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,40,14. Lợi nhuận khác (40 = 31 - 32),,3,50,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,50,15. Tổng lợi nhuận kế toán trước thuế (50 = 30 + 40),,3,60,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,51,16. Chi phí thuế TNDN hiện hành,,3,60,0,1,-1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,52,17. Chi phí thuế TNDN hoãn lại,,3,60,0,,,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B02,60,18. Lợi nhuận sau thuế thu nhập doanh nghiệp (60 = 50 - 51 - 52),,3,,1,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B02,61,19. Lợi nhuận sau thuế của công ty mẹ,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B02,62,20. Lợi nhuận sau thuế của cổ đông không kiểm soát,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B02,70,21. Lãi cơ bản trên cổ phiếu (*),,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B02,71,22. Lãi suy giảm trên cổ phiếu (*),,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT99,B01,100,A - TÀI SẢN NGẮN HẠN,,1,280,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,110,I. Tiền và các khoản tương đương tiền,,2,100,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,111,1. Tiền,,3,110,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,112,2. Các khoản tương đương tiền,,3,110,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,120,II. Đầu tư tài chính ngắn hạn,,2,100,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,121,1. Chứng khoán kinh doanh,,3,120,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,122,2. Dự phòng giảm giá chứng khoán kinh doanh (*),,3,120,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,123,3. Đầu tư nắm giữ đến ngày đáo hạn ngắn hạn,,3,120,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,124,4. Dự phòng đầu tư nắm giữ đến ngày đáo hạn ngắn hạn (*),,3,120,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,125,5. Đầu tư ngắn hạn khác,,3,120,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,126,6. Dự phòng tổn thất các khoản đầu tư ngắn hạn khác (*),,3,120,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,130,III. Các khoản phải thu ngắn hạn,,2,100,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,131,1. Phải thu ngắn hạn của khách hàng,,3,130,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,132,2. Trả trước cho người bán ngắn hạn,,3,130,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,133,3. Phải thu nội bộ ngắn hạn,,3,130,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,134,4. Phải thu theo tiến độ hợp đồng xây dựng,,3,130,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,135,5. Phải thu ngắn hạn khác,,3,130,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,136,6. Dự phòng phải thu ngắn hạn khó đòi (*),,3,130,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,137,7. Tài sản thiếu chờ xử lý,,3,130,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,140,IV. Hàng tồn kho,,2,100,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,141,1. Hàng tồn kho,,3,140,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,142,2. Dự phòng giảm giá hàng tồn kho (*),,3,140,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,150,V. Tài sản sinh học ngắn hạn,,2,100,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,151,1. Súc vật nuôi lấy sản phẩm một lần ngắn hạn,,3,150,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,152,2. Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần ngắn hạn,,3,150,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,153,3. Dự phòng tổn thất tài sản sinh học ngắn hạn (*),,3,150,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,160,VI. Tài sản ngắn hạn khác,,2,100,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,161,1. Chi phí chờ phân bổ ngắn hạn,,3,160,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,162,2. Thuế GTGT được khấu trừ,,3,160,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,163,3. Thuế và các khoản khác phải thu Nhà nước,,3,160,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,164,4. Giao dịch mua bán lại trái phiếu Chính phủ,,3,160,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,165,5. Tài sản ngắn hạn khác,,3,160,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,200,B - TÀI SẢN DÀI HẠN,,1,280,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,210,I. Các khoản phải thu dài hạn,,2,200,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,211,1. Phải thu dài hạn của khách hàng,,3,210,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,212,2. Trả trước cho người bán dài hạn,,3,210,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,213,3. Vốn kinh doanh ở đơn vị trực thuộc,,3,210,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,214,4. Phải thu nội bộ dài hạn,,3,210,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,215,5. Phải thu dài hạn khác,,3,210,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,216,6. Dự phòng phải thu dài hạn khó đòi (*),,3,210,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,220,II. Tài sản cố định,,2,200,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,221,1. Tài sản cố định hữu hình,,3,220,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,222,- Nguyên giá,,4,221,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,223,- Giá trị hao mòn luỹ kế (*),,4,221,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,224,2. Tài sản cố định thuê tài chính,,3,220,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,225,- Nguyên giá,,4,224,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,226,- Giá trị hao mòn luỹ kế (*),,4,224,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,227,3. Tài sản cố định vô hình,,3,220,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,228,- Nguyên giá,,4,227,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,229,- Giá trị hao mòn luỹ kế (*),,4,227,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,230,III. Tài sản sinh học dài hạn,,2,200,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,231,1. Súc vật nuôi cho sản phẩm định kỳ,,3,230,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,232,a) Súc vật nuôi cho sản phẩm định kỳ chưa đến giai đoạn trưởng thành,,4,231,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,233,b) Súc vật nuôi cho sản phẩm định kỳ đến giai đoạn trưởng thành,,4,231,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,234,- Nguyên giá,,4,233,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,235,- Giá trị khấu hao lũy kế (*),,4,233,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,236,2. Súc vật nuôi lấy sản phẩm một lần dài hạn,,3,230,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,237,3. Cây trồng theo mùa vụ hoặc lấy sản phẩm một lần dài hạn,,3,230,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,238,4. Dự phòng tổn thất tài sản sinh học dài hạn (*),,3,230,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,240,IV. Bất động sản đầu tư,,2,200,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,241,- Nguyên giá,,4,240,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,242,- Giá trị hao mòn luỹ kế (*),,4,240,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,250,V. Tài sản dở dang dài hạn,,2,200,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,251,"1. Chi phí sản xuất, kinh doanh dở dang dài hạn",,3,250,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,252,2. Chi phí xây dựng cơ bản dở dang,,3,250,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,260,VI. Đầu tư tài chính dài hạn,,2,200,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,261,1. Đầu tư vào công ty con,,3,260,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,262,"2. Đầu tư vào công ty liên doanh, liên kết",,3,260,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,263,3. Đầu tư góp vốn vào đơn vị khác,,3,260,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,264,4. Dự phòng tổn thất đầu tư vào đơn vị khác dài hạn (*),,3,260,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,265,5. Đầu tư nắm giữ đến ngày đáo hạn dài hạn,,3,260,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,266,6. Dự phòng đầu tư nắm giữ đến ngày đáo hạn dài hạn (*),,3,260,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,270,VII. Tài sản dài hạn khác,,2,200,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,271,1. Chi phí chờ phân bổ dài hạn,,3,270,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,272,2. Tài sản thuế thu nhập hoãn lại,,3,270,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,273,"3. Thiết bị, vật tư, phụ tùng thay thế dài hạn",,3,270,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,274,4. Tài sản dài hạn khác,,3,270,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,280,TỔNG CỘNG TÀI SẢN (280 = 100 + 200),,0,,1,,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf)
+TT99,B01,300,C - NỢ PHẢI TRẢ,,1,440,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,310,I. Nợ ngắn hạn,,2,300,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,311,1. Phải trả người bán ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,312,2. Người mua trả tiền trước ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,313,"3. Phải trả cổ tức, lợi nhuận",,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,314,4. Thuế và các khoản phải nộp Nhà nước ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,315,5. Phải trả người lao động,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,316,6. Chi phí phải trả ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,317,7. Phải trả nội bộ ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,318,8. Phải trả theo tiến độ hợp đồng xây dựng ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,319,9. Doanh thu chờ phân bổ ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,320,10. Phải trả ngắn hạn khác,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,321,11. Vay và nợ thuê tài chính ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,322,12. Dự phòng phải trả ngắn hạn,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,323,"13. Quỹ khen thưởng, phúc lợi",,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,324,14. Quỹ bình ổn giá,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,325,15. Giao dịch mua bán lại trái phiếu Chính phủ,,3,310,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,330,II. Nợ dài hạn,,2,300,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,331,1. Phải trả người bán dài hạn,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,332,2. Người mua trả tiền trước dài hạn,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,333,3. Thuế và các khoản phải nộp Nhà nước dài hạn,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,334,4. Chi phí phải trả dài hạn,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,335,5. Phải trả nội bộ về vốn kinh doanh,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,336,6. Phải trả nội bộ dài hạn,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,337,7. Doanh thu chờ phân bổ dài hạn,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,338,8. Phải trả dài hạn khác,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,339,9. Vay và nợ thuê tài chính dài hạn,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,340,10. Trái phiếu chuyển đổi,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,341,11. Cổ phiếu ưu đãi,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,342,12. Thuế thu nhập hoãn lại phải trả,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,343,13. Dự phòng phải trả dài hạn,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,344,14. Quỹ phát triển khoa học và công nghệ,,3,330,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,400,D - VỐN CHỦ SỞ HỮU,,1,440,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,411,1. Vốn góp của chủ sở hữu,,3,,1,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,411a,- Cổ phiếu phổ thông có quyền biểu quyết,,4,411,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,411b,- Cổ phiếu ưu đãi,,4,411,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,412,2. Thặng dư vốn,,3,,0,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,413,3. Quyền chọn chuyển đổi trái phiếu,,3,,0,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,414,4. Vốn khác của chủ sở hữu,,3,,0,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,415,5. Cổ phiếu mua lại của chính mình (*),,3,,0,,-1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,416,6. Chênh lệch đánh giá lại tài sản,,3,,0,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,417,7. Chênh lệch tỷ giá hối đoái,,3,,0,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,418,8. Quỹ đầu tư phát triển,,3,,0,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,419,9. Quỹ khác thuộc vốn chủ sở hữu,,3,,0,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,420,10. Lợi nhuận sau thuế chưa phân phối,,3,,1,,1,"TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 429 (lợi ích cổ đông không kiểm soát) trong vốn chủ sở hữu, không có trong mẫu TT99 riêng lẻ: tổng 400 theo mẫu này sẽ thiếu 429"
+TT99,B01,420a,- LNST chưa phân phối lũy kế đến cuối kỳ trước,,4,420,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,420b,- LNST chưa phân phối kỳ này,,4,420,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B01,440,TỔNG CỘNG NGUỒN VỐN (440 = 300 + 400),,0,,1,,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf)
+TT99,B02,01,1. Doanh thu bán hàng và cung cấp dịch vụ,,3,10,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,02,2. Các khoản giảm trừ doanh thu,,3,10,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,10,3. Doanh thu thuần về bán hàng và cung cấp dịch vụ (10 = 01 – 02),,3,20,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,11,4. Giá vốn hàng bán,,3,20,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,20,5. Lợi nhuận gộp về bán hàng và cung cấp dịch vụ (20 = 10 - 11),,3,,1,,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 27 (phần lãi/lỗ liên doanh): công thức 30 của mẫu TT99 riêng lẻ không áp dụng được
+TT99,B02,21,"6. Lãi/lỗ của hoạt động bán, thanh lý bất động sản đầu tư",,3,,0,,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 27 (phần lãi/lỗ liên doanh): công thức 30 của mẫu TT99 riêng lẻ không áp dụng được
+TT99,B02,22,7. Doanh thu hoạt động tài chính,,3,,0,,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 27 (phần lãi/lỗ liên doanh): công thức 30 của mẫu TT99 riêng lẻ không áp dụng được
+TT99,B02,23,8. Chi phí tài chính,,3,,1,,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 27 (phần lãi/lỗ liên doanh): công thức 30 của mẫu TT99 riêng lẻ không áp dụng được
+TT99,B02,24,- Trong đó: Chi phí đi vay,,4,23,0,0,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,25,9. Chi phí bán hàng,,3,,0,,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 27 (phần lãi/lỗ liên doanh): công thức 30 của mẫu TT99 riêng lẻ không áp dụng được
+TT99,B02,26,10. Chi phí quản lý doanh nghiệp,,3,,0,,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); KHÔNG CHẮC: mẫu hợp nhất của MWG có thêm 27 (phần lãi/lỗ liên doanh): công thức 30 của mẫu TT99 riêng lẻ không áp dụng được
+TT99,B02,30,11. Lợi nhuận thuần từ hoạt động kinh doanh {30 = 20 +21 + 22 - (23 + 25 + 26)},,3,50,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,31,12. Thu nhập khác,,3,40,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,32,13. Chi phí khác,,3,40,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,40,14. Lợi nhuận khác (40 = 31 - 32),,3,50,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,50,15. Tổng lợi nhuận kế toán trước thuế (50 = 30 + 40),,3,60,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,51,16. Chi phí thuế TNDN hiện hành,,3,60,0,1,-1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,52,17. Chi phí thuế TNDN hoãn lại,,3,60,0,,,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
+TT99,B02,60,18. Lợi nhuận sau thuế thu nhập doanh nghiệp (60 = 50 – 51 - 52),,3,,1,,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf)
+TT99,B02,70,19. Lãi cơ bản trên cổ phiếu (*),,3,,0,,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf)
+TT99,B02,71,20. Lãi suy giảm trên cổ phiếu (*),,3,,0,,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf)

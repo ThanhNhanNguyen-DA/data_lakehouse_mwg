@@ -127,7 +127,8 @@ def test_parse_tra_dong_thieu_ma_va_o_sai_mau():
 
 
 def test_reocr_fixes_them_ma_va_sua_o(monkeypatch):
-    res = {"h": H, "code_band": (30, 80), "orphans": [(240, 260)], "suspects": [(673, 240, 790, 260)]}
+    res = {"h": H, "code_band": (30, 80), "orphans": [(240, 260)], "suspects": [(673, 240, 790, 260)],
+           "cols": [640, 790], "col_widths": [117, 117]}
     words = [right("4.444.444444", 790, 240)]
     calls = []
 
@@ -170,10 +171,54 @@ def test_regime_suy_ra_theo_nam():
 
 
 def test_cot_b02_tt99_khong_doc_duoc_tieu_de_thi_gan_co():
-    ctx = {"dim": [], "equations": [], "regime_map": {}}
-    d = {"regime": "TT99", "period": "2026-Q3", "cells": [], "res": {"b02_header_ok": False}}
-    rx._evaluate(d, ctx)
-    assert d["columns_ok"] is False and d["dq_balance_ok"] is False
-    d = {"regime": "TT200", "period": "2025-Q3", "cells": [], "res": {"b02_header_ok": False}}
-    rx._evaluate(d, ctx)
-    assert d["columns_ok"] is True
+    ctx = {"overrides": {}, "regime_map": {}}
+    row = {"period": "2026-Q3", "doc_type": "FS_CONSOLIDATED_Q", "period_candidates": None, "published": None,
+           "sha256": "x"}
+    res = {"regime": "TT99", "cells": [], "end": None, "b02_method": "positional"}
+    assert rx._make_doc(row, res, ctx)["columns_ok"] is False
+    assert rx._make_doc(row, {**res, "b02_method": "header_reocr"}, ctx)["columns_ok"] is True
+    assert rx._make_doc({**row, "period": "2025-Q3"}, {**res, "regime": "TT200"}, ctx)["columns_ok"] is True
+
+
+def _b02_doc(period, cols, lang="vi-VN", columns_ok=True):
+    """cols: {nhãn cột: {mã: số}}; mã chuẩn = mã in."""
+    return {"period": period, "lang": lang, "columns_ok": columns_ok, "cells": [
+        {"statement": "B02", "account_code": code, "canonical_code": code, "period_kind": kind, "amount_vnd": v}
+        for kind, vals in cols.items() for code, v in vals.items()]}
+
+
+def test_gan_nhan_cot_b02_bang_so_q3():
+    prior = _b02_doc("2025-Q3", {"q_current": {"01": 40, "10": 39, "20": 7}, "ytd_current": {"01": 114, "10": 113, "20": 22}})
+    h1 = _b02_doc("2026-H1", {"current": {"01": 96, "10": 95, "20": 20}, "prior": {"01": 74, "10": 74, "20": 15}})
+    # thứ tự cột in trên báo cáo TT99: Quý III năm nay, năm trước, Lũy kế năm nay, năm trước
+    # nhãn hiện tại là nhãn đoán theo thứ tự TT200 (sai): đổi tên tạm thành c1..c4
+    q3 = _b02_doc("2026-Q3", {"c1": {"01": 53, "10": 52, "20": 11}, "c2": {"01": 40, "10": 39, "20": 7},
+                              "c3": {"01": 149, "10": 147, "20": 31}, "c4": {"01": 114, "10": 113, "20": 22}},
+                  columns_ok=False)
+    assert rx.relabel_b02_numeric(q3, [prior, h1, q3]) is True
+    got = {c["period_kind"] for c in q3["cells"] if c["account_code"] == "01" and c["amount_vnd"] == 53}
+    assert got == {"q_current"}
+    assert {c["amount_vnd"]: c["period_kind"] for c in q3["cells"] if c["account_code"] == "01"} == {
+        53: "q_current", 40: "q_prior", 149: "ytd_current", 114: "ytd_prior"}
+    assert q3["b02_label_method"] == "numeric" and q3["columns_ok"]
+
+
+def test_gan_nhan_cot_b02_bang_so_that_bai_thi_giu_co():
+    prior = _b02_doc("2025-Q3", {"q_current": {"01": 40, "10": 39, "20": 7}, "ytd_current": {"01": 114, "10": 113, "20": 22}})
+    q3 = _b02_doc("2026-Q3", {"c1": {"01": 53, "10": 52, "20": 11}, "c2": {"01": 41, "10": 39, "20": 9},
+                              "c3": {"01": 149, "10": 147, "20": 31}, "c4": {"01": 114, "10": 113, "20": 22}},
+                  columns_ok=False)
+    assert rx.relabel_b02_numeric(q3, [prior, q3]) is False
+    assert q3["columns_ok"] is False and "không chứng minh được" in q3["label_note"]
+
+
+def test_gan_nhan_cot_b02_bang_so_h1_va_q1():
+    prior_h1 = _b02_doc("2025-H1", {"current": {"01": 74, "10": 74, "20": 15}, "prior": {"01": 60, "10": 59, "20": 12}})
+    h1 = _b02_doc("2026-H1", {"x": {"01": 74, "10": 74, "20": 15}, "y": {"01": 96, "10": 95, "20": 20}}, columns_ok=False)
+    assert rx.relabel_b02_numeric(h1, [prior_h1, h1])
+    assert {c["amount_vnd"]: c["period_kind"] for c in h1["cells"] if c["account_code"] == "01"} == {74: "prior", 96: "current"}
+    prior_q1 = _b02_doc("2025-Q1", {"q_current": {"01": 30, "10": 29, "20": 6}, "ytd_current": {"01": 30, "10": 29, "20": 6}})
+    q1 = _b02_doc("2026-Q1", {"a": {"01": 30, "10": 29, "20": 6}, "b": {"01": 45, "10": 44, "20": 9},
+                              "c": {"01": 45, "10": 44, "20": 9}, "d": {"01": 30, "10": 29, "20": 6}}, columns_ok=False)
+    assert rx.relabel_b02_numeric(q1, [prior_q1, q1])
+    assert {c["period_kind"] for c in q1["cells"] if c["amount_vnd"] == 45} == {"q_current", "ytd_current"}

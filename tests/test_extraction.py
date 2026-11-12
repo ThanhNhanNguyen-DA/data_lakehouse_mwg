@@ -253,6 +253,10 @@ def test_check_parent_sums_theo_dim_account():
     assert signs_of(dim, "R") == {("B01", "140"): 1, ("B01", "141"): 1, ("B01", "149"): -1}
     assert [c["ok"] for c in check_parent_sums(values, dim, "R")] == [True]
     assert check_parent_sums(values, dim, "khác") == []
+    # một dòng con chưa chắc (is_additive trống) -> không kiểm dòng tổng đó
+    dim.append({"regime": "R", "statement": "B01", "account_code": "148", "parent_code": "140", "is_additive": "",
+                "sign": ""})
+    assert check_parent_sums(values, dim, "R") == []
 
 
 def test_detect_regime_theo_ten_b01():
@@ -343,3 +347,20 @@ def test_osd_tin_cay_thap_thi_khong_xoay(monkeypatch):
     monkeypatch.setattr(ocr.pytesseract, "image_to_osd",
                         lambda img, output_type: {"rotate": 180, "orientation_conf": 0.3})
     assert ocr.detect_rotation(None, 1) == 0
+
+
+def test_tong_dong_con_coi_o_gach_ngang_la_0():
+    dim = [{"regime": "R", "statement": "B01", "account_code": c, "parent_code": "410", "is_additive": "1", "sign": "1"}
+           for c in ("411", "417")]
+    values = {("B01", "410", "closing"): 100, ("B01", "411", "closing"): 100, ("B01", "417", "closing"): None,
+              ("B01", "417", "opening"): 5, ("B01", "411", "opening"): 95, ("B01", "410", "opening"): 100}
+    assert all(c["ok"] for c in check_parent_sums(values, dim, "R"))
+
+
+def test_o_mot_hai_chu_so_la_dang_ngo():
+    words = [W("Mã", 40, 100), W("Thuyết", 425, 100), W("Số", 540, 100), W("cuối", 570, 100), W("năm", 610, 100),
+             W("Số", 690, 100), W("đầu", 720, 100), W("năm", 760, 100),
+             W("100", 40, 200), right("1.111.111.111", 640, 200), right("2.222.222.222", 790, 200),
+             W("440", 40, 240), right("3", 640, 240), right("4.444.444.444", 790, 240)]
+    res = parse_statement_page(words, "B01")
+    assert len(res["suspects"]) == 1 and res["suspects"][0][1] == 240
