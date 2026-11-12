@@ -1,0 +1,3 @@
+regime,statement,target,source_code,source
+TT200,B01,440,270,"Tổng nguồn vốn = tổng tài sản: TT202 PL1 in 270 = 100 + 200 và 440 = 300 + 400, kiểm qua 270 = 300 + 400 trong dq_equations.csv. Dòng 440 in đậm, gạch chân kép, OCR hay đọc ra rác (34/48 báo cáo trượt 440 = Σ con)"
+TT99,B01,440,280,"Tổng nguồn vốn = tổng tài sản: B01 MWG Q3/2026 in 280 = 100 + 200 và 440 = 300 + 400, kiểm qua 280 = 300 + 400 trong dq_equations.csv"

@@ -29,9 +29,11 @@ from src.extraction import ocr
 from src.extraction.pdf_extractor import (
     _is_grouped_amount, apply_overrides, check_equations, check_parent_sums, check_q1_columns, detect_regime,
     eligible_equations, expected_end, load_dim_account, load_equations, load_overrides, locate_statement_pages,
-    parse_statement_page, report_end_date, signs_of, unit_multiplier,
+    parse_statement_page, report_end_date, signs_of, to_number, unit_multiplier,
 )
 from src.extraction.self_correct import apply_consensus, suggest_fixes, write_suggestions
+from src.quality.monthly_check import TOL_BILLION, monthly_crosscheck, one_digit_off
+from src.quality.monthly_check import report_lines as monthly_report_lines
 from src.ingestion.mwg_crawler import PENDING, load_manifest, parse_period, resolve_period
 
 RAW_TABLE = SILVER_DIR / "fs_extracted_raw"
@@ -40,6 +42,7 @@ OVERRIDES = CONFIG_DIR / "manual_overrides.csv"
 EQUATIONS = CONFIG_DIR / "dq_equations.csv"
 DIM_ACCOUNT = CONFIG_DIR / "dim_account.csv"
 REGIME_MAP = CONFIG_DIR / "account_code_regime_map.csv"
+IDENTITIES = CONFIG_DIR / "dq_identities.csv"
 BASE_REGIME = "TT200"  # mã chuẩn = mã TT200; regime khác quy đổi qua account_code_regime_map.csv
 FIRST_TT99_YEAR = 2026  # regime không nhận diện được: năm trước đó coi là TT200 (regime_inferred)
 MAX_PUBLISH_LAG_DAYS = 125  # ngày kỳ đọc từ PDF phải trước ngày đăng và không quá ~4 tháng
@@ -98,8 +101,10 @@ def extract_fs(row: dict, engine: str = "tesseract", statements: tuple[str, ...]
 
 def _cells_of(res: dict, st: str, page: int) -> list[dict]:
     return [{"statement": st, "page": page, "account_code": r["account_code"], "item_name": r["item_name"],
-             "period_kind": kind, "amount_raw": v, "raw_text": r["raw"], "value_origin": origin or "ocr"}
-            for r in res["rows"] for kind, v, origin in zip(res["kinds"], r["values"], r["origins"])]
+             "period_kind": kind, "amount_raw": v, "raw_text": r["raw"], "value_origin": origin or "ocr",
+             "row_y0": r["y0"], "row_y1": r["y1"], "col_x1": x1, "col_w": w, "line_h": res["h"]}
+            for r in res["rows"]
+            for kind, v, origin, x1, w in zip(res["kinds"], r["values"], r["origins"], res["cols"], res["col_widths"])]
 
 
 def _with_header_ocr(path: Path, sha: str, page: int, words: list[dict], res: dict) -> list[dict]:
@@ -150,6 +155,51 @@ def _reocr_fixes(path: Path, sha: str, page: int, words: list[dict], res: dict) 
                                                               "origin": "ocr_reocr"}]
             n_cells += 1
     return out, n_codes, n_cells
+
+
+REREAD_DPIS = (400, 500, 600)
+
+
+def reread_cell(row: dict, c: dict, accept) -> int | None:
+    """OCR lại riêng một ô số tiền trên PDF BCTC gốc (400/500/600 dpi); trả số đầu tiên được accept(số) chấp nhận.
+
+    Chỉ cho bản scan (tọa độ ô theo pass 2, 300 dpi). Dùng để lấy giá trị gợi ý từ chính PDF, không bịa số."""
+    if row.get("has_text_layer") or c.get("col_x1") is None or c.get("row_y0") is None:
+        return None
+    h = c["line_h"]
+    box = (c["col_x1"] - 1.05 * c["col_w"] - 0.3 * h, c["row_y0"] - 0.3 * h, c["col_x1"] + 0.8 * h, c["row_y1"] + 0.3 * h)
+    for dpi in REREAD_DPIS:
+        text = ocr.ocr_region(ROOT / row["path"], row["sha256"], c["page"], box, ocr.REOCR_NUMBER, dpi=dpi)
+        if not _is_grouped_amount(text):
+            continue
+        try:
+            v = to_number(text)
+        except ValueError:
+            continue
+        if v is not None and accept(int(v)):
+            return int(v)
+    return None
+
+
+def monthly_suggestions(xcheck: list[dict]) -> list[tuple[dict, dict]]:
+    """Ô B02 lệch báo cáo tháng >= 1 tỷ và khác đúng một chữ số (tỷ đồng): đọc lại ô trên PDF BCTC; số đọc lại
+    khớp báo cáo tháng (±1 tỷ) thì gợi ý pending (suggested_by = monthly_crosscheck)."""
+    out = []
+    for r in xcheck:
+        near = r.get("nearest")
+        if r["found"] or near is None or abs(near - r["billion"]) < 1 or not one_digit_off(near, r["billion"]):
+            continue
+        d, c = r["doc"], r["cell"]
+        v = reread_cell(d, c, lambda x: abs(round(abs(x) / 1e9) - near) <= TOL_BILLION and x != abs(c["amount_vnd"]))
+        r["reread"] = v
+        if v is None:  # ghi số đọc lại được (nếu có) để người dùng thấy BCTC vẫn đọc ra số cũ
+            r["reread_any"] = reread_cell(d, c, lambda x: True)
+        if v is not None:
+            out.append((d, {"statement": "B02", "account_code": c["account_code"], "period_kind": c["period_kind"],
+                            "amount_vnd": v * (-1 if c["amount_vnd"] < 0 else 1), "ocr_value": c["amount_vnd"],
+                            "reason": f"Báo cáo tháng {r['month']} in {near:,} tỷ, BCTC OCR {r['billion']:,} tỷ "
+                                      f"(lệch một chữ số); số đọc lại từ PDF trang {c['page']}"}))
+    return out
 
 
 def check_monthly(row: dict) -> dict:
@@ -221,21 +271,61 @@ def load_regime_map(path: Path) -> dict[tuple[str, str, str], str]:
                 for r in csv.DictReader(f) if r.get("canonical_code", "").strip()}
 
 
+def load_semantic_breaks(path: Path) -> set[tuple[str, str, str]]:
+    """Mã TT99 ghép theo tên nhưng khác nội dung với mã TT200 (semantic_break = true trong bảng map)."""
+    if not Path(path).exists():
+        return set()
+    with Path(path).open(encoding="utf-8", newline="") as f:
+        return {(r["regime"], r["statement"], r["account_code"]) for r in csv.DictReader(f)
+                if (r.get("semantic_break") or "").strip().lower() == "true"}
+
+
+def load_identities(path: Path) -> list[dict]:
+    """Đồng nhất thức trong config/dq_identities.csv: ô target lấy giá trị ô source_code (cùng báo cáo, cùng cột)."""
+    if not Path(path).exists():
+        return []
+    with Path(path).open(encoding="utf-8", newline="") as f:
+        return [r for r in csv.DictReader(f) if r.get("target", "").strip()]
+
+
+def apply_identities(cells: list[dict], identities: list[dict], regime: str | None) -> list[dict]:
+    """Gán target := source_code trên mọi cột có source (value_origin = identity, giữ số OCR ở ocr_value).
+    Ô nhập tay (is_manual) giữ nguyên."""
+    out = list(cells)
+    for idt in (i for i in identities if i["regime"] == regime):
+        st, target, src = idt["statement"], idt["target"], idt["source_code"]
+        sources = {c["period_kind"]: c for c in out if c["statement"] == st and c["account_code"] == src
+                   and c["amount_vnd"] is not None}
+        for kind, s in sources.items():
+            cur = next((c for c in out if c["statement"] == st and c["account_code"] == target
+                        and c["period_kind"] == kind), None)
+            if cur is not None and cur.get("is_manual"):
+                continue
+            new = {**(cur or {**s, "item_name": "", "raw_text": "", "row_y0": None, "row_y1": None}),
+                   "account_code": target, "amount_vnd": s["amount_vnd"], "value_origin": "identity",
+                   "ocr_value": cur["amount_vnd"] if cur else None, "identity_of": src}
+            out = [c for c in out if c is not cur] + [new]
+    return out
+
+
 def canonical(regime: str | None, statement: str, code: str, regime_map: dict) -> str | None:
     if regime == BASE_REGIME:
         return code
     return regime_map.get((regime, statement, code))  # chưa có trong bảng map -> không so được
 
 
-def _opening_check(doc: dict, closing_by_year: dict[int, dict]) -> tuple[bool | None, str]:
-    """Số đầu năm N (B01) = số cuối năm N-1 của BCTC năm N-1, so theo mã chuẩn."""
+def _opening_check(doc: dict, closing_by_year: dict[int, dict],
+                   restated: dict | None = None) -> tuple[bool | None, str]:
+    """Số đầu năm N (B01) = số cuối năm N-1 của BCTC năm N-1, so theo mã chuẩn (bỏ mã trình bày lại)."""
     year = int(doc["period"][:4]) if doc["period"][:4].isdigit() else None
     prior = closing_by_year.get(year - 1) if year else None
+    if prior and restated:
+        prior = {k: v for k, v in prior.items() if (year - 1, k) not in restated}
     if not prior:
         return None, "không có BCTC năm trước"
     opening = {c["canonical_code"]: c["amount_vnd"] for c in doc["cells"]
                if c["statement"] == "B01" and c["period_kind"] == "opening" and c["amount_vnd"] is not None
-               and c.get("canonical_code")}
+               and c.get("canonical_code") and not c.get("semantic_break")}
     common = sorted(set(opening) & set(prior))
     if not common:
         if doc.get("regime") not in (None, BASE_REGIME):
@@ -301,7 +391,9 @@ def relabel_b02_numeric(d: dict, docs: list[dict]) -> bool:
                     evidence.append("Q1: hai cột năm nay bằng nhau")
             else:
                 prev = by_period.get(f"{year}-Q1") if part == "Q2" else by_period.get(f"{year}-H1")
-                pv = _b02_columns(prev).get("ytd_current" if part == "Q2" else "current") if prev else None
+                pcols = _b02_columns(prev) if prev else {}
+                # báo cáo Q1 hai cột ghi nhãn current/prior: cột current chính là lũy kế Q1
+                pv = pcols.get("ytd_current" if part == "Q2" else "current") or pcols.get("current")
                 for ytd, q in ((a, b), (b, a)):
                     m = _matches(_diff(cols[ytd], cols[q]), pv)
                     if m >= MIN_LABEL_MATCH:
@@ -318,15 +410,60 @@ def relabel_b02_numeric(d: dict, docs: list[dict]) -> bool:
     return True
 
 
+QUARTER_ORDERS = (("q_current", "ytd_current", "q_prior", "ytd_prior"),   # thứ tự gán theo vị trí (BCTC 2023+)
+                  ("q_current", "q_prior", "ytd_current", "ytd_prior"))   # BCTC quý cũ (2014, 2016)
+REVENUE_CODES = ("10", "01")
+
+
+def check_positional_order(d: dict) -> bool:
+    """B02 quý 4 cột gán nhãn theo vị trí (Q2–Q4): lũy kế phải lớn hơn quý cùng năm (doanh thu dương).
+
+    Chỉ thứ tự cũ đúng -> gắn lại nhãn (b02_label_method = numeric), trả True; không thứ tự nào đúng
+    -> giữ nguyên (lỗi OCR ở số doanh thu, phương trình DQ sẽ bắt). Q1 (quý = lũy kế) và báo cáo hai cột không kiểm được bằng cách này."""
+    if d["b02_label_method"] != "positional" or d["period"][5:] not in ("Q2", "Q3", "Q4"):
+        return False
+    cols = _b02_columns(d)
+    if set(cols) != set(QUARTER_ORDERS[0]):
+        return False
+    code = next((c for c in REVENUE_CODES if all(c in cols[k] for k in cols)), None)
+    if code is None:
+        return False
+
+    def valid(order):  # order: nhãn mới theo thứ tự cột của nhãn vị trí
+        v = {new: cols[old][code] for old, new in zip(QUARTER_ORDERS[0], order)}
+        return v["ytd_current"] > v["q_current"] > 0 and v["ytd_prior"] > v["q_prior"] > 0
+    ok = [o for o in QUARTER_ORDERS if valid(o)]
+    if ok == [QUARTER_ORDERS[1]]:
+        mapping = dict(zip(QUARTER_ORDERS[0], ok[0]))
+        for c in d["cells"]:
+            if c["statement"] == "B02":
+                c["period_kind"] = mapping.get(c["period_kind"], c["period_kind"])
+        d.update(b02_label_method="numeric",
+                 label_note=f"thứ tự cột quý này, quý năm trước, lũy kế, lũy kế năm trước (lũy kế > quý, mã {code})")
+        return True
+    return False  # thứ tự vị trí đúng, hoặc số OCR sai đến mức không thứ tự nào đúng (phương trình sẽ bắt)
+
+
+def _prepare_cells(cells: list[dict], row: dict, regime: str | None, ctx: dict) -> list[dict]:
+    """Ô vừa bóc -> sửa tay (overrides), đồng nhất thức, mã chuẩn, cờ semantic_break."""
+    for c in cells:
+        c["source_doc_sha256"] = row["sha256"]
+    cells = [{**c, "value_origin": "manual"} if c["is_manual"] else c for c in apply_overrides(cells, ctx["overrides"])]
+    cells = apply_identities(cells, ctx.get("identities", []), regime)
+    year = int(row["period"][:4]) if row["period"][:4].isdigit() else None
+    for c in cells:
+        c["canonical_code"] = canonical(regime, c["statement"], c["account_code"], ctx["regime_map"])
+        # cột đầu năm của báo cáo năm đầu TT99 là ngày 31/12 còn theo TT200: mã đổi nội dung không so chéo được
+        c["semantic_break"] = (c["statement"] == "B01" and c["period_kind"] == "opening" and year == FIRST_TT99_YEAR
+                               and (regime, c["statement"], c["account_code"]) in ctx.get("semantic_breaks", set()))
+    return cells
+
+
 def _make_doc(row: dict, res: dict, ctx: dict) -> dict:
     regime, inferred = res["regime"], False
     if regime is None and row["period"][:4].isdigit() and int(row["period"][:4]) < FIRST_TT99_YEAR:
         regime, inferred = BASE_REGIME, True
-    cells = _dedupe(res["cells"])
-    for c in cells:
-        c["source_doc_sha256"] = row["sha256"]
-        c["canonical_code"] = canonical(regime, c["statement"], c["account_code"], ctx["regime_map"])
-    cells = [{**c, "value_origin": "manual"} if c["is_manual"] else c for c in apply_overrides(cells, ctx["overrides"])]
+    cells = _prepare_cells(_dedupe(res["cells"]), row, regime, ctx)
     raw_values = {(c["statement"], c["account_code"], c["period_kind"]): c["amount_vnd"]
                   for c in _dedupe(res.get("raw_cells", []))}
     period = _period_result(row, res["end"], lambda p, d: d is not None and expected_end(p) == d)
@@ -343,8 +480,9 @@ def _evaluate(d: dict, ctx: dict) -> None:
     values = {(c["statement"], c["account_code"], c["period_kind"]): c["amount_vnd"] for c in d["cells"]}
     regime = d["regime"]
     signs = signs_of(ctx["dim"], regime) if regime else {}
-    checks = (check_equations(values, ctx["equations"], regime, signs) + check_parent_sums(values, ctx["dim"], regime)
-              if d["cells"] and regime else [])
+    skip = {(i["statement"], i["target"]) for i in ctx.get("identities", []) if i["regime"] == regime}
+    checks = (check_equations(values, ctx["equations"], regime, signs)
+              + check_parent_sums(values, ctx["dim"], regime, skip=skip) if d["cells"] and regime else [])
     if d["period"].endswith("-Q1"):
         checks += check_q1_columns(values)
     eligible = {e["label"] for e in eligible_equations(ctx["equations"], signs)}
@@ -356,6 +494,108 @@ def _evaluate(d: dict, ctx: dict) -> None:
     d["b01_ok"] = bool(b01) and all(c["ok"] for c in b01)
     d["dq_balance_ok"] = bool(checks) and all(c["ok"] for c in checks) and d["columns_ok"]
     d["values"], d["signs"] = values, signs
+    for c in checks:
+        c["level"] = dq_level(c)
+    d["critical_failed"] = [c for c in checks if c["level"] == "critical" and not c["ok"]]
+    covered = {c["equation"]["lhs"] for c in checks if c["level"] == "critical"
+               and c.get("equation", {}).get("statement") == "B02"}
+    d["critical_unchecked"] = sorted(CRITICAL_B02 - covered)  # vd. TT200 chưa có công thức chắc chắn cho 30, 60
+    # Ô trusted: nằm trong một phương trình/tổng dòng con đúng, hoặc >= 2 nguồn bỏ phiếu khớp
+    d["trusted_keys"] = {(c["equation"]["statement"], code, c["kind"]) for c in checks
+                         if c["ok"] and c.get("equation") and c["kind"]
+                         for code in [c["equation"]["lhs"]] + [t for _, t in c["equation"]["terms"]]}
+    d["trusted_keys"] |= {(c["statement"], c["account_code"], c["period_kind"]) for c in d["cells"] if c.get("is_consensus")}
+    # ô gán bằng đồng nhất thức (440 := 270) tin được khi ô nguồn tin được
+    d["trusted_keys"] |= {(c["statement"], c["account_code"], c["period_kind"]) for c in d["cells"]
+                          if c.get("identity_of") and (c["statement"], c["identity_of"], c["period_kind"]) in d["trusted_keys"]}
+
+
+CRITICAL_B02 = {"10", "20", "30", "50", "60"}  # mã B02 có phương trình chặn Gold (người dùng chỉ định)
+
+
+def dq_level(check: dict) -> str:
+    """critical (chặn Gold): phương trình cân đối B01, phương trình B02 có vế trái 10/20/30/50/60.
+    warning (chỉ ghi lại): tổng dòng con các mục nhỏ, kiểm tra Q1 quý này = lũy kế."""
+    eq = check.get("equation") or {}
+    if eq.get("statement") == "B01" and "Σ" not in check["check"]:
+        return "critical"
+    if eq.get("statement") == "B02" and eq.get("lhs") in CRITICAL_B02:
+        return "critical"
+    return "warning"
+
+
+def critical_columns(d: dict) -> dict[str, bool]:
+    """{period_kind: qua critical B02 của riêng cột đó}. Điều kiện chung của báo cáo (trang B02, kỳ/ngày, nhãn cột
+    TT99) vẫn áp cho mọi cột; cột không có phương trình critical nào kiểm được thì không qua."""
+    if not (d["res"]["pages"].get("B02") and d["period_check_ok"] and d["columns_ok"]):
+        return {}
+    out: dict[str, bool] = {}
+    for c in d["checks"]:
+        if c["level"] == "critical" and c.get("equation", {}).get("statement") == "B02" and c.get("kind"):
+            out[c["kind"]] = out.get(c["kind"], True) and c["ok"]
+    return out
+
+
+def detect_restatements(docs: list[dict], closing_by_year: dict[int, dict]) -> dict[tuple[int, str], dict]:
+    """Số đầu năm của MỌI báo cáo năm N+1 (>= 2 báo cáo) khớp nhau nhưng khác số cuối năm N: trình bày lại.
+
+    Không coi là lỗi OCR: bỏ khỏi kiểm tra đầu năm = cuối năm trước, ghi vào mục "Kỳ bị trình bày lại".
+    """
+    openings: dict[tuple[int, str], list[tuple[dict, int]]] = {}
+    for d in docs:
+        if not d["period"][:4].isdigit():
+            continue
+        for c in d["cells"]:
+            if c["statement"] == "B01" and c["period_kind"] == "opening" and c["amount_vnd"] is not None \
+                    and c.get("canonical_code") and not c.get("semantic_break"):
+                openings.setdefault((int(d["period"][:4]) - 1, c["canonical_code"]), []).append((d, c["amount_vnd"]))
+    out = {}
+    for (year, code), vals in openings.items():
+        closing = closing_by_year.get(year, {}).get(code)
+        first = vals[0][1]
+        if closing is None or len(vals) < 2 or any(abs(v - first) > 1 for _, v in vals) or abs(first - closing) <= 1:
+            continue
+        out[(year, code)] = {"closing": closing, "restated": first, "docs": sorted({d["period"] for d, _ in vals}),
+                             "note": _restatement_note(docs, year, vals, closing, first)}
+    return out
+
+
+def _one_digit_more(a: int, b: int) -> bool:
+    """Chuỗi số a bằng b chèn thêm đúng một chữ số (dấu hiệu OCR đọc thừa chữ số, không phải trình bày lại)."""
+    sa, sb = str(abs(a)), str(abs(b))
+    return len(sa) == len(sb) + 1 and any(sa[:i] + sa[i + 1:] == sb for i in range(len(sa)))
+
+
+def _restatement_note(docs: list[dict], year: int, vals: list, closing: int, restated: int) -> str:
+    notes = []
+    before = {d.get("regime", "TT200") for d in docs if d["period"].startswith(str(year))}
+    after = {d.get("regime", "TT200") for d, _ in vals}
+    if before and after != before:
+        notes.append(f"đổi chế độ kế toán ({'/'.join(sorted(before))} → {'/'.join(sorted(after))}): "
+                     "cùng tên mã nhưng có thể khác nội dung, cần xem lại bảng map")
+    if _one_digit_more(closing, restated):
+        notes.append(f"nghi OCR đọc thừa một chữ số ở BCTC năm {year}")
+    elif _one_digit_more(restated, closing):
+        notes.append(f"nghi OCR đọc thiếu một chữ số ở BCTC năm {year}")
+    return "; ".join(notes)
+
+
+def digit_suggestions(restated: dict, closing_doc: dict[int, dict]) -> list[tuple[int, dict]]:
+    """Số cuối năm N lệch đúng một chữ số thừa/thiếu so với số đầu năm (khớp nhau) của mọi báo cáo N+1:
+    gợi ý sửa ô cuối năm N theo số kỳ liền kề (pending, người dùng xác nhận trên PDF)."""
+    out = []
+    for (year, code), v in sorted(restated.items()):
+        if year not in closing_doc or not (_one_digit_more(v["closing"], v["restated"])
+                                           or _one_digit_more(v["restated"], v["closing"])):
+            continue
+        cell = next((c for c in closing_doc[year]["cells"] if c["statement"] == "B01" and c["period_kind"] == "closing"
+                     and c.get("canonical_code") == code), None)
+        if cell:
+            out.append((year, {"statement": "B01", "account_code": cell["account_code"], "period_kind": "closing",
+                               "amount_vnd": v["restated"], "ocr_value": v["closing"],
+                               "reason": f"Lệch đúng một chữ số so với số đầu năm (khớp nhau) của mọi báo cáo "
+                                         f"{year + 1}: {', '.join(v['docs'])}"}))
+    return out
 
 
 def _paddle_fallback(docs: list[dict], ctx: dict) -> tuple[int, int]:
@@ -370,11 +610,8 @@ def _paddle_fallback(docs: list[dict], ctx: dict) -> tuple[int, int]:
             res = extract_fs(d, engine="paddle", statements=(st,))
             if res["error"]:
                 continue
-            new = [c for c in _dedupe(res["cells"])]
-            for c in new:
-                c["source_doc_sha256"] = d["sha256"]
-                c["canonical_code"] = canonical(d["regime"], c["statement"], c["account_code"], ctx["regime_map"])
-            trial = {**d, "cells": [c for c in d["cells"] if c["statement"] != st] + apply_overrides(new, ctx["overrides"])}
+            new = _prepare_cells(_dedupe(res["cells"]), d, d["regime"], ctx)
+            trial = {**d, "cells": [c for c in d["cells"] if c["statement"] != st] + new}
             _evaluate(trial, ctx)
             before = sum(1 for c in d["eq_failed"] if c["equation"]["statement"] == st)
             after = sum(1 for c in trial["eq_failed"] if c.get("equation", {}).get("statement") == st)
@@ -400,7 +637,8 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
         mo_res = list(ex.map(check_monthly, mo_rows))
 
     ctx = {"overrides": load_overrides(OVERRIDES), "equations": load_equations(EQUATIONS),
-           "dim": load_dim_account(DIM_ACCOUNT), "regime_map": load_regime_map(REGIME_MAP)}
+           "dim": load_dim_account(DIM_ACCOUNT), "regime_map": load_regime_map(REGIME_MAP),
+           "identities": load_identities(IDENTITIES), "semantic_breaks": load_semantic_breaks(REGIME_MAP)}
     docs = [_make_doc(row, res, ctx) for row, res in zip(fs_rows, fs_res)]
     for d in docs:  # kỳ thật cho file pending
         if d["period"] == PENDING and d["resolved"]:
@@ -426,21 +664,44 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
             stats["consensus"] += apply_consensus(docs)
             for d in docs:
                 _evaluate(d, ctx)
+    for d in docs:  # sau PaddleOCR: kiểm thứ tự cột trên số cuối cùng
+        if check_positional_order(d):
+            _evaluate(d, ctx)
     for d in docs:
         stats["suggested"] += write_suggestions(OVERRIDES, d, suggest_fixes(d, d["eligible_failed"], d["values"], d["signs"]))
 
     # Số đầu năm N = số cuối năm N-1 (ưu tiên bản vi-VN như ở Silver)
     closing_by_year: dict[int, dict] = {}
+    closing_doc: dict[int, dict] = {}
     for d in sorted(docs, key=lambda d: d["lang"] != "vi-VN"):
         if d["doc_type"] == "FS_CONSOLIDATED_Y" and d["b01_ok"] and d["period"].isdigit():
+            closing_doc.setdefault(int(d["period"]), d)
             closing_by_year.setdefault(int(d["period"]), {
                 c["canonical_code"]: c["amount_vnd"] for c in d["cells"]
                 if c["statement"] == "B01" and c["period_kind"] == "closing" and c["amount_vnd"] is not None
                 and c["canonical_code"]})
+    restated = detect_restatements(docs, closing_by_year)
+    stats["digit_suggested"] = sum(write_suggestions(OVERRIDES, closing_doc[year], [s], suggested_by="adjacent_period")
+                                   for year, s in digit_suggestions(restated, closing_doc))
     for d in docs:
-        d["opening_ok"], d["opening_note"] = _opening_check(d, closing_by_year)
-        d["passed"] = (d["dq_balance_ok"] and d["period_check_ok"] and d["opening_ok"] is not False
-                       and bool(d["res"]["pages"].get("B01")) and bool(d["res"]["pages"].get("B02")))
+        d["opening_ok"], d["opening_note"] = _opening_check(d, closing_by_year, restated)
+        has_pages = bool(d["res"]["pages"].get("B01")) and bool(d["res"]["pages"].get("B02"))
+        d["passed"] = d["dq_balance_ok"] and d["period_check_ok"] and d["opening_ok"] is not False and has_pages
+        # critical chặn Gold; warning (tổng dòng con mục nhỏ, đầu năm ≠ cuối năm trước) chỉ ghi lại
+        # critical theo từng báo cáo: B01 chỉ chặn ô B01, B02 chỉ chặn ô B02 (B03 chưa có critical -> chưa vào Gold)
+        for st in ("B01", "B02"):
+            crit = [c for c in d["checks"] if c["level"] == "critical" and c.get("equation", {}).get("statement") == st]
+            d[f"passed_critical_{st.lower()}"] = (bool(d["res"]["pages"].get(st)) and d["period_check_ok"]
+                                                  and (st == "B01" or d["columns_ok"])
+                                                  and bool(crit) and all(c["ok"] for c in crit))
+        d["passed_critical"] = has_pages and d["passed_critical_b01"] and d["passed_critical_b02"]
+        b02_cols = critical_columns(d)
+        for c in d["cells"]:
+            c["is_trusted"] = (c["statement"], c["account_code"], c["period_kind"]) in d["trusted_keys"]
+            # B02 chặn theo từng cột (period_kind): cột lũy kế trượt không kéo cột quý này ra khỏi Gold
+            ok = b02_cols.get(c["period_kind"], False) if c["statement"] == "B02" else d.get("passed_critical_b01", False) \
+                if c["statement"] == "B01" else False
+            c["gold_eligible"] = c["is_trusted"] and ok
 
     monthly_docs = []
     for row, res in zip(mo_rows, mo_res):
@@ -449,9 +710,14 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
             resolve_period(row["url"], *p["resolved"])
         monthly_docs.append({**row, **p, "found": res["found"], "error": res["error"]})
 
+    stats["monthly_xcheck"] = monthly_crosscheck(docs, mo_rows)
+    stats["monthly_suggested"] = sum(write_suggestions(OVERRIDES, d, [s], suggested_by="monthly_crosscheck")
+                                     for d, s in monthly_suggestions(stats["monthly_xcheck"]))
     stats["pending"] = sum(1 for r in _read_overrides() if r.get("status") == "pending")
+    stats["restated"] = restated
     _write_raw(docs)
     summary = _write_report(docs, monthly_docs, stats)
+    print(f"[DQ] qua critical: {_rate(docs, 'passed_critical')}; ô trusted: {_trusted(docs)}")
     print(f"[DQ] B01 cân đối: {summary['b01']}; BCTC qua DQ: {summary['passed']}/{summary['total']}; "
           f"báo cáo tháng đúng kỳ: {summary['mo_ok']}/{summary['mo_total']}; ô chờ xác nhận: {stats['pending']}")
     return summary
@@ -474,13 +740,20 @@ def _write_raw(docs: list[dict]) -> None:
              "amount_vnd": c["amount_vnd"], "raw_text": c["raw_text"], "is_manual": c["is_manual"],
              "is_consensus": c.get("is_consensus", False), "corrected_by": c.get("corrected_by"),
              "value_origin": c.get("value_origin", "ocr"), "b02_label_method": d["b02_label_method"],
+             "is_trusted": c.get("is_trusted", False), "passed_critical": d["passed_critical"],
+             "passed_critical_b01": d["passed_critical_b01"], "passed_critical_b02": d["passed_critical_b02"],
+             "gold_eligible": c.get("gold_eligible", False), "semantic_break": c.get("semantic_break", False),
+             "ocr_value": c.get("ocr_value"),
+             "row_y0": c.get("row_y0"), "row_y1": c.get("row_y1"),
              "ocr_engine": d["engine"], "dq_balance_ok": d["dq_balance_ok"], "columns_ok": d["columns_ok"],
              "period_check_ok": d["period_check_ok"], "ocr_date_suspect": d["ocr_date_suspect"],
              "extracted_at": datetime.now().isoformat(timespec="seconds")}
             for d in docs for c in d["cells"]]
     if not rows:
         return
-    df = pl.DataFrame(rows, schema_overrides={"amount_vnd": pl.Int64, "page": pl.Int32, "corrected_by": pl.Utf8})
+    df = pl.DataFrame(rows, schema_overrides={"amount_vnd": pl.Int64, "ocr_value": pl.Int64, "page": pl.Int32,
+                                              "corrected_by": pl.Utf8,
+                                              "row_y0": pl.Float64, "row_y1": pl.Float64})
     df.write_delta(str(RAW_TABLE), mode="overwrite", delta_write_options={"schema_mode": "overwrite"})
     print(f"[extract] Ghi {df.height} ô vào {RAW_TABLE.relative_to(ROOT)}")
 
@@ -492,6 +765,27 @@ def _mark(ok) -> str:
 def _rate(group: list[dict], key: str = "passed") -> str:
     n, k = len(group), sum(bool(d[key]) for d in group)
     return f"{k}/{n} ({k / n:.0%})" if n else "–"
+
+
+def _trusted(docs: list[dict], gold: bool = False, statement: str | None = None) -> str:
+    cells = [c for d in docs for c in d["cells"] if c["amount_vnd"] is not None
+             and (statement is None or c["statement"] == statement)]
+    k = sum(c.get("gold_eligible" if gold else "is_trusted", False) for c in cells)
+    return f"{k}/{len(cells)} ({k / len(cells):.0%})" if cells else "–"
+
+
+def _col_rate(docs: list[dict]) -> str:
+    cols = [ok for d in docs for ok in critical_columns(d).values()]
+    return f"{sum(cols)}/{len(cols)}" if cols else "–"
+
+
+def _unchecked(docs: list[dict]) -> dict[str, set[str]]:
+    """Mã B02 critical không kiểm được ở ít nhất một báo cáo của regime (gộp theo regime, không in lặp)."""
+    out: dict[str, set[str]] = {}
+    for d in docs:
+        if d["regime"] and d["critical_unchecked"]:
+            out.setdefault(d["regime"], set()).update(d["critical_unchecked"])
+    return out
 
 
 def _eq_rate(docs: list[dict], key: str) -> str:
@@ -515,8 +809,61 @@ def _breakdown(docs: list[dict], key, title: str) -> list[str]:
     groups: dict = {}
     for d in docs:
         groups.setdefault(key(d), []).append(d)
-    return ([f"| {title} | B01 cân đối | Qua DQ toàn bộ |", "|---|---|---|"]
-            + [f"| {k} | {_rate(v, 'b01_ok')} | {_rate(v)} |" for k, v in sorted(groups.items())] + [""])
+    return ([f"| {title} | B01 cân đối | **Critical B01** | **Critical B02** | Critical cả hai | Qua DQ toàn bộ |",
+             "|---|---|---|---|---|---|"]
+            + [f"| {k} | {_rate(v, 'b01_ok')} | {_rate(v, 'passed_critical_b01')} | {_rate(v, 'passed_critical_b02')} "
+               f"| {_rate(v, 'passed_critical')} | {_rate(v)} |"
+               for k, v in sorted(groups.items())] + [""])
+
+
+def _top_failures(docs: list[dict], n: int = 10) -> list[str]:
+    from collections import Counter
+    fails = Counter((d["regime"], c["check"], c["level"]) for d in docs for c in {(c["check"], c["level"]): c
+                    for c in d["checks"] if not c["ok"]}.values())
+    totals = Counter((d["regime"], c["check"]) for d in docs for c in {c["check"]: c for c in d["checks"]}.values())
+    rows = ["| # | Regime | Phương trình | Mức | Số báo cáo trượt / được kiểm |", "|---|---|---|---|---|"]
+    for i, ((reg, label, level), k) in enumerate(fails.most_common(n), 1):
+        rows.append(f"| {i} | {reg} | {label} | {level} | {k}/{totals[(reg, label)]} |")
+    return rows + [""]
+
+
+def _parent_stats(docs: list[dict]) -> list[str]:
+    """Tỷ lệ trượt từng phương trình cha–con; > 50% báo cáo: nghi lỗi dim_account/mẫu MWG (kèm ví dụ số)."""
+    stats: dict[tuple[str, str], list] = {}
+    for d in docs:
+        for label in {c["check"] for c in d["checks"] if "Σ" in c["check"]}:
+            cs = [c for c in d["checks"] if c["check"] == label]
+            s_ = stats.setdefault((d["regime"], label), [0, 0, None])
+            s_[1] += 1
+            bad = next((c for c in cs if not c["ok"]), None)
+            if bad:
+                s_[0] += 1
+                if s_[2] is None and "lệch" in bad["note"]:
+                    eq, kind = bad["equation"], bad["kind"]
+                    kids = ", ".join(f"{t}={d['values'].get((eq['statement'], t, kind)) or 0:,}" for _, t in eq["terms"])
+                    s_[2] = (f"{d['period']} {d['lang'][:2]} {kind}: {eq['lhs']}="
+                             f"{d['values'].get((eq['statement'], eq['lhs'], kind)) or 0:,}; con: {kids}")
+    rows = ["| Regime | Phương trình | Trượt / kiểm | Tỷ lệ |", "|---|---|---|---|"]
+    suspect = []
+    for (reg, label), (k, n, ex) in sorted(stats.items(), key=lambda x: -x[1][0] / x[1][1]):
+        rows.append(f"| {reg} | {label} | {k}/{n} | {k / n:.0%} |")
+        if k / n > 0.5:
+            suspect.append(f"- **{reg} {label}**: trượt {k}/{n} báo cáo. Ví dụ: {ex or 'chỉ có lỗi thiếu mã'}")
+    head = (["**Nghi lỗi dim_account/mẫu MWG** (trượt > 50% báo cáo):", ""] + suspect + [""]
+            if suspect else ["Không có phương trình cha–con nào trượt > 50% báo cáo.", ""])
+    return head + rows + [""]
+
+
+def _restated_table(restated: dict) -> list[str]:
+    if not restated:
+        return ["Không có mã nào bị trình bày lại.", ""]
+    rows = ["| Năm (31/12) | Mã chuẩn | Cuối năm N (BCTC năm N) | Đầu năm N+1 (mọi báo cáo N+1) | Chênh lệch | Báo cáo N+1 | Ghi chú |",
+            "|---|---|---|---|---|---|---|"]
+    for (year, code), v in sorted(restated.items()):
+        diff = v["restated"] - v["closing"]
+        pct = f"{diff / v['closing']:.2%}" if v["closing"] else "–"
+        rows.append(f"| {year} | {code} | {v['closing']:,} | {v['restated']:,} | {diff:,} ({pct}) | {', '.join(v['docs'])} | {v.get('note', '')} |")
+    return rows + [""]
 
 
 def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> dict:
@@ -530,12 +877,28 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
              f"**Độ chính xác OCR thô** (trước mọi bước tự sửa): B01 cân đối {_rate(docs, 'b01_raw_ok')}; "
              f"{_eq_rate(docs, 'raw_checks')} phép kiểm phương trình B01 đúng. **Sau tự sửa**: B01 cân đối "
              f"{_rate(docs, 'b01_ok')}.", "",
+             f"**Qua critical (chặn Gold theo từng báo cáo): B01 {_rate(docs, 'passed_critical_b01')}, "
+             f"B02 {_rate(docs, 'passed_critical_b02')}** (cả hai: {_rate(docs, 'passed_critical')}). Ô trusted (nằm "
+             f"trong một phương trình/tổng dòng con đúng, >= 2 nguồn bỏ phiếu khớp, hoặc đồng nhất thức với ô "
+             f"trusted): {_trusted(docs)}. **Ô vào được Gold** (trusted và critical của chính báo cáo đó qua): "
+             f"B01 {_trusted(docs, True, 'B01')}, B02 {_trusted(docs, True, 'B02')}; B03 chưa có critical nên chưa "
+             "vào Gold. B02 chặn theo từng cột (`period_kind`): cột B02 qua critical "
+             f"{_col_rate(docs)}.", "",
+             "Critical B01: phương trình cân đối B01, kỳ/ngày báo cáo, có trang B01. Critical B02: phương trình B02 có "
+             "vế trái 10, 20, 30, 50, 60, kỳ/ngày báo cáo, có trang B02, nhãn cột B02 TT99. Đồng nhất thức "
+             "(`config/dq_identities.csv`, `value_origin = identity`) thay phép kiểm tổng dòng con của dòng đích. Warning (chỉ ghi lại): tổng dòng con các mục nhỏ, Q1 quý này = lũy "
+             "kế, đầu năm ≠ cuối năm trước. Critical chưa kiểm được (thiếu công thức chắc chắn): "
+             + "; ".join(f"{reg}: B02 {', '.join(sorted(codes))}" for reg, codes in sorted(_unchecked(docs).items()))
+             + ".", "",
              "Nguồn gốc giá trị (`value_origin`): " + ", ".join(f"{k} {v}" for k, v in _origins(docs)) + ". "
              "Nhãn cột B02 (`b02_label_method`): " + ", ".join(f"{k} {v}" for k, v in _methods(docs)) + ".", "",
              f"Tự sửa lỗi OCR lần này: {stats['consensus']} ô sửa/điền theo bỏ phiếu giữa các lần in lại số B01; "
              f"PaddleOCR chạy {stats['paddle_pages']} trang, thay kết quả cho {stats['paddle_replaced']} báo cáo; "
              f"{sum(d['res']['stats']['codes_recovered'] for d in docs)} mã và "
-             f"{sum(d['res']['stats']['cells_reocr'] for d in docs)} ô số được OCR lại riêng (400 dpi).", "",
+             f"{sum(d['res']['stats']['cells_reocr'] for d in docs)} ô số được OCR lại riêng (400 dpi); "
+             f"{stats.get('digit_suggested', 0)} gợi ý mới cho ô lệch đúng một chữ số so với kỳ liền kề "
+             "(`suggested_by = adjacent_period`); "
+             f"{stats.get('monthly_suggested', 0)} gợi ý mới từ đối soát báo cáo tháng (`suggested_by = monthly_crosscheck`).", "",
              "Điều kiện qua: tìm thấy B01 và B02; mọi phương trình trong `config/dq_equations.csv` của đúng regime "
              "đúng trên mọi cột; báo cáo Q1 có cột quý này = lũy kế; cột B02 TT99 đọc được tiêu đề; ngày báo cáo "
              "trong PDF khớp kỳ; số đầu năm khớp số cuối năm trước (so theo mã chuẩn). Khoản giảm trừ chỉ lấy trị "
@@ -547,6 +910,17 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
                         else "không nhận diện", "Regime")
     lines += _breakdown(docs, lambda d: d["lang"], "Ngôn ngữ")
     lines += _breakdown(docs, lambda d: d["period"][:4], "Năm")
+    lines += ["### Top 10 phương trình trượt nhiều nhất", ""] + _top_failures(docs)
+    lines += ["### Phương trình cha–con: số báo cáo trượt", ""] + _parent_stats(docs)
+    lines += ["### Đối soát B02 mã 10, 60 với báo cáo tháng lũy kế (thay vnstock)", "",
+              "Số BCTC làm tròn về tỷ đồng có xuất hiện (±1 tỷ) trong báo cáo KQKD tháng 3/6/9/12 cùng kỳ lũy kế "
+              "không (`src/quality/monthly_check.py`). Chỉ ghi lại, không ghi vào Gold.", ""]
+    lines += monthly_report_lines(stats.get("monthly_xcheck", []))
+    lines += ["### Kỳ bị trình bày lại (tự sinh)", "",
+              "Mọi báo cáo năm N+1 (>= 2 báo cáo) in cùng một số đầu năm nhưng khác số cuối năm của BCTC năm N: "
+              "coi là trình bày lại, không phải lỗi OCR, và không tính vào kiểm tra đầu năm = cuối năm trước.", ""]
+    lines += _restated_table(stats["restated"])
+    lines += ["### Chi tiết theo kỳ", ""]
     lines += ["| Kỳ | Lang | Regime | Trang B01 / B02 / B03 | Số ô | "
               + " | ".join(labels) + " | Đầu năm = cuối năm trước | Ngày trong PDF | Khớp kỳ | Kết quả | Ghi chú |",
               "|" + "---|" * (len(labels) + 10)]

@@ -364,3 +364,57 @@ def test_o_mot_hai_chu_so_la_dang_ngo():
              W("440", 40, 240), right("3", 640, 240), right("4.444.444.444", 790, 240)]
     res = parse_statement_page(words, "B01")
     assert len(res["suspects"]) == 1 and res["suspects"][0][1] == 240
+
+
+def test_ma_tuy_chon_khong_in_tinh_la_0():
+    eq = {"regime": "R", "statement": "B02", "lhs": "30", "rhs": "20+24-25", "label": "30",
+          "terms": [(1, "20"), (1, "24"), (-1, "25")], "optional": {"24"}}
+    values = {("B02", "20", "c"): 100, ("B02", "25", "c"): -30, ("B02", "30", "c"): 70}
+    assert check_equations(values, [eq], "R", {("B02", "25"): -1})[0]["ok"]
+    # vế không tùy chọn vẫn là thiếu
+    del values[("B02", "25", "c")]
+    assert check_equations(values, [eq], "R", {("B02", "25"): -1})[0]["note"] == "thiếu 25"
+
+
+def test_critical_columns_chan_b02_theo_cot():
+    from src.extraction.run_extraction import critical_columns
+    eq = {"statement": "B02", "lhs": "10"}
+    d = {"res": {"pages": {"B02": [5]}}, "period_check_ok": True, "columns_ok": True,
+         "checks": [{"level": "critical", "equation": eq, "kind": "q_current", "ok": True},
+                    {"level": "critical", "equation": {**eq, "lhs": "20"}, "kind": "q_current", "ok": True},
+                    {"level": "critical", "equation": eq, "kind": "ytd_current", "ok": False},
+                    {"level": "warning", "equation": {**eq, "lhs": "22"}, "kind": "q_prior", "ok": True}]}
+    assert critical_columns(d) == {"q_current": True, "ytd_current": False}
+    assert critical_columns({**d, "columns_ok": False}) == {}
+
+
+def test_monthly_suggestions_chi_goi_y_khi_doc_lai_khop(monkeypatch):
+    from src.extraction import run_extraction as R
+    cell = {"account_code": "10", "period_kind": "current", "amount_vnd": 73_755_000_000_000, "page": 9}
+    rows = [{"found": False, "nearest": 73_655, "billion": 73_755, "month": "2025-M06", "doc": {}, "cell": cell},
+            {"found": False, "nearest": 80_000, "billion": 73_755, "month": "2025-M06", "doc": {}, "cell": cell},
+            {"found": True, "nearest": 73_755, "billion": 73_755, "month": "2025-M06", "doc": {}, "cell": cell}]
+    monkeypatch.setattr(R, "reread_cell", lambda d, c, accept: next((v for v in (73_655_100_000_000,) if accept(v)), None))
+    out = R.monthly_suggestions(rows)
+    assert len(out) == 1 and out[0][1]["amount_vnd"] == 73_655_100_000_000 and out[0][1]["ocr_value"] == cell["amount_vnd"]
+    monkeypatch.setattr(R, "reread_cell", lambda d, c, accept: None)
+    assert R.monthly_suggestions(rows) == []
+
+
+def _b02_doc(period, values, method="positional"):
+    cells = [{"statement": "B02", "account_code": "10", "canonical_code": "10", "period_kind": k, "amount_vnd": v}
+             for k, v in values.items()]
+    return {"period": period, "b02_label_method": method, "cells": cells, "label_note": ""}
+
+
+def test_check_positional_order_doi_thu_tu_cot_cu():
+    from src.extraction.run_extraction import check_positional_order
+    # thứ tự cột cũ: quý này, quý năm trước, lũy kế, lũy kế năm trước -> nhãn vị trí gán sai
+    d = _b02_doc("2016-Q3", {"q_current": 110, "ytd_current": 66, "q_prior": 300, "ytd_prior": 175})
+    assert check_positional_order(d) is True and d["b02_label_method"] == "numeric"
+    got = {c["period_kind"]: c["amount_vnd"] for c in d["cells"]}
+    assert got == {"q_current": 110, "q_prior": 66, "ytd_current": 300, "ytd_prior": 175}
+    ok = _b02_doc("2024-Q3", {"q_current": 34, "ytd_current": 99, "q_prior": 30, "ytd_prior": 86})
+    assert check_positional_order(ok) is False and ok["b02_label_method"] == "positional"
+    q1 = _b02_doc("2024-Q1", {"q_current": 5, "ytd_current": 5, "q_prior": 4, "ytd_prior": 4})
+    assert check_positional_order(q1) is False

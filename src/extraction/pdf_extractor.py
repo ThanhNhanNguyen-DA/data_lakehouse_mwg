@@ -372,9 +372,10 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
         # Số của các cột có thể lệch dòng nhau (OCR riêng từng cột), nên gom trên mọi dòng thuộc mã này:
         # mỗi cột lấy giá trị đầu tiên tìm thấy.
         values, filled, raw, name = [None] * len(cols), [False] * len(cols), [], []
-        origin = [None] * len(cols)
+        origin, y1 = [None] * len(cols), None
         for k, line in enumerate(lines[i:end], start=i):
             used.add(k)
+            y1 = max(w["y1"] for w in line)
             vals, found, origs = values_of(line)
             if not any(filled):
                 name += [w["text"] for w in line if w["x1"] < (note_band[0] if note_band else cols[0] - 4 * h)
@@ -392,7 +393,7 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
         if statement in ("B02", "B03") and len(code) == 1:
             code = code.zfill(2)  # BCTC quý in "1", "2"
         rows.append({"account_code": code, "item_name": " ".join(name).strip(), "values": values, "raw": raw,
-                     "origins": origin})
+                     "origins": origin, "y0": min(w["y0"] for w in lines[i]), "y1": y1})  # vùng dòng: để cắt ảnh review
     body_start = min(first_row, first_amount)
     # Dòng có số tiền mà không thuộc mã nào (mã bị OCR làm mất): OCR lại dải mã của dòng đó
     orphans = [(min(w["y0"] for w in lines[k]), max(w["y1"] for w in lines[k]))
@@ -518,7 +519,9 @@ def load_equations(path: Path) -> list[dict]:
     if not Path(path).exists():
         return []
     with Path(path).open(encoding="utf-8", newline="") as f:
-        return [{**r, "terms": _terms(r["rhs"])} for r in csv.DictReader(f) if r.get("lhs", "").strip()]
+        # optional: mã vế phải được phép không in (báo cáo bỏ dòng không có số liệu) -> tính là 0
+        return [{**r, "terms": _terms(r["rhs"]), "optional": set((r.get("optional") or "").split())}
+                for r in csv.DictReader(f) if r.get("lhs", "").strip()]
 
 
 def load_dim_account(path: Path) -> list[dict]:
@@ -541,14 +544,15 @@ def _contribution(op: int, v: int, sign: int | None) -> int:
 
 
 def _evaluate(label: str, statement: str, lhs: str, terms: list[tuple[int, str]],
-              values: dict, signs: dict, tol: int) -> list[dict]:
+              values: dict, signs: dict, tol: int, optional: set[str] = frozenset()) -> list[dict]:
     kinds = sorted({k for (s, c, k) in values if s == statement and c == lhs})
     if not kinds:
         return [{"check": label, "kind": None, "ok": False, "note": f"thiếu mã {lhs}"}]
     out = []
     for kind in kinds:
         left = values.get((statement, lhs, kind))
-        parts = [values.get((statement, code, kind)) for _, code in terms]
+        parts = [values.get((statement, code, kind), 0 if code in optional else None) for _, code in terms]
+        parts = [0 if v is None and code in optional else v for (_, code), v in zip(terms, parts)]
         if left is None or None in parts:
             missing = [c for (_, c), v in zip(terms, parts) if v is None] + ([lhs] if left is None else [])
             out.append({"check": label, "kind": kind, "ok": False, "note": f"thiếu {', '.join(missing)}"})
@@ -566,7 +570,8 @@ def check_equations(values: dict[tuple[str, str, str], int | None], equations: l
     for eq in equations:
         if eq["regime"] == regime:
             out += [{**r, "equation": eq}
-                    for r in _evaluate(eq["label"], eq["statement"], eq["lhs"], eq["terms"], values, signs or {}, tol)]
+                    for r in _evaluate(eq["label"], eq["statement"], eq["lhs"], eq["terms"], values, signs or {}, tol,
+                                       eq.get("optional", frozenset()))]
     return out
 
 
@@ -591,8 +596,11 @@ def check_q1_columns(values: dict, tol: int = 1) -> list[dict]:
     return out
 
 
-def check_parent_sums(values: dict, dim: list[dict], regime: str, tol: int = 1) -> list[dict]:
-    """Dòng tổng = tổng các dòng con có is_additive = 1 (theo parent_code trong dim_account)."""
+def check_parent_sums(values: dict, dim: list[dict], regime: str, tol: int = 1,
+                      skip: set[tuple[str, str]] = frozenset()) -> list[dict]:
+    """Dòng tổng = tổng các dòng con có is_additive = 1 (theo parent_code trong dim_account).
+
+    skip: (báo cáo, mã) không kiểm, vd. dòng tổng đã gán bằng đồng nhất thức (config/dq_identities.csv)."""
     signs = signs_of(dim, regime)
     children: dict[tuple[str, str], list[str]] = {}
     uncertain: set[tuple[str, str]] = set()
@@ -606,7 +614,7 @@ def check_parent_sums(values: dict, dim: list[dict], regime: str, tol: int = 1) 
             uncertain.add(key)  # có dòng con chưa chắc cộng hay trừ (vd. 52 trong 60): không kiểm dòng tổng này
     out = []
     for (st, parent), kids in sorted(children.items()):
-        if (st, parent) in uncertain:
+        if (st, parent) in uncertain or (st, parent) in skip:
             continue
         present = [k for k in kids if any(s == st and c == k for (s, c, _) in values)]
         if present:

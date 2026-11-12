@@ -222,3 +222,120 @@ def test_gan_nhan_cot_b02_bang_so_h1_va_q1():
                               "c": {"01": 45, "10": 44, "20": 9}, "d": {"01": 30, "10": 29, "20": 6}}, columns_ok=False)
     assert rx.relabel_b02_numeric(q1, [prior_q1, q1])
     assert {c["period_kind"] for c in q1["cells"] if c["amount_vnd"] == 45} == {"q_current", "ytd_current"}
+
+
+@pytest.mark.parametrize("check, level", [
+    ({"check": "270 = 300 + 400", "equation": {"statement": "B01", "lhs": "270"}}, "critical"),
+    ({"check": "100 = Σ con", "equation": {"statement": "B01", "lhs": "100"}}, "warning"),
+    ({"check": "50 = Σ con", "equation": {"statement": "B02", "lhs": "50"}}, "critical"),
+    ({"check": "40 = 31 - 32", "equation": {"statement": "B02", "lhs": "40"}}, "warning"),
+    ({"check": "Q1: quý này = lũy kế"}, "warning"),
+])
+def test_dq_level(check, level):
+    assert rx.dq_level(check) == level
+
+
+def _b01(period, kind, vals):
+    return {"period": period, "cells": [{"statement": "B01", "account_code": c, "canonical_code": c, "period_kind": kind,
+                                         "amount_vnd": v} for c, v in vals.items()]}
+
+
+def test_trinh_bay_lai_khi_moi_bao_cao_nam_sau_khop_nhau():
+    closing = {2024: {"411": 100, "421": 500}}
+    docs = [_b01("2025-Q1", "opening", {"411": 100, "421": 480}), _b01("2025-H1", "opening", {"411": 100, "421": 480})]
+    assert rx.detect_restatements(docs, closing) == {(2024, "421"): {"closing": 500, "restated": 480,
+                                                                       "docs": ["2025-H1", "2025-Q1"], "note": ""}}
+    # các báo cáo năm sau không khớp nhau -> không kết luận trình bày lại (có thể là lỗi OCR)
+    docs[1]["cells"][1]["amount_vnd"] = 470
+    assert rx.detect_restatements(docs, closing) == {}
+    # loại mã trình bày lại khỏi kiểm tra đầu năm
+    doc = _b01("2025-Q1", "opening", {"411": 100, "421": 480})
+    assert rx._opening_check(doc, closing, {(2024, "421"): {}})[0] is True
+    assert rx._opening_check(doc, closing)[0] is False
+
+
+def test_o_trusted_va_critical():
+    eq_ok = {"statement": "B01", "lhs": "270", "terms": [(1, "300"), (1, "400")], "label": "270 = 300 + 400",
+             "regime": "R"}
+    ctx = {"dim": [], "equations": [eq_ok], "regime_map": {}}
+    d = {"regime": "R", "period": "2025", "columns_ok": True, "cells": [
+        {"statement": "B01", "account_code": c, "period_kind": "closing", "amount_vnd": v}
+        for c, v in (("270", 30), ("300", 10), ("400", 20), ("110", 5))]}
+    rx._evaluate(d, ctx)
+    assert not d["critical_failed"]
+    assert ("B01", "300", "closing") in d["trusted_keys"] and ("B01", "110", "closing") not in d["trusted_keys"]
+    assert d["critical_unchecked"] == ["10", "20", "30", "50", "60"]
+
+
+def test_khong_dien_o_thieu_vao_bao_cao_tt99():
+    fy = _doc("2025", "FS_CONSOLIDATED_Y", [("135", "closing", 6910)])
+    q4 = _doc("2025-Q4", "FS_CONSOLIDATED_Q", [("135", "closing", 6910)])
+    tt99 = {**_doc("2026-Q1", "FS_CONSOLIDATED_Q", [("270", "opening", 1)], sha="t99"), "regime": "TT99"}
+    apply_consensus([fy, q4, tt99])
+    assert [c["account_code"] for c in tt99["cells"]] == ["270"]
+
+
+def test_loai_loi_nghi_ngo():
+    from src.quality.review_overrides import error_kind
+    assert error_kind("402830791807", "102830791807") == "nhầm chữ số: '4'→'1' ở chữ số thứ 1"
+    assert error_kind("-1234", "1234") == "mất dấu âm / ngoặc"
+    assert error_kind("", "5") == "ô trống / OCR không đọc được"
+
+
+def test_ghi_chu_trinh_bay_lai():
+    assert rx._one_digit_more(332630294575, 32630294575)
+    assert not rx._one_digit_more(500, 480)
+    docs = [{**_b01("2025", "closing", {"130": 10}), "regime": "TT200"},
+            {**_b01("2026-Q1", "opening", {"130": 2}), "regime": "TT99"},
+            {**_b01("2026-H1", "opening", {"130": 2}), "regime": "TT99"}]
+    assert "đổi chế độ kế toán" in rx.detect_restatements(docs, {2025: {"130": 10}})[(2025, "130")]["note"]
+
+
+def _cell(code, kind, v, **kw):
+    return {"statement": "B01", "account_code": code, "period_kind": kind, "amount_vnd": v, "is_manual": False,
+            "page": 7, "item_name": "x", "raw_text": "x", **kw}
+
+
+def test_dong_nhat_thuc_440_bang_270():
+    idt = [{"regime": "TT200", "statement": "B01", "target": "440", "source_code": "270"}]
+    cells = [_cell("270", "closing", 100), _cell("440", "closing", 1), _cell("270", "opening", 90)]
+    out = {(c["account_code"], c["period_kind"]): c for c in rx.apply_identities(cells, idt, "TT200")}
+    assert out[("440", "closing")]["amount_vnd"] == 100 and out[("440", "closing")]["ocr_value"] == 1
+    assert out[("440", "closing")]["value_origin"] == "identity"
+    assert out[("440", "opening")]["amount_vnd"] == 90 and out[("440", "opening")]["ocr_value"] is None
+    # ô nhập tay giữ nguyên; regime khác không áp dụng
+    manual = [_cell("270", "closing", 100), _cell("440", "closing", 7, is_manual=True)]
+    assert {c["amount_vnd"] for c in rx.apply_identities(manual, idt, "TT200") if c["account_code"] == "440"} == {7}
+    assert rx.apply_identities(cells, idt, "TT99") == cells
+
+
+def test_bo_kiem_tong_dong_con_cua_dong_dich():
+    from src.extraction.pdf_extractor import check_parent_sums
+    dim = [{"regime": "TT200", "statement": "B01", "account_code": c, "parent_code": "440", "is_additive": "1",
+            "sign": "1"} for c in ("300", "400")]
+    values = {("B01", "300", "closing"): 1, ("B01", "400", "closing"): 2, ("B01", "440", "closing"): 9}
+    assert check_parent_sums(values, dim, "TT200")
+    assert check_parent_sums(values, dim, "TT200", skip={("B01", "440")}) == []
+
+
+def test_goi_y_lech_mot_chu_so_so_voi_ky_lien_ke():
+    fy = {"cells": [{"statement": "B01", "period_kind": "closing", "canonical_code": "153", "account_code": "153"}]}
+    restated = {(2024, "153"): {"closing": 332630294575, "restated": 32630294575, "docs": ["2025", "2025-Q1"]},
+                (2024, "421"): {"closing": 500, "restated": 480, "docs": ["2025"]}}
+    [(year, s)] = rx.digit_suggestions(restated, {2024: fy})
+    assert year == 2024 and s["account_code"] == "153" and s["amount_vnd"] == 32630294575
+    assert s["ocr_value"] == 332630294575
+
+
+def test_bao_cao_thang_so_va_ky():
+    from src.quality.monthly_check import month_of, numbers_in
+    assert {108546, 3920, 44570, 1540} <= numbers_in("doanhthuđạt108.546tỷđồng LNST 3.920 VND44,570 billion VND1,540")
+    assert month_of("2025-Q3", "ytd_current") == "2025-M09"
+    assert month_of("2025-Q3", "q_current") is None
+    assert month_of("2025-Q1", "q_current") == "2025-M03"
+    assert month_of("2025", "current") == "2025-M12" and month_of("2025", "prior") is None
+    assert month_of("2025-H1", "current") == "2025-M06"
+    from src.quality.monthly_check import nearest
+    assert nearest(73755, {73655, 150000, 2025}) == 73655 and nearest(39, {2025}) is None
+    from src.quality.monthly_check import one_digit_off
+    assert one_digit_off(73755, 73655) and not one_digit_off(168, 160) and not one_digit_off(51621, 51727)

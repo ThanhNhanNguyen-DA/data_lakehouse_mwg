@@ -1,13 +1,16 @@
-regime,statement,lhs,rhs,label,source
-TT200,B01,270,300+400,270 = 300 + 400,CLAUDE.md (người dùng chỉ định)
-TT200,B02,10,01-02,10 = 01 - 02,CLAUDE.md (người dùng chỉ định)
-TT200,B02,20,10-11,20 = 10 - 11,CLAUDE.md (người dùng chỉ định)
-TT99,B01,280,100+200,280 = 100 + 200,"In trên B01 BCTC hợp nhất Q3/2026 của MWG ""(280 = 100 + 200)"""
-TT99,B01,440,300+400,440 = 300 + 400,"In trên B01 BCTC hợp nhất Q3/2026 của MWG ""(440 = 300 + 400)"""
-TT99,B01,280,300+400,280 = 300 + 400,Tổng tài sản (280) = tổng nguồn vốn (440 = 300 + 400) trên B01 Q3/2026
-TT99,B02,10,01-02,10 = 01 - 02,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(10 = 01 - 02)"""
-TT99,B02,20,10-11,20 = 10 - 11,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(20 = 10 - 11)"""
-TT99,B02,30,20+22-23-25-26+27,30 = 20 + 22 - (23 + 25 + 26) + 27,"In trên B02 BCTC hợp nhất Q3/2026 của MWG"
-TT99,B02,40,31-32,40 = 31 - 32,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(40 = 31 - 32)"""
-TT99,B02,50,30+40,50 = 30 + 40,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(50 = 30 + 40)"""
-TT99,B02,60,50-51-52,60 = 50 - 51 - 52,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(60 = 50 - 51 - 52)"""
+regime,statement,lhs,rhs,label,optional,source
+TT200,B01,270,300+400,270 = 300 + 400,,CLAUDE.md (người dùng chỉ định)
+TT200,B02,10,01-02,10 = 01 - 02,,CLAUDE.md (người dùng chỉ định)
+TT200,B02,20,10-11,20 = 10 - 11,,CLAUDE.md (người dùng chỉ định)
+TT99,B01,280,100+200,280 = 100 + 200,,"In trên B01 BCTC hợp nhất Q3/2026 của MWG ""(280 = 100 + 200)"""
+TT99,B01,440,300+400,440 = 300 + 400,,"In trên B01 BCTC hợp nhất Q3/2026 của MWG ""(440 = 300 + 400)"""
+TT99,B01,280,300+400,280 = 300 + 400,,Tổng tài sản (280) = tổng nguồn vốn (440 = 300 + 400) trên B01 Q3/2026
+TT99,B02,10,01-02,10 = 01 - 02,,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(10 = 01 - 02)"""
+TT99,B02,20,10-11,20 = 10 - 11,,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(20 = 10 - 11)"""
+TT99,B02,30,20+22-23-25-26+27,30 = 20 + 22 - (23 + 25 + 26) + 27,,In trên B02 BCTC hợp nhất Q3/2026 của MWG
+TT99,B02,40,31-32,40 = 31 - 32,,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(40 = 31 - 32)"""
+TT99,B02,50,30+40,50 = 30 + 40,,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(50 = 30 + 40)"""
+TT99,B02,60,50-51-52,60 = 50 - 51 - 52,,"In trên B02 BCTC hợp nhất Q3/2026 của MWG ""(60 = 50 - 51 - 52)"""
+TT200,B02,60,61+62,60 = 61 + 62,,Mẫu B02-DN/HN (TT202 PL1): LNST 60 tách thành 61 (cổ đông công ty mẹ) và 62 (cổ đông không kiểm soát); người dùng chỉ định
+TT99,B02,60,61+62,60 = 61 + 62,,BCTC hợp nhất TT99 của MWG in 61 và 62 dưới 60 (8 ô mỗi mã trong fs_extracted_raw); người dùng chỉ định
+TT200,B02,30,20+21-22+24-25-26,30 = 20 + (21 - 22) + 24 - (25 + 26),24,"Dò bằng số liệu: đúng 36/38 báo cáo TT200 đã qua critical B01 (dòng 24 không in = 0), công thức in trong bản TT202 của TVT-ProTrain đúng 0/38 (tools/probe_b02_formula.py, docs/dim_account_notes.md). Thay bằng công thức in trong TT202 chính thức khi có trong docs/reference/"

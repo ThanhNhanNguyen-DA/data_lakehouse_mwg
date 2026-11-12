@@ -1,0 +1,74 @@
+Use case: infographic-diagram
+Asset type: high-resolution landscape architecture infographic for a software repository, approximately 2400 x 1600.
+Create ONE polished Vietnamese diagram of the inspected MWG Financial Data Lakehouse ETL/ELT pipeline. This is a DATA FLOW diagram with prominent Extract / Load / Transform / Load stages, distinct from a general architecture inventory. All code identifiers must be exact. Explain the current implementation plus a clearly separated future continuation.
+
+Visual style: clean white background, dark navy headings, professional editorial typography, large E / L / T / L stage badges, teal solid connectors for existing paths, bronze storage accent and pale blue Silver storage accent. Small consistent document and database line icons. Rounded cards, spacious layout, legible text, no 3D, no decorative artwork, no watermark. Use proper Vietnamese accents. Use dashed gray borders and arrows ONLY for unimplemented future work; all existing feedback loops use solid colored arrows.
+
+Title exactly: "LUỒNG ETL/ELT"
+Second title exactly: "MWG Financial Data Lakehouse"
+Subtitle exactly: "Lưu bản gốc → Biến đổi bằng Python → Nạp bảng Delta"
+Small date: "Code hiện tại · 12/11/2026"
+Legend: "Nét liền: đã có mã" / "Nét đứt: dự kiến"
+
+Layout: three clear horizontal bands.
+
+TOP BAND: dominant four-stage left-to-right pipeline, large simple cards connected by solid arrows:
+1. Large badge "E", heading "EXTRACT · Thu thập"
+   "MWG IR: mwg.vn/bao-cao"
+   "CategoryAPI → PostAPI → tải file"
+   "vi-VN chính · en-US dự phòng"
+   small module identifier "mwg_crawler.py"
+2. Large badge "L", heading "LOAD · Bronze"
+   "PDF / JPG / PNG + .meta.json"
+   "Append-only · SHA256"
+   "data/bronze/source=mwg_ir/"
+   a small associated sidecar "Manifest: data/_state/manifest.parquet" indicating crawler manages manifest, not that Bronze files produce it.
+3. Large badge "T", heading "TRANSFORM · Python"
+   "OCR → Dựng bảng → Chuẩn hóa"
+   "Tự sửa OCR → Kiểm tra DQ"
+   small module identifier "run_extraction.py"
+4. Large badge "L", heading "LOAD · Silver RAW"
+   "data/silver/fs_extracted_raw"
+   "Polars → Delta Lake"
+   "mode=overwrite"
+   clear amber chip "Giữ cả ô chưa đạt DQ"
+Do NOT draw a pass/fail gate before the Silver RAW load. It stores all extracted results with flags, including failed ones.
+Below the top pipeline include a concise interpretive strip: "Luồng lai: E → L (Bronze) → T (Python) → L (Silver RAW)". Do not claim transformations run inside a data warehouse.
+
+MIDDLE BAND: heading "Bên trong bước T · Biến đổi & chất lượng"
+This is an expanded view of the T stage, in a lightly tinted panel.
+Use three main connected cards left to right:
+A. "Đọc & bóc tách"
+   "PDF có text: pdfplumber"
+   "PDF scan / ảnh: Tesseract vie+eng"
+   "OCR lại vùng lỗi · Cache OCR"
+   small identifier "ocr.py · pdf_extractor.py"
+B. "Chuẩn hóa & đối chiếu"
+   "B01 / B02 / B03 → ô dữ liệu"
+   "Số tiền VND · mã theo cấu hình"
+   "Đối chiếu nhãn cột & kỳ báo cáo"
+   "Consensus B01 giữa các báo cáo"
+C. "Kiểm tra & gắn cờ DQ"
+   "Phương trình TT200 / TT99"
+   "Tổng dòng con · đầu năm / cuối năm"
+   "passed_critical · is_trusted"
+   smaller line "gold_eligible = passed_critical AND is_trusted"
+Use solid arrows A → B → C. A → B → C is a conceptual summary, not an assertion that no intermediate checks occur.
+Attach these compact support elements beneath the main cards without crossing arrows:
+- A solid AMBER loop FROM C to "PaddleOCR dự phòng" and BACK to C, with label "Còn sai phương trình · giữ kết quả nếu ít lỗi hơn". PaddleOCR is implemented fallback, NOT planned and NOT always run.
+- From C, a solid arrow to "docs/dq_report.md".
+- One separate small manual-correction loop: FROM C → "Gợi ý sửa tay: status=pending" → "Đọc PDF gốc & xác nhận" → B, with return label "Áp dụng khi confirmed · chạy lại DQ". This branch concerns auto-generated suggestions; pending suggestions must NOT be depicted as automatically applied. Use solid arrows because this workflow exists. If drawing all three small cards would crowd the layout, combine them into one wide card with internal arrows.
+A small note under the panel: "Báo cáo tháng: hiện mới kiểm tra kỳ; chain_kpi còn dự kiến."
+
+BOTTOM BAND: a clearly bounded light-gray dashed container headed "Tiếp theo từ Silver RAW · chưa có mã triển khai".
+Three cards with dashed gray arrows left to right:
+"Silver chuẩn hóa" / "Chọn bản ưu tiên · Delta MERGE" / "fin_statement_long · chain_kpi"
+→ "Gold" / "fact_financial + dimensions" / "Delta Lake · DuckDB · KPI"
+→ "Dashboard" / "Streamlit · Plotly".
+An optional small label before Gold: "Dùng ô có gold_eligible = true" must also be gray/dashed, because the future transform has not yet been implemented. The existing flag calculation belongs in the middle/current band.
+End with a small caption: "Hiện tại: dừng ở Silver RAW; Gold và dashboard là lộ trình."
+
+Accuracy constraints: no Spark, Kafka, Airflow, S3, cloud infrastructure, API server or LLM. Do not claim an existing pipeline orchestrator or existing Gold tables. Do not show DQ failures discarded from raw. Do not show pending manual suggestions applied automatically. Do not say dim_account or regime mapping is empty; both now have data. Do not invent performance or quality metrics. Favor readable data flow over excessive tiny text.
+
+Final edit prompt (image_gen; generated image supplied as reference):
+Make ONE precise connector correction to this Vietnamese ETL/ELT infographic. The card "Gợi ý sửa tay: status=pending" currently receives its incoming arrow from the middle card "Chuẩn hóa & đối chiếu". Automatic suggestions actually originate AFTER DQ. Remove only that incoming connector from the bottom-right of the middle normalization card to the pending-suggestions card. Replace it with a SOLID TEAL elbow arrow originating at the bottom-left edge of the RIGHTMOST "Kiểm tra & gắn cờ DQ" card, routing through clear space below the main cards and entering the RIGHT edge of "Gợi ý sửa tay: status=pending", arrowhead pointing LEFT into the pending card. Keep the existing leftward arrow from pending to "Đọc PDF gốc & xác nhận" and its return loop into normalization exactly as they are. Preserve the orange PaddleOCR loop, report arrow, all text, all cards, all other arrows, all dimensions, all typography, all colors and overall composition exactly. Do not change anything else.
