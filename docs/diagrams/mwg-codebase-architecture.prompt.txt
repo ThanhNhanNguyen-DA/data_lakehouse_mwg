@@ -1,0 +1,46 @@
+Use case: infographic-diagram
+Asset type: repository architecture image, landscape, high resolution, approximately 2400 x 1700.
+Create a polished, technically precise architecture diagram for the inspected Python repository "MWG Financial Data Lakehouse". It must explain the CURRENT code and clearly separate a small FUTURE roadmap. All visible explanatory language is Vietnamese with proper accents; preserve exact English technical identifiers below.
+
+Style: crisp professional vector-like engineering infographic, warm white background, deep navy typography, teal connectors and small teal "đã có mã" badges for existing modules, bronze accent on Bronze storage, pale blue accent on raw Silver. Future roadmap uses light gray cards, dashed gray borders and dashed arrows. Restrained small line icons (documents, database, code) are optional. Flat, clean, generous whitespace, excellent text legibility, consistent rounded rectangles, no 3D, no decorative illustrations, no watermark. Bold title and small monospace file identifiers. Route arrows orthogonally without overlap. Arrow direction must be unambiguous.
+
+Main title exactly: "MWG Financial Data Lakehouse"
+Subtitle exactly: "Sơ đồ codebase · 12/11/2026"
+Legend exactly: "Nét liền: đã có mã" and "Nét đứt: dự kiến"
+
+Three horizontal bands with strong visual hierarchy:
+
+BAND 1 — heading "01  Thu thập & lưu tài liệu gốc"
+Main left-to-right flow:
+A. "MWG Investor Relations" / "mwg.vn/bao-cao" / "CategoryAPI → PostAPI" / "vi-VN chính · en-US dự phòng"
+B. "Crawler" / "mwg_crawler.py" / "Phân loại tài liệu & kỳ" / "Incremental / backfill" / "http_utils.py: retry + throttle"
+C. "Bronze" / "data/bronze/source=mwg_ir/" / "PDF / JPG / PNG + .meta.json" / "Append-only · SHA256"
+Connect A → B → C with solid teal arrows.
+Below B add a compact sidecar titled "Trạng thái & cấu hình": "config/sources.yaml", "data/_state/manifest.parquet", "download_errors.csv · link_anomalies.csv". Crawler reads config and reads/writes manifest. Do NOT draw Bronze as the producer of the manifest. The manifest stores file paths, sha256, has_text_layer, and period. A thin support connector from the sidecar can feed the extraction band.
+
+BAND 2 — heading "02  Bóc tách & kiểm tra chất lượng" / small label "run_extraction.py"
+A solid connector carries Bronze documents to the input decision "has_text_layer?"
+The decision has exactly two branches:
+- "Có" → a small upper card "pdfplumber" / "Đọc từ + tọa độ"
+- "Không" → a larger lower card "Tesseract OCR · vie+eng" / "pypdfium2 render trang" / "100 dpi: tìm trang B01/B02/B03" / "300 dpi: OCR trang & từng cột"
+Both branches merge into ONE "Dựng bảng" card: "pdf_extractor.py" / "B01 / B02 / B03" / "Mã số · kỳ cột · số tiền VND".
+Then a solid arrow leads to ONE "Hiệu chỉnh & DQ" card: "manual_overrides.csv" / "Đối chiếu kỳ báo cáo" / "Phương trình TT200 / TT99" / "Đầu năm = cuối năm trước".
+Then a solid arrow leads to the current output card "Silver · RAW" / "data/silver/" / "fs_extracted_raw" / "Polars → Delta Lake" / "Ghi đè mỗi lần chạy".
+A very clear amber annotation attached to this raw output must read exactly: "Lưu cả ô lỗi cùng cờ DQ". Do NOT depict DQ as a filter that drops failing cells before raw storage. Raw stores dq_balance_ok and period_check_ok flags.
+Below the OCR card add compact support "Cache OCR: data/_cache/ocr/" / "SHA256 + trang + dpi".
+Below DQ add a compact report output "docs/dq_report.md" connected FROM DQ. Also add a small compact note "dim_account.csv và regime map còn trống".
+Add ONE small note for a separate branch from extraction input: "Báo cáo tháng: mới kiểm tra kỳ". This branch may point to the DQ report; do NOT connect it to a financial or chain KPI table.
+If space permits add a small support arrow labeled "resolve_period()" from the extraction/DQ area back to manifest. This is optional; prioritize readability.
+
+BAND 3 — a distinct light gray dashed container heading "03  Lộ trình tiếp theo · chưa có mã triển khai"
+Three cards connected left to right with dashed gray arrows:
+"Silver chuẩn hóa" / "fin_statement_long · chain_kpi" / "Delta MERGE"
+→ "Gold & truy vấn" / "Star schema · Delta Lake" / "DuckDB · KPI"
+→ "Dashboard" / "Streamlit · Plotly"
+Small footer within this dashed container: "Điều phối dự kiến: run_pipeline.py + GitHub Actions".
+This future band describes work AFTER raw extraction; do not imply these modules exist or are running today. A short intro label may say "Sau fs_extracted_raw".
+
+Important technical constraints: no Spark, Kafka, Airflow, cloud infrastructure, API server, LLM, or vnstock in the current flow. Do not invent tables or jobs. Do not claim the dataset passes DQ. Do not add numeric quality metrics. Do not present normalized Silver, Gold, dashboard, or orchestration as implemented. Keep text readable; favor visual hierarchy and concise supplied labels over tiny text.
+
+Final edit prompt (image_gen; original generated image supplied as reference):
+Edit this architecture diagram with one precise technical correction only: the teal connector labeled "resolve_period()", which runs from the extraction / DQ area upward to the manifest sidecar, represents an ALREADY IMPLEMENTED function. Change every dashed segment of that teal resolve_period() connector into a thin SOLID teal line, keeping its existing geometry and arrowhead toward the manifest. All gray dashed lines in the future roadmap must stay dashed. Preserve absolutely all other content, all Vietnamese text, all cards, all arrows, the composition, colors, dimensions and typography exactly. Do not add or remove any element. Opaque background.

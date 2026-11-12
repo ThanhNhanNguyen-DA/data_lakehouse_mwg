@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2021/3/audited-consolidate-fs-fy2020.pdf",
+  "post_id": 1912,
+  "lang": "en-US",
+  "fetch_reason": "cross_check",
+  "title": "Audited Consolidated FS FY2020",
+  "doc_type": "FS_CONSOLIDATED_Y",
+  "file_type": "pdf",
+  "has_text_layer": false,
+  "period": "2020",
+  "published": "2021-03-08",
+  "category_year": 2020,
+  "assurance_level": 3,
+  "sha256": "51662ea2befbe47d6b9b12a83d1f4b76c37ad6fd6492292664231d7afcb08394",
+  "size": 16584169,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:36:46"
+}

@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2020/03/19FN-MWG-000-Consol-VAS-FS-E-31.12-1-March-2020.pdf",
+  "post_id": 1014,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "Audited Consolidate FS FY2019",
+  "doc_type": "FS_CONSOLIDATED_Y",
+  "file_type": "pdf",
+  "has_text_layer": false,
+  "period": "2019",
+  "published": "2020-01-30",
+  "category_year": 2019,
+  "assurance_level": 3,
+  "sha256": "996e4f3fd20581fc45183eb5d4f33a771bb5122bda638cd68121ed6038662fc7",
+  "size": 16040438,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:38:21"
+}

@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2020/09/MonthlyReport_-Aug-2020_ENG.pdf",
+  "post_id": 1000,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "YTD August 2020 Report",
+  "doc_type": "MONTHLY_RESULT",
+  "file_type": "pdf",
+  "has_text_layer": true,
+  "period": "2020-M08",
+  "published": "2020-09-21",
+  "category_year": 2020,
+  "assurance_level": 1,
+  "sha256": "5fa8120d9e2d17f9b2d63168ae3c4489dc11c15a15341338c3418687e3fd11a8",
+  "size": 430421,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:37:18"
+}

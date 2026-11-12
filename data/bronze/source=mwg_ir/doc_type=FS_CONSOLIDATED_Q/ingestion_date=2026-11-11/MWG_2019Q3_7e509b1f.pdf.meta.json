@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2019/11/19IR-MWG-Audited-Consolidated-VAS-FS-E-30.09.pdf",
+  "post_id": 1016,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "Interim Consolidated FS 3Q19",
+  "doc_type": "FS_CONSOLIDATED_Q",
+  "file_type": "pdf",
+  "has_text_layer": false,
+  "period": "2019-Q3",
+  "published": "2019-11-15",
+  "category_year": 2019,
+  "assurance_level": 1,
+  "sha256": "7e509b1fa97d5c36dcbb1d02eecf3fe38120d1ee250cb9cb4ae308bfd11a7f56",
+  "size": 8964543,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:38:29"
+}

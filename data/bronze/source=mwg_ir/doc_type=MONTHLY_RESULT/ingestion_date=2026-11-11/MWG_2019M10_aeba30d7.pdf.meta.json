@@ -1,0 +1,19 @@
+{
+  "url": "https://bhxcdn.vn/mwgvn/ir/eng/2019/11/YTD-Oct-2019-EN-Final.pdf",
+  "post_id": 1024,
+  "lang": "en-US",
+  "fetch_reason": "fallback",
+  "title": "YTD October 2019 Report",
+  "doc_type": "MONTHLY_RESULT",
+  "file_type": "pdf",
+  "has_text_layer": true,
+  "period": "2019-M10",
+  "published": "2019-11-22",
+  "category_year": 2019,
+  "assurance_level": 1,
+  "sha256": "aeba30d7234d75e3040f0fecf1307d50bfe18f5c1271cc2e48bce18c93f79e02",
+  "size": 364900,
+  "http_status": 200,
+  "is_restatement": false,
+  "fetched_at": "2026-11-11T14:39:17"
+}
