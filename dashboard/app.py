@@ -29,6 +29,16 @@ STATUS_COLORS = {"có số": "#1baf7a", "bị chặn DQ": "#eda100", "không có
 METHOD_HELP = {"average": "Bình quân số dư đầu kỳ và cuối kỳ",
                "ending_balance": "Thiếu số dư đầu kỳ trong Gold: tính theo số dư cuối kỳ (kpi_method = ending_balance)"}
 TT99_NOTE = "Đổi chuẩn TT99 (từ 2026): mã 120, 130 khác nội dung TT200, không nối chuỗi"
+PLOTLY_CONFIG = {"displayModeBar": False}
+# Kiểu Power BI: nền xám nhạt, KPI card và container key="card_*" nền trắng. Testid/class theo Streamlit 1.67.
+CSS = """<style>
+.stApp, [data-testid="stAppViewContainer"] {background: #F4F6F9;}
+[data-testid="stMainBlockContainer"] {padding-top: 1.5rem;}
+[data-testid="stMetric"] {background: #FFFFFF; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-left: 4px solid #2a78d6; padding: 12px 16px;}
+.st-key-card_year [data-testid="stMetric"] {border-left-color: #F59E0B;}
+[class*="st-key-card"] {background: #FFFFFF; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);}
+</style>"""
 
 st.set_page_config(page_title="MWG Lakehouse", page_icon="📊", layout="wide")
 
@@ -72,10 +82,17 @@ def layout(fig: go.Figure, yfmt: str = "", height: int = 380) -> go.Figure:
     fig.update_layout(height=height, margin=dict(l=8, r=8, t=80, b=8), hovermode="x unified",
                       title=dict(y=0.97, yanchor="top", x=0, xanchor="left"),
                       legend=dict(orientation="h", y=1.0, yanchor="bottom", x=0), plot_bgcolor="rgba(0,0,0,0)",
-                      paper_bgcolor="rgba(0,0,0,0)")
+                      paper_bgcolor="rgba(0,0,0,0)", bargap=0.35, barcornerradius=4,
+                      uniformtext=dict(minsize=8, mode="hide"))  # nhãn số không đủ chỗ (nhiều quý) thì ẩn, không đè nhau
     fig.update_yaxes(tickformat=yfmt, gridcolor="rgba(128,128,128,0.18)", zeroline=False)
     fig.update_xaxes(showgrid=False, type="category")
     return fig
+
+
+def bar(df: pd.DataFrame, col: str, name: str, color: str) -> go.Bar:
+    """Cột tỷ đồng có nhãn số nguyên trên đỉnh cột."""
+    return go.Bar(x=df["label"], y=df[col] / BILLION, name=name, marker_color=color, texttemplate="%{y:,.0f}",
+                  textposition="outside", cliponaxis=False, hovertemplate="%{x}: %{y:,.0f} tỷ<extra></extra>")
 
 
 def quarter_frame() -> pd.DataFrame:
@@ -104,8 +121,9 @@ def page_overview():
     yd = q("SELECT * FROM v_kpi_year WHERE net_revenue IS NOT NULL ORDER BY fiscal_year DESC LIMIT 1")
     if len(qd):
         r = qd.iloc[0]
-        st.subheader(f"Quý gần nhất có số: {r['quarter_label']}")
-        c = st.columns(5)
+        box = st.container(border=True, key="card_quarter")
+        box.subheader(f"Quý gần nhất có số: {r['quarter_label']}")
+        c = box.columns(5)
         c[0].metric("Doanh thu thuần", tỷ(r["net_revenue"]),
                     None if pd.isna(r["revenue_yoy"]) else f"{pct(r['revenue_yoy'])} so với cùng kỳ")
         c[1].metric("LN sau thuế", tỷ(r["npat"]), None if pd.isna(r["npat_yoy"]) else f"{pct(r['npat_yoy'])} so với cùng kỳ")
@@ -114,11 +132,12 @@ def page_overview():
         c[4].metric("ROE (năm hóa)", pct(r["roe_annualized"]), help=METHOD_HELP.get(r.get("kpi_method")))
         missing = [n for n, k in (("LNST", "npat"), ("ROE", "roe_annualized")) if pd.isna(r[k])]
         if missing:
-            st.caption(f"'–': {', '.join(missing)} của quý này chưa vào Gold (bị chặn DQ hoặc thiếu kỳ đầu), xem trang Độ phủ.")
+            box.caption(f"'–': {', '.join(missing)} của quý này chưa vào Gold (bị chặn DQ hoặc thiếu kỳ đầu), xem trang Độ phủ.")
     if len(yd):
         r = yd.iloc[0]
-        st.subheader(f"Năm gần nhất có số: FY{r['fiscal_year']}")
-        c = st.columns(5)
+        box = st.container(border=True, key="card_year")
+        box.subheader(f"Năm gần nhất có số: FY{r['fiscal_year']}")
+        c = box.columns(5)
         c[0].metric("Doanh thu thuần", tỷ(r["net_revenue"]), None if pd.isna(r["revenue_yoy"]) else f"{pct(r['revenue_yoy'])} YoY")
         c[1].metric("LN sau thuế", tỷ(r["npat"]), None if pd.isna(r["npat_yoy"]) else f"{pct(r['npat_yoy'])} YoY")
         c[2].metric("LNST cổ đông công ty mẹ", tỷ(r["npat_parent"]))
@@ -137,37 +156,43 @@ def _grain() -> tuple[str, pd.DataFrame]:
 def page_results():
     st.header("Kết quả kinh doanh")
     grain, df = _grain()
-    for title, col, color in (("Doanh thu thuần (tỷ đồng)", "net_revenue", COLORS["revenue"]),
-                              ("Lợi nhuận sau thuế (tỷ đồng)", "npat", COLORS["npat"])):
-        fig = go.Figure(go.Bar(x=df["label"], y=df[col] / BILLION, marker_color=color, name=title,
-                               hovertemplate="%{x}: %{y:,.0f} tỷ<extra></extra>"))
+    charts = (("Doanh thu thuần (tỷ đồng)", "net_revenue", COLORS["revenue"]),
+              ("Lợi nhuận sau thuế (tỷ đồng)", "npat", COLORS["npat"]))
+    for slot, (title, col, color) in zip(st.columns(2), charts):
+        fig = go.Figure(bar(df, col, title, color))
         fig.update_layout(title=title, showlegend=False, hovermode="closest")
         if grain == "Năm" and col == "npat":
-            fig.add_trace(go.Bar(x=df["label"], y=df["npat_parent"] / BILLION, marker_color=COLORS["roa"],
-                                 name="LNST cổ đông công ty mẹ", hovertemplate="%{x}: %{y:,.0f} tỷ<extra></extra>"))
+            fig.add_trace(bar(df, "npat_parent", "LNST cổ đông công ty mẹ", COLORS["roa"]))
             fig.update_layout(showlegend=True, barmode="group")
-        st.plotly_chart(layout(fig, ",.0f"), use_container_width=True)
+        with slot.container(border=True, key=f"card_{col}"):
+            st.plotly_chart(layout(fig, ",.0f"), width="stretch", config=PLOTLY_CONFIG)
     st.caption("Ô trống = kỳ chưa vào Gold (bị chặn DQ hoặc không có tài liệu gốc), không nội suy. Quý 2/3/4 có thể là "
                "số suy ra (H1 − Q1, 9T − H1, năm − 9T) từ hai ô đã qua DQ.")
-    with st.expander("Bảng số liệu"):
-        st.dataframe(df[["label", "net_revenue", "gross_profit", "npat", "npat_parent"]].assign(
-            **{c: df[c] / BILLION for c in ("net_revenue", "gross_profit", "npat", "npat_parent")}).round(0),
-            hide_index=True, use_container_width=True)
+    money = {"net_revenue": "Doanh thu thuần", "gross_profit": "LN gộp", "npat": "LN sau thuế",
+             "npat_parent": "LNST cổ đông công ty mẹ"}
+    with st.container(border=True, key="card_table"):
+        st.markdown("**Bảng số liệu (tỷ đồng)**")
+        st.dataframe(df[["label", *money]].assign(**{c: df[c] / BILLION for c in money}).round(0),
+                     hide_index=True, width="stretch",
+                     column_config={"label": "Kỳ", **{c: st.column_config.NumberColumn(n, format="%,d tỷ", alignment="right")
+                                                     for c, n in money.items()}})
 
 
 def page_margins():
     st.header("Biên lợi nhuận và hiệu quả")
     grain, df = _grain()
     roe, roa = ("roe_annualized", "roa_annualized") if grain == "Quý" else ("roe", "roa")
-    for title, series in (("Biên lợi nhuận", (("Biên LN gộp", "gross_margin", COLORS["gross"]),
-                                              ("Biên LN ròng", "net_margin", COLORS["net"]))),
-                          ("ROE / ROA" + (" (năm hóa ×4)" if grain == "Quý" else ""),
-                           (("ROE", roe, COLORS["roe"]), ("ROA", roa, COLORS["roa"])))):
+    charts = (("Biên lợi nhuận", (("Biên LN gộp", "gross_margin", COLORS["gross"]),
+                                  ("Biên LN ròng", "net_margin", COLORS["net"]))),
+              ("ROE / ROA" + (" (năm hóa ×4)" if grain == "Quý" else ""),
+               (("ROE", roe, COLORS["roe"]), ("ROA", roa, COLORS["roa"]))))
+    for i, (slot, (title, series)) in enumerate(zip(st.columns(2), charts)):
         fig = go.Figure([go.Scatter(x=df["label"], y=df[c], name=n, mode="lines+markers", connectgaps=False,
                                     line=dict(color=col, width=2), marker=dict(size=8),
                                     hovertemplate=n + ": %{y:.1%}<extra></extra>") for n, c, col in series])
         fig.update_layout(title=title)
-        st.plotly_chart(layout(fig, ".0%"), use_container_width=True)
+        with slot.container(border=True, key=f"card_margin_{i}"):
+            st.plotly_chart(layout(fig, ".0%"), width="stretch", config=PLOTLY_CONFIG)
     ending = df.loc[df["kpi_method"] == "ending_balance", "label"].tolist() if "kpi_method" in df else []
     st.caption("ROE/ROA và số ngày tồn kho dùng số dư bình quân đầu kỳ – cuối kỳ; kỳ thiếu số đầu kỳ thì tính theo số dư "
                "cuối kỳ (`kpi_method = ending_balance`), thiếu số cuối kỳ thì để trống. Đường đứt quãng = kỳ thiếu số."
@@ -201,7 +226,7 @@ def page_structure():
         if x_tt99 is not None and len(broken):
             tt99_marker(fig, x_tt99)
         layout(fig, ".0%", 420).update_xaxes(categoryorder="array", categoryarray=order)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch", config=PLOTLY_CONFIG)
     if x_tt99 is not None:
         st.caption(TT99_NOTE + f" (kỳ đầu theo TT99 trong Gold: {x_tt99}). Tỷ trọng mỗi kỳ vẫn đúng theo chuẩn của kỳ đó.")
     st.caption("Kỳ thiếu một vài chỉ tiêu (bị chặn DQ) có cột không cộng đủ 100%.")
@@ -221,11 +246,12 @@ def page_coverage():
     fig = go.Figure(go.Heatmap(z=z.apply(lambda col: col.map(code)).values, x=labels, y=inds, text=z.values,
                                colorscale=colorscale, zmin=0, zmax=2, showscale=False, xgap=2, ygap=2,
                                hovertemplate="%{y} – %{x}: %{text}<extra></extra>"))
-    st.plotly_chart(layout(fig, height=120 + 36 * len(inds)).update_layout(hovermode="closest"), use_container_width=True)
+    st.plotly_chart(layout(fig, height=120 + 36 * len(inds)).update_layout(hovermode="closest"), width="stretch",
+                    config=PLOTLY_CONFIG)
     st.markdown(" · ".join(f"<span style='color:{c}'>■</span> {s}" for s, c in STATUS_COLORS.items()),
                 unsafe_allow_html=True)
     summary = d.groupby(["indicator", "status"]).size().unstack(fill_value=0).reindex(index=inds)
-    st.dataframe(summary, use_container_width=True)
+    st.dataframe(summary, width="stretch")
     st.caption("'bị chặn DQ': có số ở Silver nhưng chưa qua kiểm tra phương trình/critical (hoặc ô suy ra từ ô chưa qua). "
                "'không có tài liệu gốc': không có BCTC (hoặc cột so sánh) nào cho kỳ đó, xem docs/limitations.md.")
 
@@ -265,7 +291,7 @@ def page_lineage():
             import pypdfium2 as pdfium
             pdf = pdfium.PdfDocument(str(path))
             st.image(pdf[int(r["page"]) - 1].render(scale=1.4).to_pil(),
-                     caption=f"{path.name}, trang {int(r['page'])}", use_container_width=True)
+                     caption=f"{path.name}, trang {int(r['page'])}", width="stretch")
     elif pd.notna(r["page"]):
         st.caption("File PDF gốc không có trên máy này (Bronze không đưa lên git); mở URL gốc để xem.")
     else:
@@ -281,6 +307,7 @@ def main():
     if not use_local() and not SNAPSHOT.exists():
         st.error("Chưa có data/gold/mwg.duckdb hay dashboard/snapshot/mwg.duckdb: chạy `python run_pipeline.py` trước.")
         st.stop()
+    st.markdown(CSS, unsafe_allow_html=True)
     page = st.sidebar.radio("Trang", list(PAGES), key="page")
     st.sidebar.caption("BCTC hợp nhất CTCP Đầu tư Thế Giới Di Động (HOSE: MWG). Tiền: tỷ đồng. "
                        "Dữ liệu: Bronze → Silver → Gold (Delta Lake), truy vấn DuckDB read-only."

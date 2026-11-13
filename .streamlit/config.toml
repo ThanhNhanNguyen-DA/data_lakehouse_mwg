@@ -1,0 +1,3 @@
+[theme]
+# CSS trong dashboard/app.py giả định nền sáng (#F4F6F9, card trắng)
+base = "light"
