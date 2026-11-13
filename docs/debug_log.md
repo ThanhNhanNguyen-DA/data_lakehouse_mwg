@@ -514,6 +514,110 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 - Bài học / hạn chế còn lại: chưa chạy workflow thật trên GitHub (cần push + merge vào `master`); nguồn bhxcdn.vn có
   thể chặn IP runner (403 → job dừng, không vượt chặn); lần chạy đầu trên runner chưa đo thời gian.
 
+### DBG-36 – Q4 tự lập lệch BCTC năm kiểm toán: bốn quý cộng lại khác năm
+- Giai đoạn / tầng: Silver
+- Triệu chứng: Q4/2025 doanh thu trong Gold 42.850,4 tỷ (in trên BCTC Q4 tự lập), trong khi năm 2025 kiểm toán
+  155.928,1 tỷ = 9T 113.607,4 + 42.320,7: Q1..Q4 cộng lại lệch năm 529,7 tỷ; LNST Q4 lại suy từ năm kiểm toán − 9T,
+  nên biên LN ròng Q4/2025 trộn hai cơ sở.
+- Nguyên nhân gốc: thứ tự bản thắng đặt `is_derived = false` trên `source_priority`: số Q4 in trên báo cáo tự lập
+  thắng số suy từ bản kiểm toán. Lũy kế 12 tháng của BCTC Q4 (156.457,8 tỷ) và BCTC năm cùng khóa nhưng không có mục
+  nào so hai bản này.
+- Cách phát hiện: kiểm tra lại `v_kpi_quarter` sau lượt chạy 13/11 (Q4/2025 ≠ năm − 9T).
+- Cách xử lý (người dùng chọn phương án b, 13/11/2026): khi đã có BCTC năm, mọi chỉ tiêu B02 cộng được theo thời gian
+  của Q4 = năm − 9T (`is_derived`) với `AUDITED_Q4_BONUS` (giữa tiêu chí `is_comparative` và `is_derived` trong
+  `rank_score`); số Q4 tự lập giữ ở `fs_extracted_raw`. Mục "Điều chỉnh kiểm toán" trong `docs/dq_report.md` so lũy
+  kế Q4 tự lập với năm kiểm toán theo từng mã (`bronze_to_silver.audit_adjustments`). Demo time travel
+  (`tools/demo_time_travel.py`) in đúng trường hợp Q4/2025.
+- Kiểm chứng: `tests/test_silver.py::test_q4_tu_nam_kiem_toan_thang_q4_tu_lap`; Q4/2025 doanh thu 42.850,4 → 42.320,7
+  tỷ (`is_derived`), 176 ô Q4 thay bằng năm − 9T; "Điều chỉnh kiểm toán": 23 dòng (2023, 2024, 2025), vd. 2025 mã 10
+  −529,7 tỷ, mã 11 +1.238,0 tỷ, mã 20 +708,3 tỷ.
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: mã không cộng được theo thời gian (B02 70, 71: lãi trên cổ phiếu) vẫn lấy số in trên
+  BCTC Q4; năm chưa có BCTC năm (vd. 2026) thì Q4 vẫn là số tự lập.
+
+### DBG-37 – Ô đúng bị chặn chỉ vì cột trượt critical → xác nhận chéo giữa tài liệu
+- Giai đoạn / tầng: Silver
+- Triệu chứng: doanh thu H1/2025 73.754,9 tỷ in giống nhau ở BCTC bán niên, cột lũy kế BCTC Q2 và bằng 9T − Q3 của
+  BCTC Q3, nhưng không vào Gold vì cột của hai báo cáo đó trượt critical; Q2/2025 vắng khỏi `v_kpi_quarter`.
+- Nguyên nhân gốc: trusted/critical chỉ xét trong một tài liệu; bằng chứng giữa các tài liệu (cùng ô in lại ở báo cáo
+  khác, quan hệ lũy kế) không được dùng.
+- Cách phát hiện: truy nguồn B02 mã 10 năm 2025 trong Silver và `fs_extracted_raw`.
+- Cách xử lý: `bronze_to_silver.cross_doc_confirmed` / `apply_cross_doc`: ô B01/B02 được ≥ 2 tài liệu độc lập đọc khớp
+  (±1 VND, kể cả cột kỳ trước của báo cáo sau), hoặc khớp phép tính lũy kế(q) = lũy kế(q−1) + quý(q) lấy từ các tài
+  liệu không chứa ô đó → trusted + `gold_eligible`, `gold_basis = cross_doc_consensus` (cột mới ở Silver và Gold;
+  `critical`, `derived` cho các ô khác). Đối soát báo cáo tháng không sinh gợi ý cho ô đã có đồng thuận
+  (`run_extraction.cross_doc_cells`). Gợi ý `monthly_crosscheck` cho H1/2025 mã 10 mà người dùng muốn đặt `rejected`:
+  không tồn tại trong `config/manual_overrides.csv` (đọc lại PDF ra 73.755 tỷ nên chưa từng sinh), không cần sửa.
+- Kiểm chứng: `tests/test_silver.py::test_xac_nhan_cheo_hai_tai_lieu_va_phep_tinh`,
+  `tests/test_extraction.py::test_monthly_khong_goi_y_khi_bctc_nhieu_tai_lieu_khop`; 427 ô Gold
+  `cross_doc_consensus`; Gold B02 869 → 1.531 dòng; quý có doanh thu và LNST trong `v_kpi_quarter` 23 → 42 (trên 43).
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: Q2/2026 LNST vẫn trống: BCTC H1/2026 in lũy kế 6.112.454.741.865, BCTC Q2/2026
+  6.112.454.741.144 (= Q1 + Q2 của hai tài liệu), lệch 721 đồng; không tài liệu thứ hai xác nhận số nào, chưa xác minh
+  trên PDF bên nào đúng.
+
+### DBG-38 – Đồng thuận giả: các báo cáo cùng bố cục lặp cùng một lỗi gán dòng
+- Giai đoạn / tầng: Silver
+- Triệu chứng: sau DBG-37, bảng "Kỳ bị trình bày lại" thêm các dòng như 2019 mã 410: BCTC năm 2019 (critical) 12.143,6
+  tỷ, cột đầu năm của BCTC Q1 và H1/2020 cùng đọc 4.435,5 tỷ (số của 411) → hai tài liệu "khớp nhau" nên thành trusted;
+  tương tự 2021 mã 321, 429, 2023 mã 429, 440.
+- Nguyên nhân gốc: các báo cáo cùng năm có cùng bố cục, bộ dựng bảng gán số vào dòng giống nhau ở cả hai: lỗi có hệ
+  thống, không độc lập như lỗi OCR ngẫu nhiên.
+- Cách phát hiện: đọc bảng trình bày lại sau lượt chạy có xác nhận chéo.
+- Cách xử lý: `apply_cross_doc` không xác nhận giá trị mâu thuẫn (> 1 VND) với ô cùng khóa đã qua critical.
+- Kiểm chứng: `tests/test_silver.py::test_xac_nhan_cheo_khong_thang_so_da_qua_critical`; bảng trình bày lại 16 → 8
+  dòng (còn 2017 421a/421b, 2023-Q4 B02 26/30/32/40, 2025 112, 310); ô `cross_doc_consensus` 431 → 427.
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: khóa không có ô critical nào thì hai báo cáo cùng bố cục vẫn có thể cùng sai; dấu hiệu là
+  số so sánh lệch hẳn mọi kỳ lân cận.
+
+### DBG-39 – TT99 135 chưa gắn semantic_break; dòng lặp trong "Kỳ bị trình bày lại"
+- Giai đoạn / tầng: map TT99 / Silver
+- Triệu chứng: TT99 135 (ghép tên với TT200 136) giảm 37,3% (2.834,6 → 1.778,0 tỷ) giữa 31/12/2025 và đầu năm 2026,
+  hiện 4 dòng lặp (mỗi báo cáo 2026 một dòng) trong bảng trình bày lại thay vì được đánh dấu đổi nội dung.
+- Nguyên nhân gốc: `map_tt99_numeric.py --ref 2025` chỉ so với BCTC năm 2025, mà OCR không đọc được ô 136 ở đó; bảng
+  trình bày lại in một dòng cho mỗi tài liệu so sánh.
+- Cách phát hiện: rà bảng trình bày lại khi kiểm tra lượt chạy 13/11.
+- Cách xử lý: thiếu số ở BCTC năm thì dùng số cùng ngày của BCTC Q4/2025 (`v200_fallback`, chỉ cho semantic_break và
+  danh sách biến động, không để ghép mới); liệt kê mã đã ghép biến động > 20% vào `docs/dim_account_notes.md` để người
+  dùng duyệt; bảng trình bày lại gộp các tài liệu so sánh in cùng số vào một dòng.
+- Kiểm chứng: `tests/test_tools.py::test_match_numeric_du_phong_q4_va_bien_dong_20`; `semantic_break = true`: 120, 130,
+  135; danh sách > 20%: đúng 3 mã đó (+23,6%, −78,7%, −37,3%).
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: 110, 112, 310 có báo cáo 2026 khớp TT200 và báo cáo khác lệch (< 1%): trình bày lại giữa
+  các báo cáo 2026, chưa kết luận.
+
+### DBG-40 – Q3/2026 mất LNST: trang B02 thứ hai lệch ngang, dải mã kế thừa không chứa mã nào
+- Giai đoạn / tầng: bóc tách
+- Triệu chứng: BCTC Q3/2026 có B02 mã 01–50 nhưng không có 51, 52, 60, 61, 62, 70, 71; `v_kpi_quarter` Q3/2026 thiếu
+  LNST. OCR trang 9 đọc đủ các dòng này (vd. "60 3.521.134.267.906").
+- Nguyên nhân gốc: trang 9 không đọc được chữ "Mã số" nên dùng lại dải mã của trang 8 (x ≈ 1126–1230); bản scan trang 9
+  lệch trái ~45 px (mã ở x ≈ 1078–1124) → không mã nào trong dải → 0 dòng.
+- Cách phát hiện: so mã có trong `fs_extracted_raw` theo trang, rồi gọi `parse_statement_page` cho trang 9.
+- Cách xử lý: `pdf_extractor.parse_statement_page` chỉ dùng lại dải mã trang trước khi có ít nhất một mã rơi vào dải;
+  không thì dò lại dải mã từ cụm mã của chính trang.
+- Kiểm chứng: `tests/test_extraction.py::test_trang_tiep_theo_lech_ngang_thi_do_lai_dai_ma` (trượt trên code cũ, qua
+  trên code mới); Q3/2026 LNST 3.521,1 tỷ vào Gold; B02 qua critical 25/52 → 26/52.
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: thông tin kế thừa từ trang trước phải được kiểm lại trên trang hiện tại.
+
+### DBG-41 – Gold ghi lỗi khi thêm cột; regime trống ở kỳ chỉ có số so sánh; hai lượt pipeline chạy chồng
+- Giai đoạn / tầng: Gold / hạ tầng
+- Triệu chứng: (1) `run_pipeline.py --force --no-crawl` dừng ở Gold: `SchemaMismatchError: number of fields does not
+  match: 23 vs 22` khi `fact_financial` có thêm `gold_basis`. (2) `v_kpi_quarter` để trống `regime`,
+  `has_semantic_break` ở Q1–Q3/2015, Q1/2019 (không có B01 cùng ngày). (3) Trong lúc kiểm tra, một lượt pipeline khác
+  (bắt đầu ~14:39, không do phiên này chạy) ghi Silver v4/Gold v11 lúc 14:49:44 bằng code cũ, đè kết quả mới.
+- Nguyên nhân gốc: (1) `write_deltalake(mode="overwrite")` không đổi schema nếu không cho phép; (2) view lấy regime
+  từ B01; (3) pipeline không có khóa chống chạy đồng thời.
+- Cách phát hiện: traceback; đọc `v_kpi_quarter`; số phiên bản Delta và giờ ghi (`DeltaTable.history()`) không khớp
+  lượt chạy của phiên này.
+- Cách xử lý: (1) Gold ghi với `schema_mode="overwrite"` (Gold dựng lại toàn bộ); Silver MERGE với `merge_schema=True`
+  (giữ lịch sử time travel); (2) `v_income` lấy `regime`, `semantic_break` của tài liệu nguồn, view KPI dùng
+  `coalesce`; (3) chạy lại Silver + Gold bằng code hiện tại.
+- Kiểm chứng: Gold v16 3.886 dòng; mọi quý trong `v_kpi_quarter` có `regime`; 538 test qua.
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: (3) chưa có khóa (lock file) cho `run_pipeline.py`; không chạy hai lượt cùng lúc.
+
 ---
 
 ## Bảng tóm tắt
@@ -555,6 +659,12 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 | DBG-33 | bóc tách | cao (nhãn sai lọt Gold) | đã sửa |
 | DBG-34 | Silver | cao (Q2/Q4 suy ra sai dấu) | đã sửa |
 | DBG-35 | hạ tầng (CI/deploy) | cao nếu lọt (Gold mất kỳ) | đã xử lý, workflow chưa chạy thật |
+| DBG-36 | Silver | cao (quý ≠ năm, Q4 trộn hai cơ sở) | đã sửa (quyết định b) |
+| DBG-37 | Silver | cao (B02 Gold 869 → 1.531 dòng) | đã sửa; Q2/2026 LNST còn mâu thuẫn 721 đồng |
+| DBG-38 | Silver | cao nếu lọt (số sai thành trusted) | đã chặn |
+| DBG-39 | map TT99 / Silver | trung bình | đã sửa; 110/112/310 chưa kết luận |
+| DBG-40 | bóc tách | trung bình (mất 7 mã B02 Q3/2026) | đã sửa, có test |
+| DBG-41 | Gold / hạ tầng | trung bình | đã sửa (1)(2); (3) chưa có khóa |
 
 ## Chỉ số chất lượng qua các lượt chạy
 
@@ -570,6 +680,7 @@ chính lượt đó (báo cáo có mọi phép kiểm phương trình B01 đúng
 | `399ed86` (12/11 16:05) | 49/52 (94%) | 34/52 (65%) | 5/52 | 28/52 (54%) | – | 7.089/11.860 (60%) | 3.917 (chặn cả báo cáo) |
 | commit thêm file này (12/11) | 50/52 (96%) | 34/52 (65%) | 7/52 | 25/52 (48%) | 50/52 (96%) / 25/52 (48%) | 8.004/11.950 (67%) | B01 5.807, B02 950 (chặn theo từng báo cáo) |
 | Phần A–D (13/11 01:40, `run_pipeline.py --force`) | 50/52 (96%) | 34/52 (65%) | 7/52 | 25/52 (48%) | 50/52 (96%) / 25/52 (48%); cột B02: 90/128 | 8.004/11.950 (67%) | B01 5.807, B02 1.446 (chặn theo cột, DBG-30); Gold fact 3.204 dòng |
+| DBG-36…41 (13/11 14:45, `run_pipeline.py --force --no-crawl`; Silver/Gold dựng lại 14:5x) | 50/52 (96%) | 34/52 (65%) | 7/52 | 26/52 (50%) | 50/52 (96%) / 26/52 (50%) | 8.024/11.979 (67%) | Gold fact 3.886 dòng (B01 2.355, B02 1.531; critical 3.037, cross_doc_consensus 427, derived 422); `v_kpi_quarter` 43 quý, 42 có doanh thu + LN gộp + LNST, 23 đủ mọi KPI |
 
 Ghi chú: "qua DQ toàn bộ" 0/52 ở hai lượt đầu là tiêu chí cũ (DBG-27); "qua critical" có từ `399ed86`. Qua critical cả hai báo cáo giảm 54% → 48% ở lượt cuối vì B02 critical chặt hơn: thêm `60 = 61 + 62` và `30 = ...` (trước đó TT200 B02 30 và 60 không kiểm được, coi như không trượt). Ô vào Gold tăng 3.917 → 6.757 vì chặn theo từng báo cáo (DBG-27) và đồng nhất thức 440 (DBG-12).
 

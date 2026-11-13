@@ -50,11 +50,11 @@ TT99,B01,337,dài hn,6,2026-H1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được v�
 TT99,B01,4,,2,2026-Q1,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
 TT99,B01,410,I. Vn ch s hu,2,2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
 TT99,B01,429,kim soát,6,2026-H1;2026-Q1;2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
-TT99,B02,06,,4,2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B02,06,,5,2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
 TT99,B02,24,- Irong đó: Chi phí di vay,12,2026-H1;2026-Q1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
 TT99,B02,27,lién doanh,12,2026-H1;2026-Q1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
-TT99,B02,61,công ty mẹ,8,2026-H1;2026-Q1;2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
-TT99,B02,62,cô đông không kiểm soát,8,2026-H1;2026-Q1;2026-Q2,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B02,61,công ty mẹ,12,2026-H1;2026-Q1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
+TT99,B02,62,cô đông không kiểm soát,12,2026-H1;2026-Q1;2026-Q2;2026-Q3,"mã TT99 chưa ghép được với mã TT200 (tên khác, số 31/12/2025 không khớp duy nhất): xem docs/dim_account_notes.md"
 TT99,B03,01,trước thuê,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
 TT99,B03,02,cố định,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold
 TT99,B03,03,- Các khoản dự phòng,8,2026-H1;2026-Q1;2026-Q2;2026-Q3,B03 theo TT99: chưa có mẫu B03 trong docs/reference nên chưa có bảng map; B03 chưa vào Gold

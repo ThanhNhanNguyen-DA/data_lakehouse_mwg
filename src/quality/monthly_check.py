@@ -102,7 +102,9 @@ def report_lines(rows: list[dict]) -> list[str]:
         near = r.get("nearest")
         hint = "" if r["found"] or near is None else (
             f"{near:,}" + (" (lệch một chữ số: nghi OCR)" if one_digit_off(near, r["billion"]) else ""))
-        if r.get("reread") is not None:
+        if r.get("cross_doc"):
+            hint += "; BCTC: các tài liệu khác đọc khớp số này → không gợi ý (báo cáo tháng là số sơ bộ)"
+        elif r.get("reread") is not None:
             hint += f"; đọc lại PDF: {r['reread']:,} → pending"
         elif "reread" in r:
             again = r.get("reread_any")

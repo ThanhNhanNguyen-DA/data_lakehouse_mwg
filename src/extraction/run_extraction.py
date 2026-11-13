@@ -35,6 +35,7 @@ from src.extraction.self_correct import apply_consensus, suggest_fixes, write_su
 from src.quality.monthly_check import TOL_BILLION, monthly_crosscheck, one_digit_off
 from src.quality.monthly_check import report_lines as monthly_report_lines
 from src.ingestion.mwg_crawler import PENDING, load_manifest, parse_period, resolve_period
+from src.transform.bronze_to_silver import cross_doc_confirmed, map_period
 
 RAW_TABLE = SILVER_DIR / "fs_extracted_raw"
 DQ_REPORT = ROOT / "docs" / "dq_report.md"
@@ -181,15 +182,19 @@ def reread_cell(row: dict, c: dict, accept) -> int | None:
     return None
 
 
-def monthly_suggestions(xcheck: list[dict]) -> list[tuple[dict, dict]]:
+def monthly_suggestions(xcheck: list[dict], confirmed: set = frozenset()) -> list[tuple[dict, dict]]:
     """Ô B02 lệch báo cáo tháng >= 1 tỷ và khác đúng một chữ số (tỷ đồng): đọc lại ô trên PDF BCTC; số đọc lại
-    khớp báo cáo tháng (±1 tỷ) thì gợi ý pending (suggested_by = monthly_crosscheck)."""
+    khớp báo cáo tháng (±1 tỷ) thì gợi ý pending (suggested_by = monthly_crosscheck).
+    confirmed: ô (sha256, mã in, cột) mà các tài liệu BCTC khác đã đọc khớp -> báo cáo tháng (số sơ bộ) không thắng."""
     out = []
     for r in xcheck:
         near = r.get("nearest")
         if r["found"] or near is None or abs(near - r["billion"]) < 1 or not one_digit_off(near, r["billion"]):
             continue
         d, c = r["doc"], r["cell"]
+        if (d.get("sha256"), c["account_code"], c["period_kind"]) in confirmed:
+            r["cross_doc"] = True
+            continue
         v = reread_cell(d, c, lambda x: abs(round(abs(x) / 1e9) - near) <= TOL_BILLION and x != abs(c["amount_vnd"]))
         r["reread"] = v
         if v is None:  # ghi số đọc lại được (nếu có) để người dùng thấy BCTC vẫn đọc ra số cũ
@@ -200,6 +205,25 @@ def monthly_suggestions(xcheck: list[dict]) -> list[tuple[dict, dict]]:
                             "reason": f"Báo cáo tháng {r['month']} in {near:,} tỷ, BCTC OCR {r['billion']:,} tỷ "
                                       f"(lệch một chữ số); số đọc lại từ PDF trang {c['page']}"}))
     return out
+
+
+def cross_doc_cells(docs: list[dict]) -> set[tuple[str, str, str]]:
+    """(sha256, mã in, cột) của ô B02 được tài liệu BCTC khác xác nhận (cùng quy tắc với Silver)."""
+    rows = []
+    for d in docs:
+        if not (d["period"][:4].isdigit() and d.get("period_check_ok") and d.get("columns_ok")):
+            continue
+        for c in d["cells"]:
+            m = map_period(d["period"], "B02", c["period_kind"]) if c["statement"] == "B02" else None
+            if m and c["amount_vnd"] is not None and c.get("canonical_code"):
+                rows.append({"statement": "B02", "fiscal_year": m[0], "fiscal_quarter": m[1], "period_kind": m[2],
+                             "account_code": c["canonical_code"], "amount_vnd": c["amount_vnd"],
+                             "source_doc_sha256": d["sha256"], "printed": c["account_code"], "kind": c["period_kind"]})
+    if not rows:
+        return set()
+    df = pl.DataFrame(rows, schema_overrides={"fiscal_year": pl.Int32, "fiscal_quarter": pl.Int32})
+    ok = df.filter(cross_doc_confirmed(df))
+    return set(zip(ok["source_doc_sha256"], ok["printed"], ok["kind"]))
 
 
 def check_monthly(row: dict) -> dict:
@@ -712,7 +736,7 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
 
     stats["monthly_xcheck"] = monthly_crosscheck(docs, mo_rows)
     stats["monthly_suggested"] = sum(write_suggestions(OVERRIDES, d, [s], suggested_by="monthly_crosscheck")
-                                     for d, s in monthly_suggestions(stats["monthly_xcheck"]))
+                                     for d, s in monthly_suggestions(stats["monthly_xcheck"], cross_doc_cells(docs)))
     stats["pending"] = sum(1 for r in _read_overrides() if r.get("status") == "pending")
     stats["restated"] = restated
     _write_raw(docs)

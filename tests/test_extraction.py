@@ -418,3 +418,27 @@ def test_check_positional_order_doi_thu_tu_cot_cu():
     assert check_positional_order(ok) is False and ok["b02_label_method"] == "positional"
     q1 = _b02_doc("2024-Q1", {"q_current": 5, "ytd_current": 5, "q_prior": 4, "ytd_prior": 4})
     assert check_positional_order(q1) is False
+
+
+def test_trang_tiep_theo_lech_ngang_thi_do_lai_dai_ma():
+    first = parse_statement_page(_vi_annual_b01(), "B01")
+    shift = -45  # bản scan trang sau lệch trái: mã nằm ngoài dải mã của trang trước
+    cont = [W("300", 40 + shift, 100), W("C.", 100, 100), right("6.666.666", 640, 100), right("7.777.777", 790, 100),
+            W("400", 40 + shift, 140), W("D.", 100, 140), right("8.888.888", 640, 140), right("9.999.999", 790, 140)]
+    res = parse_statement_page(cont, "B01", prev=first)
+    assert {r["account_code"]: r["values"] for r in res["rows"]} == {
+        "300": [6666666, 7777777], "400": [8888888, 9999999]}
+
+
+def test_monthly_khong_goi_y_khi_bctc_nhieu_tai_lieu_khop(monkeypatch):
+    from src.extraction import run_extraction as R
+    cell = {"account_code": "10", "period_kind": "current", "amount_vnd": 73_755_000_000_000, "page": 9}
+    rows = [{"found": False, "nearest": 73_655, "billion": 73_755, "month": "2025-M06", "doc": {"sha256": "h"}, "cell": cell}]
+    monkeypatch.setattr(R, "reread_cell", lambda d, c, accept: 73_655_100_000_000)
+    assert R.monthly_suggestions(rows, {("h", "10", "current")}) == [] and rows[0]["cross_doc"]
+    # hai tài liệu (bán niên, cột lũy kế BCTC Q2) cùng đọc 73.755 tỷ
+    docs = [{"period": p, "sha256": sha, "period_check_ok": True, "columns_ok": True,
+             "cells": [{"statement": "B02", "account_code": "10", "canonical_code": "10", "period_kind": k,
+                        "amount_vnd": 73_755_000_000_000}]}
+            for p, sha, k in (("2025-H1", "h", "current"), ("2025-Q2", "q", "ytd_current"))]
+    assert R.cross_doc_cells(docs) == {("h", "10", "current"), ("q", "10", "ytd_current")}

@@ -53,7 +53,8 @@ def row(**kw) -> dict:
                 period_end=date(2025, 6, 30), account_code="10", printed_code="10", regime="TT200", item_name="x",
                 amount_vnd=100, source_priority=2, source_lang="vi-VN", is_comparative=False, is_derived=False,
                 is_manual=False, source_doc_sha256="a" * 64, source_period="2025-H1", page=9, value_origin="ocr",
-                dq_balance_ok=True, is_trusted=True, gold_eligible=True, semantic_break=False, derived_from=None)
+                dq_balance_ok=True, is_trusted=True, gold_eligible=True, semantic_break=False, derived_from=None,
+                gold_basis="critical")
     base.update(kw)
     base["rank_score"] = S.rank_score(base["is_comparative"], base["is_derived"], base["source_lang"],
                                       base["source_priority"])
@@ -158,3 +159,56 @@ def test_schema_enforcement_tu_choi_sai_kieu_va_vi_pham_rang_buoc(tmp_path):
     with pytest.raises(Exception):
         S.merge_silver(frame([row(account_code="13", period_kind="monthly")]), path, full=False)
     assert pl.read_delta(str(path)).height == 1
+
+
+def test_xac_nhan_cheo_hai_tai_lieu_va_phep_tinh():
+    blocked = dict(is_trusted=False, gold_eligible=False, gold_basis=None)
+    rows = [  # H1 bị chặn ở BCTC bán niên; BCTC Q2 cột lũy kế in cùng số -> 2 tài liệu khớp
+        row(amount_vnd=737, source_doc_sha256="h" * 64, **blocked),
+        row(amount_vnd=737, source_doc_sha256="q" * 64, source_period="2025-Q2", **blocked),
+        # Q2 quý này chỉ một tài liệu, nhưng H1 (tài liệu khác) - Q1 (tài liệu khác) = 376 -> khớp
+        row(fiscal_quarter=2, period_kind="quarter", amount_vnd=376, source_doc_sha256="q" * 64, **blocked),
+        row(fiscal_quarter=1, period_kind="quarter", amount_vnd=361, source_doc_sha256="1" * 64),
+        # 9T và Q3 cùng một tài liệu: 9T - Q3 = H1 chỉ xác nhận H1 (tài liệu khác), không tự xác nhận
+        row(fiscal_quarter=3, period_kind="ytd", amount_vnd=1136, source_doc_sha256="3" * 64, **blocked),
+        row(fiscal_quarter=3, period_kind="quarter", amount_vnd=399, source_doc_sha256="3" * 64, **blocked),
+        # một tài liệu đọc lệch: không ai xác nhận
+        row(account_code="20", amount_vnd=5, source_doc_sha256="h" * 64, **blocked)]
+    df = frame(rows)
+    got = dict(zip(zip(df["fiscal_quarter"], df["period_kind"], df["account_code"], df["source_doc_sha256"].str.slice(0, 1)),
+                   S.cross_doc_confirmed(df)))
+    assert got[(2, "ytd", "10", "h")] and got[(2, "ytd", "10", "q")] and got[(2, "quarter", "10", "q")]
+    assert not got[(3, "ytd", "10", "3")] and not got[(3, "quarter", "10", "3")] and not got[(2, "ytd", "20", "h")]
+    out = S.apply_cross_doc(df)
+    assert out.filter(pl.col("gold_basis") == "cross_doc_consensus").height == 3
+    assert out.filter(pl.col("gold_basis") == "critical").height == 1  # Q1 vốn đã qua critical
+
+
+def test_q4_tu_nam_kiem_toan_thang_q4_tu_lap():
+    assert S.rank_score(False, True, "vi-VN", 2, audited_q4=True) > S.rank_score(False, False, "vi-VN", 3)
+    assert S.rank_score(False, True, "vi-VN", 2, audited_q4=True) < S.rank_score(False, False, "vi-VN", 1) + 1000
+    fy = row(fiscal_quarter=0, period_kind="year", amount_vnd=1559, source_period="2025", source_priority=3,
+             source_doc_sha256="f" * 64)
+    nine = row(fiscal_quarter=3, period_kind="ytd", amount_vnd=1136, source_period="2025-Q3", source_doc_sha256="3" * 64)
+    q4_printed = row(fiscal_quarter=4, period_kind="quarter", amount_vnd=428, source_period="2025-Q4", source_priority=1,
+                     source_doc_sha256="4" * 64)
+    q4_ytd = row(fiscal_quarter=0, period_kind="year", amount_vnd=1564, source_period="2025-Q4", source_priority=1,
+                 source_doc_sha256="4" * 64)
+    final, _ = S.build_silver(frame([fy, nine, q4_printed, q4_ytd]))
+    q4 = final.filter((pl.col("fiscal_quarter") == 4) & (pl.col("period_kind") == "quarter")).row(0, named=True)
+    assert q4["amount_vnd"] == 1559 - 1136 and q4["is_derived"]
+    adj = S.audit_adjustments(frame([fy, q4_ytd]))
+    assert adj.select("q4_ytd", "audited").row(0) == (1564, 1559)
+
+
+def test_xac_nhan_cheo_khong_thang_so_da_qua_critical():
+    blocked = dict(is_trusted=False, gold_eligible=False, gold_basis=None, is_comparative=True)
+    df = frame([row(statement="B01", fiscal_quarter=4, period_kind="instant", account_code="410", amount_vnd=12_143,
+                    source_doc_sha256="f" * 64),
+                # hai báo cáo cùng bố cục cùng gán nhầm số của 411 vào 410
+                row(statement="B01", fiscal_quarter=4, period_kind="instant", account_code="410", amount_vnd=4_435,
+                    source_doc_sha256="a" * 64, **blocked),
+                row(statement="B01", fiscal_quarter=4, period_kind="instant", account_code="410", amount_vnd=4_435,
+                    source_doc_sha256="b" * 64, **blocked)])
+    out = S.apply_cross_doc(df)
+    assert out.filter(pl.col("amount_vnd") == 4_435)["gold_eligible"].to_list() == [False, False]

@@ -11,6 +11,9 @@ Mỗi ô của báo cáo được quy về kỳ thật (map_period):
   cột năm trước -> cùng kỳ năm trước, is_comparative = true
 B01 dùng fiscal_quarter của ngày (31/12 -> 4), nên BCTC năm và BCTC Q4 cùng khóa và được xếp hạng với nhau.
 Kỳ suy ra (is_derived): Q2 = H1 - Q1, Q3 = 9T - H1, Q4 = năm - 9 tháng, chỉ B02/B03 và mã cộng được theo thời gian.
+Q4 B02 suy từ BCTC năm (đã kiểm toán) thắng Q4 in trên BCTC quý 4 tự lập (AUDITED_Q4_BONUS): quý cộng lại = năm.
+Ô B01/B02 được >= 2 tài liệu độc lập đọc khớp (hoặc 1 tài liệu + phép tính từ tài liệu khác, vd. H1 = 9T - Q3) là
+trusted và vào Gold kể cả khi cột của nó trượt critical (gold_basis = cross_doc_consensus).
 """
 from __future__ import annotations
 
@@ -32,6 +35,7 @@ DQ_REPORT = ROOT / "docs" / "dq_report.md"
 MARK_START, MARK_END = "<!-- silver:start -->", "<!-- silver:end -->"
 SYMBOL = "MWG"
 KEY = ["symbol", "statement", "fiscal_year", "fiscal_quarter", "period_kind", "account_code"]
+AUDITED_Q4_BONUS = 500  # giữa is_comparative (1000) và is_derived (100): Q4 = năm kiểm toán - 9T thắng Q4 tự lập
 RESTATE_TOL = 0.001  # > 0,1% giữa số gốc và số so sánh: kỳ bị trình bày lại
 # Không cộng/trừ được theo thời gian: lãi trên cổ phiếu (B02 70, 71), tiền đầu kỳ/cuối kỳ (B03 60, 70)
 NOT_TIME_ADDITIVE = {("B02", "70"), ("B02", "71"), ("B03", "60"), ("B03", "70")}
@@ -45,8 +49,8 @@ SCHEMA = pa.schema([
     ("is_manual", pa.bool_()), ("source_doc_sha256", pa.string()), ("source_period", pa.string()),
     ("page", pa.int32()), ("value_origin", pa.string()), ("dq_balance_ok", pa.bool_()),
     ("is_trusted", pa.bool_()), ("gold_eligible", pa.bool_()), ("semantic_break", pa.bool_()),
-    ("derived_from", pa.string()), ("rank_score", pa.int32()), ("row_hash", pa.string()),
-    ("loaded_at", pa.timestamp("us")),
+    ("derived_from", pa.string()), ("rank_score", pa.int32()), ("gold_basis", pa.string()),
+    ("row_hash", pa.string()), ("loaded_at", pa.timestamp("us")),
 ])
 CONSTRAINTS = {
     "statement_ok": "statement IN ('B01', 'B02', 'B03')",
@@ -79,9 +83,11 @@ def period_end(year: int, quarter: int) -> date:
     return date(year, 12, 31) if quarter in (0, 4) else date(year, 3 * quarter, 30 if quarter in (2, 3) else 31)
 
 
-def rank_score(is_comparative: bool, is_derived: bool, lang: str, priority: int) -> int:
-    """Thứ tự bản thắng của CLAUDE.md gói vào một số: tiêu chí trước nặng hơn mọi tiêu chí sau cộng lại."""
-    return (not is_comparative) * 1000 + (not is_derived) * 100 + (lang == "vi-VN") * 10 + int(priority or 0)
+def rank_score(is_comparative: bool, is_derived: bool, lang: str, priority: int, audited_q4: bool = False) -> int:
+    """Thứ tự bản thắng của CLAUDE.md gói vào một số: tiêu chí trước nặng hơn mọi tiêu chí sau cộng lại.
+    audited_q4: Q4 B02 = BCTC năm - 9T, xếp trên mọi số in không phải số so sánh (quyết định 13/11/2026)."""
+    return ((not is_comparative) * 1000 + audited_q4 * AUDITED_Q4_BONUS + (not is_derived) * 100
+            + (lang == "vi-VN") * 10 + int(priority or 0))
 
 
 def _rank_expr() -> pl.Expr:
@@ -160,7 +166,63 @@ def build_long(raw: pl.DataFrame, manifest: pl.DataFrame, dim_codes: set[tuple[s
         # TT99 mã đổi nội dung: đánh dấu mọi kỳ TT99 để Gold/KPI không nối chuỗi qua mốc đổi chuẩn
         ((pl.col("regime") == "TT99") & pl.col("account_code").is_in(_break_codes())).alias("semantic_break"),
         pl.lit(None, pl.Utf8).alias("derived_from"))
-    return out.with_columns(_rank_expr().alias("rank_score")), unmapped, stats
+    out = out.with_columns(_rank_expr().alias("rank_score"),
+                           pl.when(pl.col("gold_eligible")).then(pl.lit("critical")).otherwise(None).alias("gold_basis"))
+    return out, unmapped, stats
+
+
+# ---------- Đồng thuận giữa các tài liệu ----------
+
+QKEY = ["statement", "fiscal_year", "fiscal_quarter", "period_kind", "account_code"]
+# lũy kế(q) = lũy kế(q-1) + quý(q): (lũy kế q, lũy kế q-1, quý q) theo (fiscal_quarter, period_kind) của Silver
+FLOW_CHAIN = [((2, "ytd"), (1, "quarter"), (2, "quarter")), ((3, "ytd"), (2, "ytd"), (3, "quarter")),
+              ((0, "year"), (3, "ytd"), (4, "quarter"))]
+
+
+def cross_doc_confirmed(df: pl.DataFrame, tol: int = 1) -> pl.Series:
+    """True cho dòng (ô, giá trị, tài liệu) được xác nhận bởi tài liệu khác: một tài liệu khác in cùng ô cùng số
+    (kể cả cột kỳ trước của báo cáo sau), hoặc phép tính lũy kế(q) = lũy kế(q-1) + quý(q) từ các tài liệu không
+    chứa dòng đó cho ra cùng số (vd. H1 = 9T - Q3 lấy từ BCTC Q3). Cần cột QKEY, amount_vnd, source_doc_sha256."""
+    r = df.select(*QKEY, "amount_vnd", pl.col("source_doc_sha256").alias("doc")).unique()
+    readings = [r.with_columns(pl.concat_list("doc").alias("docs")).drop("doc")]
+    flows = r.filter((pl.col("statement") == "B02") & ~pl.col("account_code").is_in([c for st, c in NOT_TIME_ADDITIVE
+                                                                                      if st == "B02"]))
+    j = ["statement", "account_code", "fiscal_year"]
+
+    def part(qk):
+        return flows.filter((pl.col("fiscal_quarter") == qk[0]) & (pl.col("period_kind") == qk[1])).select(
+            *j, "amount_vnd", "doc")
+
+    def reading(left, right, target, op):
+        m = left.join(right, on=j, suffix="_2")
+        return m.select(*j, pl.lit(target[0], pl.Int32).alias("fiscal_quarter"), pl.lit(target[1]).alias("period_kind"),
+                        (pl.col("amount_vnd") + op * pl.col("amount_vnd_2")).alias("amount_vnd"),
+                        pl.concat_list("doc", "doc_2").alias("docs"))
+    for ytd, prev, qtr in FLOW_CHAIN:
+        a, b, q = part(ytd), part(prev), part(qtr)
+        readings += [reading(b, q, ytd, 1), reading(a, q, prev, -1), reading(a, b, qtr, -1)]
+    allr = pl.concat([x.select(*QKEY, "amount_vnd", "docs") for x in readings], how="vertical_relaxed")
+    hit = (r.join(allr, on=QKEY, suffix="_r")
+            .filter(((pl.col("amount_vnd") - pl.col("amount_vnd_r")).abs() <= tol) & ~pl.col("docs").list.contains(pl.col("doc")))
+            .select(*QKEY, "amount_vnd", "doc").unique().with_columns(pl.lit(True).alias("_hit")))
+    out = df.join(hit, left_on=[*QKEY, "amount_vnd", "source_doc_sha256"], right_on=[*QKEY, "amount_vnd", "doc"],
+                  how="left")
+    return out["_hit"].fill_null(False).alias("cross_doc")
+
+
+def apply_cross_doc(cands: pl.DataFrame) -> pl.DataFrame:
+    """Ô B01/B02 xác nhận chéo -> trusted + gold_eligible (gold_basis = cross_doc_consensus nếu trước đó bị chặn).
+
+    Không xác nhận giá trị mâu thuẫn với ô cùng khóa đã qua critical: các báo cáo cùng bố cục có thể lặp cùng một lỗi
+    gán dòng (vd. BCTC Q1 và H1/2020 cùng đọc 410 = số của 411), nên "khớp nhau" không đủ khi có số đã kiểm chứng khác."""
+    idx = cands.with_row_index("_i")
+    elig = idx.filter(pl.col("gold_eligible")).select(*KEY, pl.col("amount_vnd").alias("_ok"))
+    bad = idx.join(elig, on=KEY).filter((pl.col("amount_vnd") - pl.col("_ok")).abs() > 1)["_i"].unique().to_list()
+    cross = cross_doc_confirmed(cands) & cands["statement"].is_in(["B01", "B02"]) & ~idx["_i"].is_in(bad)
+    return cands.with_columns(
+        pl.when(pl.col("gold_eligible")).then(pl.col("gold_basis"))
+          .when(cross).then(pl.lit("cross_doc_consensus")).otherwise(None).alias("gold_basis"),
+        (pl.col("is_trusted") | cross).alias("is_trusted"), (pl.col("gold_eligible") | cross).alias("gold_eligible"))
 
 
 def _break_codes() -> list[str]:
@@ -199,12 +261,17 @@ def derive_quarters(win: pl.DataFrame) -> pl.DataFrame:
             (pl.col("gold_eligible") & pl.col("gold_eligible_b")).alias("gold_eligible"),
             (pl.col("semantic_break") | pl.col("semantic_break_b")).alias("semantic_break"),
             pl.format("{}:{} - {}:{}", "source_period", "source_doc_sha256", "source_period_b", "source_doc_sha256_b")
-              .alias("derived_from")))
+              .alias("derived_from"),
+            # Q4 B02 = BCTC năm (tài liệu năm, không phải cột lũy kế của BCTC Q4) - 9T: thắng Q4 in trên BCTC quý 4
+            (pl.lit(q == 4) & (pl.col("statement") == "B02") & ~pl.col("is_comparative")
+             & pl.col("source_period").str.contains(r"^\d{4}$")).alias("audited_q4")))
     if not out:
         return win.clear()
     d = pl.concat(out).with_columns(pl.struct("fiscal_year", "fiscal_quarter").map_elements(
         lambda s: period_end(s["fiscal_year"], s["fiscal_quarter"]), return_dtype=pl.Date).alias("period_end"))
-    return d.with_columns(_rank_expr().alias("rank_score")).select(win.columns)
+    d = d.with_columns((_rank_expr() + pl.col("audited_q4").cast(pl.Int32) * AUDITED_Q4_BONUS).alias("rank_score"),
+                       pl.when(pl.col("gold_eligible")).then(pl.lit("derived")).otherwise(None).alias("gold_basis"))
+    return d.select(win.columns)
 
 
 def restatements(cands: pl.DataFrame) -> pl.DataFrame:
@@ -218,6 +285,19 @@ def restatements(cands: pl.DataFrame) -> pl.DataFrame:
              .select("statement", "fiscal_year", "fiscal_quarter", "period_kind", "account_code", "amount_vnd",
                      "amount_vnd_c", "source_period", "source_period_c", "source_lang", "source_lang_c")
              .unique().sort("fiscal_year", "fiscal_quarter", "statement", "account_code"))
+
+
+def audit_adjustments(cands: pl.DataFrame) -> pl.DataFrame:
+    """B02 lũy kế 12 tháng của BCTC Q4 (tự lập) so với BCTC năm (kiểm toán) cùng năm, theo từng mã, lệch > 1 VND."""
+    y = cands.filter((pl.col("statement") == "B02") & (pl.col("period_kind") == "year") & ~pl.col("is_comparative")
+                     & ~pl.col("is_derived"))
+    fy = y.filter(pl.col("source_period").str.contains(r"^\d{4}$"))
+    q4 = y.filter(pl.col("source_period").str.ends_with("-Q4"))
+    m = q4.join(fy, on=KEY, suffix="_fy")
+    return (m.filter((pl.col("amount_vnd_fy") - pl.col("amount_vnd")).abs() > 1)
+             .select("fiscal_year", "account_code", "item_name", pl.col("amount_vnd").alias("q4_ytd"),
+                     pl.col("amount_vnd_fy").alias("audited"), "is_trusted", pl.col("is_trusted_fy").alias("audited_trusted"))
+             .unique().sort("fiscal_year", pl.col("account_code").cast(pl.Int32, strict=False)))
 
 
 def _row_hash(df: pl.DataFrame) -> pl.Series:
@@ -241,7 +321,8 @@ def merge_silver(df: pl.DataFrame, path=SILVER_TABLE, full: bool = True) -> dict
         DeltaTable(str(path)).alter.add_constraint(CONSTRAINTS)
         return {"num_target_rows_inserted": src.num_rows, "created": True}
     on = " AND ".join(f"t.{k} = s.{k}" for k in KEY)
-    m = (DeltaTable(str(path)).merge(source=src, predicate=on, source_alias="s", target_alias="t")
+    # merge_schema: thêm cột mới (vd. gold_basis) mà không tạo lại bảng, giữ lịch sử time travel
+    m = (DeltaTable(str(path)).merge(source=src, predicate=on, source_alias="s", target_alias="t", merge_schema=True)
          .when_matched_update_all(predicate="s.rank_score >= t.rank_score AND s.row_hash <> t.row_hash")
          .when_not_matched_insert_all())
     if full:
@@ -277,7 +358,7 @@ def write_unmapped(unmapped: pl.DataFrame) -> int:
     return len(rows)
 
 
-def write_report(restated: pl.DataFrame, stats: dict) -> None:
+def write_report(restated: pl.DataFrame, stats: dict, audit: pl.DataFrame | None = None) -> None:
     lines = [MARK_START, "", f"### Kỳ bị trình bày lại – Silver (tự sinh, {datetime.now():%Y-%m-%d %H:%M})", "",
              "Ô có cả số gốc (báo cáo của chính kỳ đó) và số so sánh (cột kỳ trước của báo cáo kỳ sau), **cả hai trusted**, "
              f"lệch > 0,1%: {restated.height} ô. Silver giữ số gốc. Ô chưa trusted không so (lệch có thể do OCR).", "",
@@ -285,7 +366,10 @@ def write_report(restated: pl.DataFrame, stats: dict) -> None:
              f"kiểm tra kỳ/nhãn cột B02, {stats['unmapped_cells']} ô không ánh xạ được mã ({stats['unmapped']} mã, "
              f"`data/_state/unmapped_items.csv`), {stats['semantic_break_dropped']} ô TT99 đổi nội dung rơi vào ngày "
              f"theo TT200; thêm {stats['derived']} ô suy ra (Q2 = H1 − Q1, Q3 = 9T − H1, Q4 = năm − 9T).", ""]
-    if restated.height:
+    if restated.height:  # một dòng mỗi ô: gộp các tài liệu so sánh in cùng một số
+        restated = (restated.with_columns(pl.format("{} {}", "source_period_c", pl.col("source_lang_c").str.slice(0, 2)).alias("c"))
+                    .group_by([c for c in restated.columns if c not in ("source_period_c", "source_lang_c")], maintain_order=True)
+                    .agg(pl.col("c").unique().sort().str.join(", ").alias("source_period_c"), pl.lit("").alias("source_lang_c")))
         lines += ["| Kỳ | Báo cáo | Kỳ cột | Mã | Số gốc (VND) | Số so sánh (VND) | Chênh lệch | Tài liệu gốc | Tài liệu so sánh |",
                   "|---|---|---|---|---|---|---|---|---|"]
         for r in restated.iter_rows(named=True):
@@ -293,8 +377,26 @@ def write_report(restated: pl.DataFrame, stats: dict) -> None:
             pct = f"{diff / r['amount_vnd']:.2%}" if r["amount_vnd"] else "–"
             lines.append(f"| {r['fiscal_year']}-{r['fiscal_quarter']} | {r['statement']} | {r['period_kind']} | "
                          f"{r['account_code']} | {r['amount_vnd']:,} | {r['amount_vnd_c']:,} | {diff:,} ({pct}) | "
-                         f"{r['source_period']} {r['source_lang'][:2]} | {r['source_period_c']} {r['source_lang_c'][:2]} |")
-    lines += ["", MARK_END]
+                         f"{r['source_period']} {r['source_lang'][:2]} | {r['source_period_c']} |")
+    lines += ["", f"Xác nhận chéo giữa tài liệu: {stats.get('cross_doc', 0)} ô vào Gold nhờ >= 2 tài liệu đọc khớp hoặc "
+              "tài liệu + phép tính lũy kế từ tài liệu khác (`gold_basis = cross_doc_consensus`); Q4 B02 = BCTC năm − 9T "
+              f"thay Q4 tự lập: {stats.get('audited_q4', 0)} ô.", ""]
+    if audit is not None:
+        lines += ["### Điều chỉnh kiểm toán (tự sinh)", "",
+                  "Lũy kế 12 tháng trên BCTC Q4 (tự lập) so với BCTC năm (kiểm toán), B02 theo từng mã, lệch > 1 VND. Silver "
+                  "dùng số năm kiểm toán; Q4 = năm − 9T (`is_derived`), số Q4 tự lập giữ ở `fs_extracted_raw`.", ""]
+        if audit.height:
+            lines += ["| Năm | Mã | Chỉ tiêu | Lũy kế Q4 tự lập (VND) | Năm kiểm toán (VND) | Điều chỉnh | Cả hai trusted |",
+                      "|---|---|---|---|---|---|---|"]
+            for r in audit.iter_rows(named=True):
+                diff = r["audited"] - r["q4_ytd"]
+                pct = f"{diff / r['q4_ytd']:.2%}" if r["q4_ytd"] else "–"
+                lines.append(f"| {r['fiscal_year']} | {r['account_code']} | {(r['item_name'] or '')[:45]} | {r['q4_ytd']:,} | "
+                             f"{r['audited']:,} | {diff:,} ({pct}) | {'✓' if r['is_trusted'] and r['audited_trusted'] else '–'} |")
+        else:
+            lines.append("Không có mã nào lệch.")
+        lines.append("")
+    lines += [MARK_END]
     text = DQ_REPORT.read_text(encoding="utf-8")
     block = "\n".join(lines)
     if MARK_START in text:
@@ -312,16 +414,23 @@ def build_candidates() -> tuple[pl.DataFrame, pl.DataFrame, dict]:
     return build_long(raw, load_manifest(), _dim_codes(), _negative_codes())
 
 
+def build_silver(cands: pl.DataFrame) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """-> (Silver đã chọn bản thắng, các ô suy ra). Xác nhận chéo trước khi chọn bản thắng và suy quý."""
+    cands = apply_cross_doc(cands)
+    derived = derive_quarters(pick_winners(cands))
+    return pick_winners(pl.concat([cands, derived])), derived
+
+
 def run() -> dict:
     cands, unmapped, stats = build_candidates()
-    win = pick_winners(cands)
-    derived = derive_quarters(win)
-    final = pick_winners(pl.concat([cands, derived]))
+    final, derived = build_silver(cands)
     stats.update(rows=final.height, derived=derived.height, unmapped_cells=unmapped.height,
-                 unmapped=write_unmapped(unmapped))
+                 unmapped=write_unmapped(unmapped),
+                 cross_doc=final.filter(pl.col("gold_basis") == "cross_doc_consensus").height,
+                 audited_q4=final.filter(pl.col("rank_score") >= 1000 + AUDITED_Q4_BONUS).height)
     res = merge_silver(final)
-    restated = restatements(cands)
-    write_report(restated, stats)
+    restated = restatements(apply_cross_doc(cands))
+    write_report(restated, stats, audit_adjustments(cands))
     v = DeltaTable(str(SILVER_TABLE)).version()
     print(f"[silver] fin_statement_long v{v}: {final.height} dòng ({stats['derived']} suy ra); "
           f"MERGE: thêm {res.get('num_target_rows_inserted', 0)}, sửa {res.get('num_target_rows_updated', 0)}, "

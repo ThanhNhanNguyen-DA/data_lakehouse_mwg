@@ -93,3 +93,14 @@ Mỗi mục: quyết định, lý do, cách đảo lại nếu cần.
   local. Dashboard không cần bảng này.
 - **Requirements riêng cho dashboard** (`dashboard/requirements.txt`): Streamlit Cloud cài gói cạnh `app.py`, tránh
   PaddlePaddle/Tesseract. Phiên bản trùng `requirements.txt`.
+
+## Quyết định của người dùng 13/11/2026 (DBG-36…41)
+
+- **Q4 = năm kiểm toán − 9T** khi đã có BCTC năm (phương án b): mọi chỉ tiêu B02 cộng được theo thời gian; số Q4 tự lập
+  giữ ở `fs_extracted_raw`, chênh lệch ghi ở mục "Điều chỉnh kiểm toán". Đảo lại: đặt `AUDITED_Q4_BONUS = 0`.
+- **Xác nhận chéo giữa tài liệu** (`gold_basis = cross_doc_consensus`): ≥ 2 tài liệu khớp hoặc 1 tài liệu + phép tính
+  lũy kế từ tài liệu khác → vào Gold kể cả khi cột trượt critical; không thắng số mâu thuẫn đã qua critical. Báo cáo
+  tháng (số sơ bộ) không sinh gợi ý cho ô đã đồng thuận.
+- **semantic_break cho TT99 135**; mã đã ghép biến động > 20% giữa 31/12/2025 và đầu năm 2026 vào danh sách chờ duyệt
+  (`docs/dim_account_notes.md`).
+

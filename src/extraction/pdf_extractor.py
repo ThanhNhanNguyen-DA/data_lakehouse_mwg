@@ -288,7 +288,7 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
     scored = [(sum(1 for b in all_words if b["y0"] > w["y1"] and _code_of(b["text"]) and abs(_xc(b) - _xc(w)) <= 2 * h), w)
               for w in _find(header, {"ma", "ma so", "maso", "code"})]
     code_word = max(scored, key=lambda t: t[0])[1] if scored and max(t[0] for t in scored) >= 3 else None
-    code_band = _band(code_word, pad=1.5 * h) or (prev or {}).get("code_band")
+    code_band = _band(code_word, pad=1.5 * h)
     note_words = _find(header, {"minh", "notes", "note"}, prefixes=("thuy",))
     note_band = _band(note_words[0], pad=0.5 * h) if note_words else (prev or {}).get("note_band")
     # Mã có thể nằm cao hơn dòng số tiền (tên chỉ tiêu xuống dòng), nên tìm mã ở mọi dòng dưới chữ
@@ -300,6 +300,12 @@ def parse_statement_page(words: list[dict], statement: str, prev: dict | None = 
     else:
         first_row = next((i for i in range(max(0, first_amount - 2), first_amount)
                           if not re.search(r"20\d{2}", " ".join(w["text"] for w in lines[i]))), first_amount)
+    if code_band is None and (prev or {}).get("code_band"):
+        # trang tiếp theo thiếu tiêu đề cột: dùng lại dải mã trang trước, trừ khi bản scan trang này lệch ngang
+        # khiến không mã nào rơi vào dải đó (BCTC Q3/2026 trang 9 lệch ~45 px, mất cả dòng 51-71)
+        lo, hi = prev["code_band"]
+        if any(_code_of(w["text"]) and lo <= _xc(w) <= hi for line in lines[first_row:] for w in line):
+            code_band = prev["code_band"]
     if code_band is None:
         # Không thấy tiêu đề cột: trong các cụm x có đủ nhiều mã (>= 1/2 cụm đông nhất), chọn cụm có
         # giá trị lớn nhất - cột số thứ tự (1, 2, 3...) có cùng số dòng nhưng giá trị nhỏ hơn mã.

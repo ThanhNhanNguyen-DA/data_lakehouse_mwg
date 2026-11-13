@@ -98,3 +98,15 @@ def test_match_numeric_bao_cao_khong_thong_nhat_va_bang_0():
     result = M.match_numeric(rows, {"110": 10, "112": 0}, {"110": {10, 11}, "112": {0}}, {"110": 10}, level, "2025")
     assert [c for c, _, _ in result["báo cáo 2026 không thống nhất"]] == ["110"]
     assert [c for c, _, _ in result["bằng 0"]] == ["112"]
+
+
+def test_match_numeric_du_phong_q4_va_bien_dong_20():
+    rows = [_row("135", "136"), _row("111", "111")]
+    level = {("TT99", "135"): "3", ("TT200", "136"): "3", ("TT99", "111"): "3", ("TT200", "111"): "3"}
+    v99 = {"135": 1_778, "111": 1_100}
+    # BCTC năm không đọc được ô 136 -> dùng số cùng ngày của BCTC Q4 (chỉ để gắn cờ, không để ghép)
+    result = M.match_numeric(rows, v99, {k: {v} for k, v in v99.items()}, {"111": 1_000}, level, "2025",
+                             v200_fallback={"136": 2_835})
+    by = {r["account_code"]: r for r in rows}
+    assert by["135"]["semantic_break"] == "true" and by["135"]["canonical_code"] == "136"
+    assert [(c, h[0]) for c, _, h in result[M.SHIFT_KEY]] == [("135", "136")]  # 111: +10% không vào danh sách

@@ -42,7 +42,7 @@ def build_fact(silver: pl.DataFrame) -> pl.DataFrame:
          + pl.col("period_end").dt.day()).cast(pl.Int32).alias("date_key"),
         "statement", "account_code", pl.lit(CONSOLIDATED[0]).alias("chain_key"), pl.lit(CONSOLIDATED[1]).alias("scope"),
         "amount_vnd", "regime", "semantic_break", "is_derived", "is_comparative", "is_manual", "source_doc_sha256",
-        "source_period", "source_lang", "source_priority", "page", "value_origin", "derived_from")
+        "source_period", "source_lang", "source_priority", "page", "value_origin", "derived_from", "gold_basis")
 
 
 def build_dim_date(fact: pl.DataFrame) -> pl.DataFrame:
@@ -80,7 +80,8 @@ def write_gold(silver: pl.DataFrame, gold_dir: Path = GOLD_DIR) -> dict:
                      ("dim_chain", build_dim_chain())):
         df.write_delta(str(gold_dir / name), mode="overwrite", delta_write_options={"schema_mode": "overwrite"})
     path = str(gold_dir / "fact_financial")
-    write_deltalake(path, fact.to_arrow(), mode="overwrite", partition_by=["fiscal_year"])
+    # Gold dựng lại toàn bộ: thêm/bớt cột (vd. gold_basis) thì ghi đè cả schema
+    write_deltalake(path, fact.to_arrow(), mode="overwrite", partition_by=["fiscal_year"], schema_mode="overwrite")
     dt = DeltaTable(path)
     have = dt.metadata().configuration
     missing = {k: v for k, v in FACT_CONSTRAINTS.items() if f"delta.constraints.{k}" not in have}
@@ -124,7 +125,10 @@ SELECT fiscal_year, fiscal_quarter, period_kind,
        max(amount_vnd) FILTER (account_code = '20') AS gross_profit,
        max(amount_vnd) FILTER (account_code = '60') AS npat,
        max(amount_vnd) FILTER (account_code = '61') AS npat_parent,
-       bool_or(is_derived) AS has_derived
+       bool_or(is_derived) AS has_derived,
+       -- regime/semantic_break của tài liệu nguồn: kỳ chỉ có số so sánh (không có B01 cùng ngày) vẫn có giá trị
+       max(regime) AS regime,
+       bool_or(semantic_break) AS income_semantic_break
 FROM fact_financial
 WHERE scope = 'consolidated' AND statement = 'B02' AND period_kind IN ('quarter', 'year')
 GROUP BY ALL;
@@ -138,7 +142,7 @@ WITH q AS (
     FROM v_income i JOIN dim_date d USING (fiscal_year, fiscal_quarter)
     WHERE i.period_kind = 'quarter'
 )
-SELECT q.fiscal_year, q.fiscal_quarter, q.quarter_label, q.period_end, b.regime,
+SELECT q.fiscal_year, q.fiscal_quarter, q.quarter_label, q.period_end, coalesce(b.regime, q.regime) AS regime,
        q.net_revenue, q.gross_profit, q.npat, q.npat_parent, q.cogs, q.has_derived,
        q.gross_profit / NULLIF(q.net_revenue, 0) AS gross_margin,
        q.npat / NULLIF(q.net_revenue, 0) AS net_margin,
@@ -156,7 +160,7 @@ SELECT q.fiscal_year, q.fiscal_quarter, q.quarter_label, q.period_end, b.regime,
        b.inventory / NULLIF(b.total_assets, 0) AS inventory_share,
        b.liabilities / NULLIF(b.total_assets, 0) AS liabilities_share,
        b.equity / NULLIF(b.total_assets, 0) AS equity_share,
-       b.has_semantic_break
+       coalesce(b.has_semantic_break, false) OR coalesce(q.income_semantic_break, false) AS has_semantic_break
 FROM q
 LEFT JOIN v_balance b ON b.fiscal_year = q.fiscal_year AND b.fiscal_quarter = q.fiscal_quarter
 LEFT JOIN v_balance bp ON bp.fiscal_year = q.prev_year AND bp.fiscal_quarter = q.prev_quarter
@@ -166,7 +170,7 @@ LEFT JOIN (SELECT * FROM v_income WHERE period_kind = 'quarter') p
        ON p.fiscal_year = q.prev_year AND p.fiscal_quarter = q.prev_quarter;
 
 CREATE OR REPLACE VIEW v_kpi_year AS
-SELECT i.fiscal_year, b.regime, i.net_revenue, i.gross_profit, i.npat, i.npat_parent, i.cogs,
+SELECT i.fiscal_year, coalesce(b.regime, i.regime) AS regime, i.net_revenue, i.gross_profit, i.npat, i.npat_parent, i.cogs,
        i.gross_profit / NULLIF(i.net_revenue, 0) AS gross_margin,
        i.npat / NULLIF(i.net_revenue, 0) AS net_margin,
        i.npat / NULLIF((b.owners_equity + bp.owners_equity) / 2, 0) AS roe,
@@ -180,7 +184,7 @@ SELECT i.fiscal_year, b.regime, i.net_revenue, i.gross_profit, i.npat, i.npat_pa
        b.inventory / NULLIF(b.total_assets, 0) AS inventory_share,
        b.liabilities / NULLIF(b.total_assets, 0) AS liabilities_share,
        b.equity / NULLIF(b.total_assets, 0) AS equity_share,
-       b.has_semantic_break
+       coalesce(b.has_semantic_break, false) OR coalesce(i.income_semantic_break, false) AS has_semantic_break
 FROM v_income i
 LEFT JOIN v_balance b ON b.fiscal_year = i.fiscal_year AND b.fiscal_quarter = 4
 LEFT JOIN v_balance bp ON bp.fiscal_year = i.fiscal_year - 1 AND bp.fiscal_quarter = 4
