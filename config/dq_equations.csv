@@ -14,3 +14,5 @@ TT99,B02,60,50-51-52,60 = 50 - 51 - 52,,"In trên B02 BCTC hợp nhất Q3/2026 
 TT200,B02,60,61+62,60 = 61 + 62,,Mẫu B02-DN/HN (TT202 PL1): LNST 60 tách thành 61 (cổ đông công ty mẹ) và 62 (cổ đông không kiểm soát); người dùng chỉ định
 TT99,B02,60,61+62,60 = 61 + 62,,BCTC hợp nhất TT99 của MWG in 61 và 62 dưới 60 (8 ô mỗi mã trong fs_extracted_raw); người dùng chỉ định
 TT200,B02,30,20+21-22+24-25-26,30 = 20 + (21 - 22) + 24 - (25 + 26),24,"Dò bằng số liệu: đúng 36/38 báo cáo TT200 đã qua critical B01 (dòng 24 không in = 0), công thức in trong bản TT202 của TVT-ProTrain đúng 0/38 (tools/probe_b02_formula.py, docs/dim_account_notes.md). Thay bằng công thức in trong TT202 chính thức khi có trong docs/reference/"
+TT200,B03,50,20+30+40,50 = 20 + 30 + 40,,"In trên mẫu B03-DN/HN (gián tiếp) TT202 PL1: ""Lưu chuyển tiền thuần trong kỳ (50 = 20+30+40)"""
+TT200,B03,70,50+60+61,70 = 50 + 60 + 61,61,"In trên mẫu B03-DN/HN (gián tiếp) TT202 PL1: ""Tiền và tương đương tiền cuối kỳ (70 = 50+60+61)""; 61 (ảnh hưởng tỷ giá) được phép không in"

@@ -33,14 +33,18 @@ def level_of(name):
     if re.match(r"^-", n): return 4
     return 3
 
-def parse_202(text):
-    """(statement, code, name) theo thứ tự trong mẫu B01-DN/HN và B02-DN/HN của TT202."""
+B03_MARK, B03_END = "(Theo phương pháp gián tiếp)", "Ghi chú:"  # MWG lập B03 theo phương pháp gián tiếp
+
+
+def parse_202(text, markers=None, stop="Mẫu số B 03"):
+    """(statement, code, name) theo thứ tự trong mẫu B01-DN/HN và B02-DN/HN của TT202 (markers: dòng mở đầu -> báo cáo)."""
+    markers = markers or {"Mẫu số B 01 - DN/HN": "B01", "Mẫu số B 02 - DN/HN": "B02"}
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     out, st, name = [], None, []
     for l in lines:
-        if "Mẫu số B 01 - DN/HN" in l: st = "B01"; continue
-        if "Mẫu số B 02 - DN/HN" in l: st = "B02"; continue
-        if "Mẫu số B 03" in l: break
+        hit = next((v for k, v in markers.items() if k in l), None)
+        if hit: st = hit; continue
+        if stop in l: break
         if st is None: continue
         if re.fullmatch(r"\d{2,3}[ab]?", l):
             if name: out.append((st, l, " ".join(name))); name = []
@@ -50,6 +54,12 @@ def parse_202(text):
             continue
         name = [l] if re.match(r"^([A-D]\s*[-–]|[IVX]+\.|\d+\.|-|TỔNG)", l) else name + [l]
     return out
+
+def b03_section(text):
+    """Mẫu B03-DN/HN theo phương pháp gián tiếp trong TT202 PL1 (sau mẫu trực tiếp), tới dòng "Ghi chú:"."""
+    start = text.index(B03_MARK)
+    return text[start:text.index(B03_END, start)]
+
 
 def formulas_in(text):
     """Công thức dạng (X = Y + Z - W) in trên mẫu."""
@@ -166,6 +176,10 @@ def main(ref: Path, out: Path) -> None:
     for lhs, terms in formulas_in(t202).items():
         f[("B01" if int(lhs) >= 100 else "B02", lhs)] = terms
     f.pop(("B02", "70"), None)  # "(70 = 50+60+61...)" thuộc B03 (lưu chuyển tiền), không phải B02
+    # B03 (gián tiếp): mã và công thức in trên mẫu (50 = 20+30+40, 70 = 50+60+61); số giữ dấu in (sign = 1)
+    sec03 = b03_section(t202)
+    items200 += parse_202(sec03, markers={B03_MARK: "B03"}, stop=B03_END)
+    f.update({("B03", lhs): terms for lhs, terms in formulas_in(sec03).items()})
     unc200 = {("B01", "230"): "công thức in trên mẫu TT200 PL2 '200 = 210 + 220 + 240 + 250 + 260' không có 230, bố cục mẫu thì 230 thuộc mục B",
               **{("B02", c): "công thức mã 30 trong bản TT202 này '{30 = 20 + (21 - 22) - (24 + 25)}' không khớp cấu trúc (24 là lãi/lỗ liên doanh, 25-26 là chi phí)" for c in ("20", "21", "22", "24", "25", "26")}}
     lp = layout_parents(items200)

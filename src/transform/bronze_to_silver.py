@@ -221,14 +221,14 @@ def cross_doc_confirmed(df: pl.DataFrame, tol: int = 1) -> pl.Series:
 
 
 def apply_cross_doc(cands: pl.DataFrame) -> pl.DataFrame:
-    """Ô B01/B02 xác nhận chéo -> trusted + gold_eligible (gold_basis = cross_doc_consensus nếu trước đó bị chặn).
+    """Ô B01/B02/B03 xác nhận chéo -> trusted + gold_eligible (gold_basis = cross_doc_consensus nếu trước đó bị chặn).
 
     Không xác nhận giá trị mâu thuẫn với ô cùng khóa đã qua critical: các báo cáo cùng bố cục có thể lặp cùng một lỗi
     gán dòng (vd. BCTC Q1 và H1/2020 cùng đọc 410 = số của 411), nên "khớp nhau" không đủ khi có số đã kiểm chứng khác."""
     idx = cands.with_row_index("_i")
     elig = idx.filter(pl.col("gold_eligible")).select(*KEY, pl.col("amount_vnd").alias("_ok"))
     bad = idx.join(elig, on=KEY).filter((pl.col("amount_vnd") - pl.col("_ok")).abs() > 1)["_i"].unique().to_list()
-    cross = cross_doc_confirmed(cands) & cands["statement"].is_in(["B01", "B02"]) & ~idx["_i"].is_in(bad)
+    cross = cross_doc_confirmed(cands) & cands["statement"].is_in(["B01", "B02", "B03"]) & ~idx["_i"].is_in(bad)
     return cands.with_columns(
         pl.when(pl.col("gold_eligible")).then(pl.col("gold_basis"))
           .when(cross).then(pl.lit("cross_doc_consensus")).otherwise(None).alias("gold_basis"),

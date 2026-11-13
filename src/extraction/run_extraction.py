@@ -499,6 +499,23 @@ def _make_doc(row: dict, res: dict, ctx: dict) -> dict:
             "columns_ok": not (regime == "TT99" and method not in ("header", "header_reocr"))}
 
 
+def check_cash_link(values: dict, year_end_prior: bool, tol: int = 1) -> list[dict]:
+    """Kiểm chéo B03 với B01 cùng báo cáo: tiền cuối kỳ (B03 70, cột kỳ này) = B01 110 cuối kỳ; tiền đầu kỳ (B03 60,
+    cột kỳ này, lũy kế từ đầu năm) = B01 110 đầu năm. BCTC năm/Q4 thêm: B03 70 cột năm trước = B01 110 đầu năm."""
+    pairs = [("current", "70", "closing", "B03 70 = B01 110 cuối kỳ"), ("current", "60", "opening", "B03 60 = B01 110 đầu năm")]
+    if year_end_prior:
+        pairs.append(("prior", "70", "opening", "B03 70 năm trước = B01 110 đầu năm"))
+    out = []
+    for kind, code, b01_kind, label in pairs:
+        a, b = values.get(("B03", code, kind)), values.get(("B01", "110", b01_kind))
+        if a is None or b is None:
+            continue
+        ok = abs(a - b) <= tol
+        out.append({"check": label, "kind": kind, "ok": ok, "note": "" if ok else f"lệch {a - b:,}",
+                    "equation": {"statement": "B03", "lhs": code, "terms": [], "label": label}})
+    return out
+
+
 def _evaluate(d: dict, ctx: dict) -> None:
     """Kiểm tra DQ của một báo cáo (ghi vào d): phương trình, tổng dòng con, Q1, cột B02 TT99."""
     values = {(c["statement"], c["account_code"], c["period_kind"]): c["amount_vnd"] for c in d["cells"]}
@@ -509,6 +526,8 @@ def _evaluate(d: dict, ctx: dict) -> None:
               + check_parent_sums(values, ctx["dim"], regime, skip=skip) if d["cells"] and regime else [])
     if d["period"].endswith("-Q1"):
         checks += check_q1_columns(values)
+    if d["cells"] and regime:
+        checks += check_cash_link(values, d.get("doc_type") == "FS_CONSOLIDATED_Y" or d["period"].endswith("-Q4"))
     eligible = {e["label"] for e in eligible_equations(ctx["equations"], signs)}
     d["checks"] = checks
     d["eligible_labels"] = eligible
@@ -546,17 +565,19 @@ def dq_level(check: dict) -> str:
         return "critical"
     if eq.get("statement") == "B02" and eq.get("lhs") in CRITICAL_B02:
         return "critical"
+    if eq.get("statement") == "B03" and "Σ" not in check["check"]:  # 50, 70 in trên mẫu + kiểm chéo tiền với B01
+        return "critical"
     return "warning"
 
 
-def critical_columns(d: dict) -> dict[str, bool]:
-    """{period_kind: qua critical B02 của riêng cột đó}. Điều kiện chung của báo cáo (trang B02, kỳ/ngày, nhãn cột
-    TT99) vẫn áp cho mọi cột; cột không có phương trình critical nào kiểm được thì không qua."""
-    if not (d["res"]["pages"].get("B02") and d["period_check_ok"] and d["columns_ok"]):
+def critical_columns(d: dict, statement: str = "B02") -> dict[str, bool]:
+    """{period_kind: qua critical của riêng cột đó} cho B02/B03. Điều kiện chung của báo cáo (có trang, kỳ/ngày, nhãn
+    cột TT99 với B02) vẫn áp cho mọi cột; cột không có phương trình critical nào kiểm được thì không qua."""
+    if not (d["res"]["pages"].get(statement) and d["period_check_ok"] and (statement != "B02" or d["columns_ok"])):
         return {}
     out: dict[str, bool] = {}
     for c in d["checks"]:
-        if c["level"] == "critical" and c.get("equation", {}).get("statement") == "B02" and c.get("kind"):
+        if c["level"] == "critical" and c.get("equation", {}).get("statement") == statement and c.get("kind"):
             out[c["kind"]] = out.get(c["kind"], True) and c["ok"]
     return out
 
@@ -864,19 +885,19 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
         has_pages = bool(d["res"]["pages"].get("B01")) and bool(d["res"]["pages"].get("B02"))
         d["passed"] = d["dq_balance_ok"] and d["period_check_ok"] and d["opening_ok"] is not False and has_pages
         # critical chặn Gold; warning (tổng dòng con mục nhỏ, đầu năm ≠ cuối năm trước) chỉ ghi lại
-        # critical theo từng báo cáo: B01 chỉ chặn ô B01, B02 chỉ chặn ô B02 (B03 chưa có critical -> chưa vào Gold)
-        for st in ("B01", "B02"):
+        # critical theo từng báo cáo: B01 chặn ô B01; B02, B03 chặn theo từng cột của chính báo cáo đó
+        for st in ("B01", "B02", "B03"):
             crit = [c for c in d["checks"] if c["level"] == "critical" and c.get("equation", {}).get("statement") == st]
             d[f"passed_critical_{st.lower()}"] = (bool(d["res"]["pages"].get(st)) and d["period_check_ok"]
                                                   and (st == "B01" or d["columns_ok"])
                                                   and bool(crit) and all(c["ok"] for c in crit))
         d["passed_critical"] = has_pages and d["passed_critical_b01"] and d["passed_critical_b02"]
-        b02_cols = critical_columns(d)
+        cols = {"B02": critical_columns(d, "B02"), "B03": critical_columns(d, "B03")}
         for c in d["cells"]:
             c["is_trusted"] = (c["statement"], c["account_code"], c["period_kind"]) in d["trusted_keys"]
-            # B02 chặn theo từng cột (period_kind): cột lũy kế trượt không kéo cột quý này ra khỏi Gold
-            ok = b02_cols.get(c["period_kind"], False) if c["statement"] == "B02" else d.get("passed_critical_b01", False) \
-                if c["statement"] == "B01" else False
+            # B02/B03 chặn theo từng cột (period_kind): cột lũy kế trượt không kéo cột quý này ra khỏi Gold
+            ok = d.get("passed_critical_b01", False) if c["statement"] == "B01" \
+                else cols.get(c["statement"], {}).get(c["period_kind"], False)
             c["gold_eligible"] = c["is_trusted"] and ok
 
     monthly_docs = []
@@ -918,6 +939,7 @@ def _write_raw(docs: list[dict]) -> None:
              "value_origin": c.get("value_origin", "ocr"), "b02_label_method": d["b02_label_method"],
              "is_trusted": c.get("is_trusted", False), "passed_critical": d["passed_critical"],
              "passed_critical_b01": d["passed_critical_b01"], "passed_critical_b02": d["passed_critical_b02"],
+             "passed_critical_b03": d["passed_critical_b03"],
              "gold_eligible": c.get("gold_eligible", False), "semantic_break": c.get("semantic_break", False),
              "conflict_lost": c.get("conflict_lost", False), "implausible": c.get("implausible", False),
              "ocr_value": c.get("ocr_value"),
@@ -951,8 +973,8 @@ def _trusted(docs: list[dict], gold: bool = False, statement: str | None = None)
     return f"{k}/{len(cells)} ({k / len(cells):.0%})" if cells else "–"
 
 
-def _col_rate(docs: list[dict]) -> str:
-    cols = [ok for d in docs for ok in critical_columns(d).values()]
+def _col_rate(docs: list[dict], statement: str = "B02") -> str:
+    cols = [ok for d in docs for ok in critical_columns(d, statement).values()]
     return f"{sum(cols)}/{len(cols)}" if cols else "–"
 
 
@@ -986,10 +1008,10 @@ def _breakdown(docs: list[dict], key, title: str) -> list[str]:
     groups: dict = {}
     for d in docs:
         groups.setdefault(key(d), []).append(d)
-    return ([f"| {title} | B01 cân đối | **Critical B01** | **Critical B02** | Critical cả hai | Qua DQ toàn bộ |",
-             "|---|---|---|---|---|---|"]
+    return ([f"| {title} | B01 cân đối | **Critical B01** | **Critical B02** | **Critical B03** | Critical B01 + B02 | Qua DQ toàn bộ |",
+             "|---|---|---|---|---|---|---|"]
             + [f"| {k} | {_rate(v, 'b01_ok')} | {_rate(v, 'passed_critical_b01')} | {_rate(v, 'passed_critical_b02')} "
-               f"| {_rate(v, 'passed_critical')} | {_rate(v)} |"
+               f"| {_rate(v, 'passed_critical_b03')} | {_rate(v, 'passed_critical')} | {_rate(v)} |"
                for k, v in sorted(groups.items())] + [""])
 
 
@@ -1055,14 +1077,17 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
              f"{_eq_rate(docs, 'raw_checks')} phép kiểm phương trình B01 đúng. **Sau tự sửa**: B01 cân đối "
              f"{_rate(docs, 'b01_ok')}.", "",
              f"**Qua critical (chặn Gold theo từng báo cáo): B01 {_rate(docs, 'passed_critical_b01')}, "
-             f"B02 {_rate(docs, 'passed_critical_b02')}** (cả hai: {_rate(docs, 'passed_critical')}). Ô trusted (nằm "
+             f"B02 {_rate(docs, 'passed_critical_b02')}, B03 {_rate(docs, 'passed_critical_b03')}** "
+             f"(B01 + B02: {_rate(docs, 'passed_critical')}). Ô trusted (nằm "
              f"trong một phương trình/tổng dòng con đúng, >= 2 nguồn bỏ phiếu khớp, hoặc đồng nhất thức với ô "
              f"trusted): {_trusted(docs)}. **Ô vào được Gold** (trusted và critical của chính báo cáo đó qua): "
-             f"B01 {_trusted(docs, True, 'B01')}, B02 {_trusted(docs, True, 'B02')}; B03 chưa có critical nên chưa "
-             "vào Gold. B02 chặn theo từng cột (`period_kind`): cột B02 qua critical "
-             f"{_col_rate(docs)}.", "",
+             f"B01 {_trusted(docs, True, 'B01')}, B02 {_trusted(docs, True, 'B02')}, B03 {_trusted(docs, True, 'B03')}. "
+             f"B02, B03 chặn theo từng cột (`period_kind`): cột B02 qua critical {_col_rate(docs)}, cột B03 "
+             f"{_col_rate(docs, 'B03')}.", "",
              "Critical B01: phương trình cân đối B01, kỳ/ngày báo cáo, có trang B01. Critical B02: phương trình B02 có "
-             "vế trái 10, 20, 30, 50, 60, kỳ/ngày báo cáo, có trang B02, nhãn cột B02 TT99. Đồng nhất thức "
+             "vế trái 10, 20, 30, 50, 60, kỳ/ngày báo cáo, có trang B02, nhãn cột B02 TT99. Critical B03: 50 = 20 + 30 + 40, "
+             "70 = 50 + 60 + 61 (mẫu TT202), kiểm chéo tiền với B01 (B03 70 = B01 110 cuối kỳ, B03 60 = B01 110 đầu năm), "
+             "kỳ/ngày, có trang B03; mẫu B03 TT99 chưa có trong docs/reference nên B03 2026 chưa có phương trình. Đồng nhất thức "
              "(`config/dq_identities.csv`, `value_origin = identity`) thay phép kiểm tổng dòng con của dòng đích. Warning (chỉ ghi lại): tổng dòng con các mục nhỏ, Q1 quý này = lũy "
              "kế, đầu năm ≠ cuối năm trước. Critical chưa kiểm được (thiếu công thức chắc chắn): "
              + "; ".join(f"{reg}: B02 {', '.join(sorted(codes))}" for reg, codes in sorted(_unchecked(docs).items()))

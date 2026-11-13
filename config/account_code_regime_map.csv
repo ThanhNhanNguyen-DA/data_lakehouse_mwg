@@ -6,7 +6,7 @@ TT99,B01,112,112,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (ph
 TT99,B01,120,120,name,true,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),"số liệu 31/12/2025: TT99 120 = 41,883,889,962,478 khác TT200 120 = 33,874,270,102,700, không giống lỗi OCR: cùng tên nhưng khác nội dung"
 TT99,B01,121,121,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
 TT99,B01,122,122,name,,tên chỉ tiêu trùng khớp giữa TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf) và TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc),
-TT99,B01,123,,,,,
+TT99,B01,123,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
 TT99,B01,124,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
 TT99,B01,125,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map
 TT99,B01,126,,,,,không có chỉ tiêu cùng tên trong mẫu TT200/TT202: chưa map

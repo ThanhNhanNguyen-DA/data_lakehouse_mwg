@@ -57,7 +57,7 @@ def _q(tmp_path, sql):
 def test_fact_chi_nhan_o_gold_eligible_va_mot_scope(gold):
     tmp_path, res = gold
     fact = pl.read_delta(str(tmp_path / "gold" / "fact_financial"))
-    assert res["fact"] == 8 == fact.height  # bỏ ô bị chặn và B03
+    assert res["fact"] == 9 == fact.height  # bỏ ô bị chặn; ô B03 gold_eligible vào Gold như B01/B02
     assert set(fact["scope"]) == {"consolidated"} and set(fact["chain_key"]) == {"MWG_TOTAL"}
     assert fact.group_by(G.FACT_KEY).len()["len"].max() == 1
 
@@ -116,5 +116,5 @@ def test_snapshot_tu_chua_khong_can_delta(gold, tmp_path_factory):
     con = duckdb.connect(str(out), read_only=True)  # không LOAD delta, thư mục làm việc bất kỳ
     kinds = dict(con.sql("SELECT table_name, table_type FROM information_schema.tables").fetchall())
     assert kinds["fact_financial"] == "BASE TABLE" and kinds["v_kpi_quarter"] == "VIEW"
-    assert con.sql("SELECT count(*) FROM fact_financial").fetchall()[0][0] == 8
+    assert con.sql("SELECT count(*) FROM fact_financial").fetchall()[0][0] == 9
     assert con.sql("SELECT gross_margin FROM v_kpi_quarter WHERE fiscal_quarter = 2").fetchall()[0][0] == pytest.approx(0.2)

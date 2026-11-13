@@ -38,8 +38,8 @@ FACT_KEY = ["fiscal_year", "fiscal_quarter", "period_kind", "statement", "accoun
 
 
 def build_fact(silver: pl.DataFrame) -> pl.DataFrame:
-    """Ô gold_eligible của Silver -> fact hợp nhất. B03 chưa có critical nên không có ô gold_eligible."""
-    df = silver.filter(pl.col("gold_eligible") & pl.col("statement").is_in(["B01", "B02"]))
+    """Ô gold_eligible của Silver -> fact hợp nhất (B01, B02, B03; B03 qua critical riêng theo từng cột)."""
+    df = silver.filter(pl.col("gold_eligible") & pl.col("statement").is_in(["B01", "B02", "B03"]))
     return df.select(
         "fiscal_year", "fiscal_quarter", "period_kind", "period_end",
         (pl.col("period_end").dt.year() * 10000 + pl.col("period_end").dt.month() * 100

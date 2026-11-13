@@ -530,3 +530,14 @@ def test_bo_pending_khong_con_sinh_lai(tmp_path):
     assert prune_suggestions(path, "doc_conflict", set()) == 1
     left = list(csv.DictReader(path.open(encoding="utf-8")))
     assert [r["source_doc_sha256"] for r in left] == ["b", "c"]  # đã xác nhận và gợi ý loại khác: giữ
+
+
+def test_kiem_cheo_tien_b03_voi_b01():
+    from src.extraction.run_extraction import check_cash_link, dq_level
+    values = {("B03", "70", "current"): 500, ("B01", "110", "closing"): 500, ("B03", "60", "current"): 300,
+              ("B01", "110", "opening"): 301 + 5, ("B03", "70", "prior"): 306}
+    res = {c["check"]: c for c in check_cash_link(values, year_end_prior=True)}
+    assert res["B03 70 = B01 110 cuối kỳ"]["ok"] and not res["B03 60 = B01 110 đầu năm"]["ok"]
+    assert res["B03 70 năm trước = B01 110 đầu năm"]["ok"]
+    assert all(dq_level(c) == "critical" for c in res.values())
+    assert len(check_cash_link(values, year_end_prior=False)) == 2  # BCTC quý: cột năm trước không có B01 cùng ngày

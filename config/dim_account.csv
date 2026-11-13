@@ -139,6 +139,43 @@ TT200,B02,61,19. Lợi nhuận sau thuế của công ty mẹ,,3,,0,,1,TT202/201
 TT200,B02,62,20. Lợi nhuận sau thuế của cổ đông không kiểm soát,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
 TT200,B02,70,21. Lãi cơ bản trên cổ phiếu (*),,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
 TT200,B02,71,22. Lãi suy giảm trên cổ phiếu (*),,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,01,1. Lợi nhuận trước thuế,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,02,- Khấu hao TSCĐ,,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,03,- Các khoản dự phòng,,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,04,"- Lãi, lỗ chênh lệch tỷ giá hối đoái do đánh giá lại các khoản mục tiền tệ có gốc ngoại tệ",,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,05,"- Lãi, lỗ từ hoạt động đầu tư",,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,06,- Chi phí lãi vay,,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,07,- Các khoản điều chỉnh khác,,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,08,3. Lợi nhuận từ hoạt động kinh doanh trước thay đổi vốn lưu động,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,09,"- Tăng, giảm các khoản phải thu",,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,10,"- Tăng, giảm hàng tồn kho",,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,11,"- Tăng, giảm các khoản phải trả (Không kể lãi vay phải trả, thuế thu nhập doanh nghiệp phải nộp)",,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,12,"- Tăng, giảm chi phí trả trước",,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,13,"- Tăng, giảm chứng khoán kinh doanh",,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,14,- Tiền lãi vay đã trả,,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,15,- Thuế thu nhập doanh nghiệp đã nộp,,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,16,- Tiền thu khác từ hoạt động kinh doanh,,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,17,- Tiền chi khác cho hoạt động kinh doanh,,4,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,20,Lưu chuyển tiền thuần từ hoạt động kinh doanh,,3,50,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B03,21,"1. Tiền chi để mua sắm, xây dựng TSCĐ và các tài sản dài hạn khác",,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,22,"2. Tiền thu từ thanh lý, nhượng bán TSCĐ và các tài sản dài hạn khác",,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,23,"3. Tiền chi cho vay, mua các công cụ nợ của đơn vị khác",,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,24,"4. Tiền thu hồi cho vay, bán lại các công cụ nợ của đơn vị khác",,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,25,5. Tiền chi đầu tư góp vốn vào đơn vị khác,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,26,6. Tiền thu hồi đầu tư góp vốn vào đơn vị khác,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,27,"7. Tiền thu lãi cho vay, cổ tức và lợi nhuận được chia",,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,30,Lưu chuyển tiền thuần từ hoạt động đầu tư,,3,50,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B03,31,"1. Tiền thu từ phát hành cổ phiếu, nhận vốn góp của chủ sở hữu",,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,32,"2. Tiền trả lại vốn góp cho các chủ sở hữu, mua lại cổ phiếu của doanh nghiệp đã phát hành",,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,33,3. Tiền thu từ đi vay,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,34,4. Tiền trả nợ gốc vay,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,35,5. Tiền trả nợ gốc thuê tài chính,,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,36,"6. Cổ tức, lợi nhuận đã trả cho chủ sở hữu",,3,,0,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
+TT200,B03,40,Lưu chuyển tiền thuần từ hoạt động tài chính,,3,50,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B03,50,Lưu chuyển tiền thuần trong kỳ (50 = 20+30+40),,3,70,1,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B03,60,Tiền và tương đương tiền đầu kỳ,,3,70,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B03,61,Ảnh hưởng của thay đổi tỷ giá hối đoái quy đổi ngoại tệ,,3,70,0,1,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc); cha: công thức
+TT200,B03,70,Tiền và tương đương tiền cuối kỳ (70 = 50+60+61),,3,,1,,1,TT202/2014 PL1 (TVT-ProTrain-PL01-BCTCHN.doc)
 TT99,B01,100,A - TÀI SẢN NGẮN HẠN,,1,280,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
 TT99,B01,110,I. Tiền và các khoản tương đương tiền,,2,100,1,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
 TT99,B01,111,1. Tiền,,3,110,0,1,1,TT99/2025 PL IV (phu-luc-4-thong-tu-99.pdf); cha: công thức
