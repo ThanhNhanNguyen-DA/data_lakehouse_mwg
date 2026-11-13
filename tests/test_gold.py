@@ -100,3 +100,21 @@ def test_lineage_noi_ve_tai_lieu(gold):
     (path, page, origin), = _q(tmp_path, "SELECT source_path, page, value_origin FROM v_lineage "
                                          "WHERE account_code = '10' AND fiscal_quarter = 2")
     assert path == "data/bronze/x.pdf" and page == 9 and origin == "ocr"
+
+
+def test_kpi_thieu_dau_ky_tinh_theo_so_du_cuoi_ky(gold):
+    tmp_path, _ = gold
+    rows = dict((r[0], r[1:]) for r in _q(tmp_path, "SELECT fiscal_quarter, roe_annualized, kpi_method FROM v_kpi_quarter"))
+    # Q2: có 410 đầu kỳ (Q1) và cuối kỳ; thiếu 270/140 đầu kỳ -> ending_balance, ROE vẫn theo bình quân 410
+    assert rows[2] == (pytest.approx(4 * 50 / 1000), "ending_balance")
+
+
+def test_snapshot_tu_chua_khong_can_delta(gold, tmp_path_factory):
+    tmp_path, _ = gold
+    out = tmp_path_factory.mktemp("snap") / "mwg.duckdb"
+    assert G.export_snapshot(tmp_path / "gold", tmp_path / "silver", tmp_path / "manifest.parquet", out) > 0
+    con = duckdb.connect(str(out), read_only=True)  # không LOAD delta, thư mục làm việc bất kỳ
+    kinds = dict(con.sql("SELECT table_name, table_type FROM information_schema.tables").fetchall())
+    assert kinds["fact_financial"] == "BASE TABLE" and kinds["v_kpi_quarter"] == "VIEW"
+    assert con.sql("SELECT count(*) FROM fact_financial").fetchall()[0][0] == 8
+    assert con.sql("SELECT gross_margin FROM v_kpi_quarter WHERE fiscal_quarter = 2").fetchall()[0][0] == pytest.approx(0.2)

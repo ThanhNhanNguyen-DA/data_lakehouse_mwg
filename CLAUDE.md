@@ -71,7 +71,8 @@ pip install -r requirements.txt
 
 python run_pipeline.py --backfill    # chỉ lần đầu: crawl toàn bộ lịch sử (chậm, có nghỉ)
 python run_pipeline.py               # incremental: chỉ tài liệu mới
-python run_pipeline.py --force       # chạy lại Silver/Gold dù không có tài liệu mới
+python run_pipeline.py --force       # chạy lại bóc tách/Silver/Gold từ Bronze sẵn có, không crawl (không gọi mwg.vn)
+python run_pipeline.py --force --crawl   # crawl rồi chạy lại toàn bộ
 
 python -m src.ingestion.mwg_crawler          # chỉ crawl
 python -m src.extraction.run_extraction      # bóc B01/B02/B03 (OCR) + DQ -> silver/fs_extracted_raw, docs/dq_report.md
@@ -99,6 +100,7 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
   - Nghỉ ngẫu nhiên 2–5 giây giữa request, 5–10 giây khi tải PDF.
   - Retry exponential backoff (tối đa 4 lần) cho 429/5xx/timeout.
   - **Gặp 403 thì dừng và ghi log, không tìm cách vượt qua.** Không giải CAPTCHA, không dùng proxy.
+- `run_pipeline.py` giữ khóa `data/_state/pipeline.lock` (PID + thời điểm): không chạy hai lượt cùng lúc; `--force` không crawl, muốn crawl kèm thì thêm `--crawl`.
 - **Incremental bằng manifest** (`data/_state/manifest.parquet`, khóa là URL): API trả nguyên một năm mỗi request, nên incremental chỉ xem `incremental_years` (= 2) năm mới nhất; `--backfill` xem tất cả. Dùng `--dry-run` để xem trước tài liệu sẽ tải.
 - Tài liệu cùng kỳ nhưng sha256 khác (bản điều chỉnh, bản kiểm toán thay bản tự lập, bản ngôn ngữ khác) vẫn được lưu; tầng Silver quyết định bản nào thắng. `is_restatement` chỉ so trong cùng một ngôn ngữ.
 - Tôn trọng `robots.txt` và Điều khoản sử dụng mwg.vn (chỉ dùng cho mục đích cá nhân, phi thương mại, học thuật).
@@ -152,6 +154,7 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
   4. `source_priority` cao hơn thắng: kiểm toán (3) > soát xét (2) > tự lập (1).
   Không bao giờ để bản xếp hạng thấp hơn ghi đè bản xếp hạng cao hơn.
   **Ngoại lệ Q4 (quyết định 13/11/2026):** khi đã có BCTC năm (kiểm toán), mọi chỉ tiêu B02 cộng được theo thời gian của Q4 = năm − 9T (`is_derived`), xếp trên số Q4 in trên BCTC quý 4 tự lập (`AUDITED_Q4_BONUS`, giữa tiêu chí 1 và 2), để bốn quý cộng lại bằng năm. Số Q4 tự lập giữ ở `fs_extracted_raw`; chênh lệch lũy kế Q4 tự lập − năm kiểm toán theo từng mã ghi ở mục "Điều chỉnh kiểm toán" của `docs/dq_report.md`.
+- **Lũy kế 6 tháng lệch giữa BCTC bán niên và BCTC Q2:** bản đúng mọi phương trình B02 nội bộ chứa các mã lệch thắng (ô của bản thua `conflict_lost`, không vào Silver; Q2 thua thì cả cột quý này); hòa thì sinh pending `suggested_by = doc_conflict` cho cả hai tài liệu, người dùng confirmed dòng của tài liệu đúng.
 - **Xác nhận chéo giữa tài liệu:** ô B01/B02 được ≥ 2 tài liệu BCTC độc lập đọc khớp (kể cả cột kỳ trước của báo cáo sau), hoặc 1 tài liệu + phép tính lũy kế(q) = lũy kế(q−1) + quý(q) từ các tài liệu khác (vd. H1 = 9T − Q3 của BCTC Q3) → trusted và `gold_eligible` kể cả khi cột trượt critical, `gold_basis = cross_doc_consensus` (khác: `critical`, `derived`). Ô đã được nhiều tài liệu BCTC khớp thì không sinh gợi ý từ báo cáo tháng (số sơ bộ).
 - **Số so sánh (`is_comparative = true`)** chỉ dùng để lấp kỳ không có tài liệu gốc (xem `docs/limitations.md`): lấy từ cột kỳ trước của báo cáo kỳ sau, vd. năm 2015 từ cột "năm trước" của BCTC FY2016; B02 Q1/2019 từ cột "quý này năm trước" của BCTC Q1/2020. B01 chỉ lấy được cho ngày cuối năm (cột "đầu năm"/"số đầu kỳ"); **không suy ra B01 giữa năm** (vd. B01 31/03/2019). Không ghi đè số gốc khi số gốc có sẵn (giữ số "as reported").
 - Khi có cả số gốc và số so sánh của cùng ô mà lệch nhau > 0,1% thì ghi vào `docs/dq_report.md` mục **"Kỳ bị trình bày lại"** (kỳ, mã số, số gốc, số so sánh, tài liệu nguồn). Số gốc vẫn thắng.
@@ -166,6 +169,8 @@ Khi phát triển crawler, bật `requests-cache` để không gọi lại mwg.v
 
 ### Dashboard
 - Mở DuckDB ở chế độ `read_only=True`. Không chạy logic transform trong dashboard.
+- Có `data/gold` thì đọc `data/gold/mwg.duckdb`; không có (Streamlit Community Cloud) thì đọc bản chụp `dashboard/snapshot/mwg.duckdb` do `silver_to_gold` xuất (bảng thật + view KPI). `data/gold` không commit.
+- KPI dùng số dư bình quân đầu kỳ – cuối kỳ; thiếu số đầu kỳ thì dùng số dư cuối kỳ (`kpi_method = ending_balance`), dashboard ghi chú phương pháp.
 - Hiển thị tiền theo tỷ đồng; dữ liệu lưu theo VND.
 
 ## 6. Quy ước code

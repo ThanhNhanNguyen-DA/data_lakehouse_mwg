@@ -38,11 +38,11 @@ Khi cùng một ô (kỳ, báo cáo, mã số) có cả số gốc (báo cáo c�
 
 <!-- silver:start -->
 
-### Kỳ bị trình bày lại – Silver (tự sinh, 2026-11-13 14:50)
+### Kỳ bị trình bày lại – Silver (tự sinh, 2026-11-13 15:39)
 
 Ô có cả số gốc (báo cáo của chính kỳ đó) và số so sánh (cột kỳ trước của báo cáo kỳ sau), **cả hai trusted**, lệch > 0,1%: 13 ô. Silver giữ số gốc. Ô chưa trusted không so (lệch có thể do OCR).
 
-Silver: 6658 dòng; loại 340 ô rỗng, 0 ô của báo cáo không qua kiểm tra kỳ/nhãn cột B02, 447 ô không ánh xạ được mã (88 mã, `data/_state/unmapped_items.csv`), 12 ô TT99 đổi nội dung rơi vào ngày theo TT200; thêm 1563 ô suy ra (Q2 = H1 − Q1, Q3 = 9T − H1, Q4 = năm − 9T).
+Silver: 6658 dòng; loại 340 ô rỗng, 0 ô của báo cáo không qua kiểm tra kỳ/nhãn cột B02, 447 ô không ánh xạ được mã (88 mã, `data/_state/unmapped_items.csv`), 0 ô thua khi hai tài liệu in khác nhau cùng lũy kế 6 tháng, 12 ô TT99 đổi nội dung rơi vào ngày theo TT200; thêm 1563 ô suy ra (Q2 = H1 − Q1, Q3 = 9T − H1, Q4 = năm − 9T).
 
 | Kỳ | Báo cáo | Kỳ cột | Mã | Số gốc (VND) | Số so sánh (VND) | Chênh lệch | Tài liệu gốc | Tài liệu so sánh |
 |---|---|---|---|---|---|---|---|---|
@@ -97,9 +97,9 @@ Chưa thực hiện. Gói `vnstock` không còn trên PyPI, xem ghi chú trong `
 
 <!-- extraction:start -->
 
-## 5. Bóc tách và DQ theo kỳ (tự sinh, 2026-11-13 14:49)
+## 5. Bóc tách và DQ theo kỳ (tự sinh, 2026-11-13 15:39)
 
-**B01 cân đối: 50/52 (96%). BCTC qua DQ toàn bộ: 7/52 (13%).** Chưa áp dụng gợi ý sửa tay nào; **15 ô đang chờ xác nhận** trong `config/manual_overrides.csv` (`status=pending`).
+**B01 cân đối: 50/52 (96%). BCTC qua DQ toàn bộ: 7/52 (13%).** Chưa áp dụng gợi ý sửa tay nào; **19 ô đang chờ xác nhận** trong `config/manual_overrides.csv` (`status=pending`).
 
 **Độ chính xác OCR thô** (trước mọi bước tự sửa): B01 cân đối 34/52 (65%); 82/108 (76%) phép kiểm phương trình B01 đúng. **Sau tự sửa**: B01 cân đối 50/52 (96%).
 
@@ -164,20 +164,20 @@ Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa c
 |---|---|---|---|
 | TT200 | 224 = Σ con | 1/1 | 100% |
 | TT99 | 40 = Σ con | 2/4 | 50% |
-| TT99 | 310 = Σ con | 1/4 | 25% |
 | TT99 | 227 = Σ con | 1/4 | 25% |
-| TT99 | 221 = Σ con | 1/4 | 25% |
-| TT99 | 20 = Σ con | 1/4 | 25% |
 | TT99 | 420 = Σ con | 1/4 | 25% |
+| TT99 | 221 = Σ con | 1/4 | 25% |
+| TT99 | 310 = Σ con | 1/4 | 25% |
+| TT99 | 20 = Σ con | 1/4 | 25% |
 | TT200 | 20 = Σ con | 11/45 | 24% |
 | TT200 | 421 = Σ con | 11/46 | 24% |
-| TT200 | 310 = Σ con | 10/48 | 21% |
 | TT200 | 410 = Σ con | 10/48 | 21% |
+| TT200 | 310 = Σ con | 10/48 | 21% |
 | TT200 | 411 = Σ con | 8/47 | 17% |
 | TT200 | 130 = Σ con | 7/48 | 15% |
-| TT200 | 150 = Σ con | 6/48 | 12% |
 | TT200 | 200 = Σ con | 6/48 | 12% |
 | TT200 | 260 = Σ con | 6/48 | 12% |
+| TT200 | 150 = Σ con | 6/48 | 12% |
 | TT200 | 40 = Σ con | 5/45 | 11% |
 | TT200 | 227 = Σ con | 5/48 | 10% |
 | TT200 | 221 = Σ con | 5/48 | 10% |
@@ -187,32 +187,41 @@ Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa c
 | TT200 | 300 = Σ con | 3/48 | 6% |
 | TT200 | 250 = Σ con | 2/38 | 5% |
 | TT200 | 10 = Σ con | 2/45 | 4% |
-| TT200 | 400 = Σ con | 2/48 | 4% |
 | TT200 | 110 = Σ con | 2/48 | 4% |
+| TT200 | 400 = Σ con | 2/48 | 4% |
 | TT200 | 330 = Σ con | 1/33 | 3% |
 | TT200 | 240 = Σ con | 1/47 | 2% |
-| TT200 | 220 = Σ con | 1/48 | 2% |
 | TT200 | 140 = Σ con | 1/48 | 2% |
+| TT200 | 220 = Σ con | 1/48 | 2% |
 | TT200 | 210 = Σ con | 0/47 | 0% |
 | TT200 | 120 = Σ con | 0/40 | 0% |
-| TT99 | 220 = Σ con | 0/4 | 0% |
-| TT99 | 210 = Σ con | 0/4 | 0% |
 | TT99 | 270 = Σ con | 0/4 | 0% |
-| TT99 | 330 = Σ con | 0/3 | 0% |
-| TT99 | 100 = Σ con | 0/4 | 0% |
-| TT99 | 160 = Σ con | 0/4 | 0% |
-| TT99 | 280 = Σ con | 0/4 | 0% |
-| TT99 | 250 = Σ con | 0/4 | 0% |
-| TT99 | 130 = Σ con | 0/4 | 0% |
-| TT99 | 10 = Σ con | 0/4 | 0% |
-| TT99 | 411 = Σ con | 0/4 | 0% |
 | TT99 | 140 = Σ con | 0/4 | 0% |
 | TT99 | 200 = Σ con | 0/4 | 0% |
-| TT99 | 300 = Σ con | 0/4 | 0% |
-| TT99 | 110 = Σ con | 0/4 | 0% |
+| TT99 | 330 = Σ con | 0/3 | 0% |
 | TT99 | 120 = Σ con | 0/4 | 0% |
-| TT99 | 50 = Σ con | 0/4 | 0% |
+| TT99 | 411 = Σ con | 0/4 | 0% |
+| TT99 | 110 = Σ con | 0/4 | 0% |
+| TT99 | 300 = Σ con | 0/4 | 0% |
+| TT99 | 160 = Σ con | 0/4 | 0% |
 | TT99 | 260 = Σ con | 0/4 | 0% |
+| TT99 | 250 = Σ con | 0/4 | 0% |
+| TT99 | 210 = Σ con | 0/4 | 0% |
+| TT99 | 10 = Σ con | 0/4 | 0% |
+| TT99 | 280 = Σ con | 0/4 | 0% |
+| TT99 | 50 = Σ con | 0/4 | 0% |
+| TT99 | 100 = Σ con | 0/4 | 0% |
+| TT99 | 130 = Σ con | 0/4 | 0% |
+| TT99 | 220 = Σ con | 0/4 | 0% |
+
+### Lũy kế 6 tháng: BCTC bán niên và BCTC Q2
+
+Cùng lũy kế 6 tháng in trên hai tài liệu mà khác nhau: bản đúng mọi phương trình B02 nội bộ chứa các mã lệch thắng; ô của bản thua (`conflict_lost`) không vào Silver. Hòa thì chờ người dùng xác nhận (gợi ý mới lần này: 4).
+
+| Năm | Mã lệch | Ví dụ (bán niên / Q2, VND) | Phương trình đúng: bán niên / Q2 | Bản thắng | Lý do |
+|---|---|---|---|---|---|
+| 2025 | 71 | 71: 2 / 2,175 | 0/0 / 0/0 | hòa – chờ xác nhận | hòa: không phương trình nào chứa mã lệch (0/0 / 0/0); chờ người dùng xác nhận (pending, suggested_by = doc_conflict) |
+| 2026 | 21, 30, 50, 60 | 60: 6,112,454,741,865 / 6,112,454,741,144 | 4/4 / 4/4 | hòa – chờ xác nhận | hòa: cả hai đều đúng phương trình nội bộ (4/4 / 4/4); chờ người dùng xác nhận (pending, suggested_by = doc_conflict) |
 
 ### Đối soát B02 mã 10, 60 với báo cáo tháng lũy kế (thay vnstock)
 

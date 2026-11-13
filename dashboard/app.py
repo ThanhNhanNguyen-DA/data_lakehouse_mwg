@@ -2,7 +2,9 @@
 
     streamlit run dashboard/app.py
 
-Không chạy logic transform ở đây: mọi số lấy từ view của data/gold/mwg.duckdb. Tiền hiển thị theo tỷ đồng.
+Không chạy logic transform ở đây: mọi số lấy từ view của data/gold/mwg.duckdb (máy có pipeline) hoặc, khi không có
+data/gold (Streamlit Community Cloud), từ bản chụp dashboard/snapshot/mwg.duckdb do silver_to_gold xuất. Tiền hiển thị
+theo tỷ đồng.
 """
 from __future__ import annotations
 
@@ -17,22 +19,32 @@ import streamlit as st
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "gold" / "mwg.duckdb"
+SNAPSHOT = ROOT / "dashboard" / "snapshot" / "mwg.duckdb"
 BILLION = 1e9
 # Thứ tự màu cố định (bảng categorical đã kiểm định CVD của skill dataviz): màu theo chỉ tiêu, không theo thứ hạng
 COLORS = {"revenue": "#2a78d6", "npat": "#eb6834", "gross": "#1baf7a", "net": "#eda100", "roe": "#e87ba4",
           "roa": "#6250d6"}
 STACK = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
 STATUS_COLORS = {"có số": "#1baf7a", "bị chặn DQ": "#eda100", "không có tài liệu gốc": "#d4d3cf"}
+METHOD_HELP = {"average": "Bình quân số dư đầu kỳ và cuối kỳ",
+               "ending_balance": "Thiếu số dư đầu kỳ trong Gold: tính theo số dư cuối kỳ (kpi_method = ending_balance)"}
 TT99_NOTE = "Đổi chuẩn TT99 (từ 2026): mã 120, 130 khác nội dung TT200, không nối chuỗi"
 
 st.set_page_config(page_title="MWG Lakehouse", page_icon="📊", layout="wide")
 
 
+def use_local() -> bool:
+    """Có Gold dựng tại chỗ (view delta_scan trên data/gold) thì đọc trực tiếp; không thì đọc bản chụp."""
+    return DB.exists() and (ROOT / "data" / "gold" / "fact_financial" / "_delta_log").exists()
+
+
 @st.cache_resource
 def connect() -> duckdb.DuckDBPyConnection:
+    if not use_local():
+        return duckdb.connect(str(SNAPSHOT), read_only=True)  # bảng thật, không cần extension delta
     os.chdir(ROOT)  # view trong mwg.duckdb dùng đường dẫn tương đối từ gốc repo
     con = duckdb.connect(str(DB), read_only=True)
-    con.execute("INSTALL delta; LOAD delta")  # Streamlit Cloud: lần đầu tự tải extension (không ghi vào file DB)
+    con.execute("INSTALL delta; LOAD delta")
     return con
 
 
@@ -99,7 +111,7 @@ def page_overview():
         c[1].metric("LN sau thuế", tỷ(r["npat"]), None if pd.isna(r["npat_yoy"]) else f"{pct(r['npat_yoy'])} so với cùng kỳ")
         c[2].metric("Biên LN gộp", pct(r["gross_margin"]))
         c[3].metric("Biên LN ròng", pct(r["net_margin"]))
-        c[4].metric("ROE (năm hóa)", pct(r["roe_annualized"]))
+        c[4].metric("ROE (năm hóa)", pct(r["roe_annualized"]), help=METHOD_HELP.get(r.get("kpi_method")))
         missing = [n for n, k in (("LNST", "npat"), ("ROE", "roe_annualized")) if pd.isna(r[k])]
         if missing:
             st.caption(f"'–': {', '.join(missing)} của quý này chưa vào Gold (bị chặn DQ hoặc thiếu kỳ đầu), xem trang Độ phủ.")
@@ -110,8 +122,8 @@ def page_overview():
         c[0].metric("Doanh thu thuần", tỷ(r["net_revenue"]), None if pd.isna(r["revenue_yoy"]) else f"{pct(r['revenue_yoy'])} YoY")
         c[1].metric("LN sau thuế", tỷ(r["npat"]), None if pd.isna(r["npat_yoy"]) else f"{pct(r['npat_yoy'])} YoY")
         c[2].metric("LNST cổ đông công ty mẹ", tỷ(r["npat_parent"]))
-        c[3].metric("ROE", pct(r["roe"]))
-        c[4].metric("ROA", pct(r["roa"]))
+        c[3].metric("ROE", pct(r["roe"]), help=METHOD_HELP.get(r.get("kpi_method")))
+        c[4].metric("ROA", pct(r["roa"]), help=METHOD_HELP.get(r.get("kpi_method")))
     cov = q("SELECT status, count(*) AS n FROM v_coverage GROUP BY 1")
     st.caption("Độ phủ ô (kỳ × chỉ tiêu chính): " + ", ".join(f"{s} {n}" for s, n in cov.itertuples(index=False))
                + ". Nguồn: BCTC hợp nhất do MWG công bố trên mwg.vn; chỉ số liệu qua kiểm tra DQ mới vào Gold.")
@@ -156,7 +168,10 @@ def page_margins():
                                     hovertemplate=n + ": %{y:.1%}<extra></extra>") for n, c, col in series])
         fig.update_layout(title=title)
         st.plotly_chart(layout(fig, ".0%"), use_container_width=True)
-    st.caption("ROE/ROA dùng bình quân đầu kỳ và cuối kỳ; thiếu một đầu thì để trống. Đường đứt quãng = kỳ thiếu số.")
+    ending = df.loc[df["kpi_method"] == "ending_balance", "label"].tolist() if "kpi_method" in df else []
+    st.caption("ROE/ROA và số ngày tồn kho dùng số dư bình quân đầu kỳ – cuối kỳ; kỳ thiếu số đầu kỳ thì tính theo số dư "
+               "cuối kỳ (`kpi_method = ending_balance`), thiếu số cuối kỳ thì để trống. Đường đứt quãng = kỳ thiếu số."
+               + (f" Kỳ tính theo số dư cuối kỳ: {', '.join(map(str, ending))}." if ending else ""))
 
 
 def page_structure():
@@ -263,12 +278,13 @@ PAGES = {"Tổng quan": page_overview, "Kết quả kinh doanh": page_results, "
 
 def main():
     st.sidebar.title("MWG Financial Lakehouse")
-    if not DB.exists():
-        st.error("Chưa có data/gold/mwg.duckdb: chạy `python run_pipeline.py` trước.")
+    if not use_local() and not SNAPSHOT.exists():
+        st.error("Chưa có data/gold/mwg.duckdb hay dashboard/snapshot/mwg.duckdb: chạy `python run_pipeline.py` trước.")
         st.stop()
     page = st.sidebar.radio("Trang", list(PAGES), key="page")
     st.sidebar.caption("BCTC hợp nhất CTCP Đầu tư Thế Giới Di Động (HOSE: MWG). Tiền: tỷ đồng. "
-                       "Dữ liệu: Bronze → Silver → Gold (Delta Lake), truy vấn DuckDB read-only.")
+                       "Dữ liệu: Bronze → Silver → Gold (Delta Lake), truy vấn DuckDB read-only."
+                       + ("" if use_local() else " Nguồn: bản chụp Gold (dashboard/snapshot)."))
     PAGES[page]()
 
 

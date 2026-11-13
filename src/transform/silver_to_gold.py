@@ -24,6 +24,10 @@ from src.common.paths import CONFIG_DIR, GOLD_DIR, ROOT, SILVER_DIR
 
 SILVER_TABLE = SILVER_DIR / "fin_statement_long"
 DUCKDB_PATH = GOLD_DIR / "mwg.duckdb"
+# Bản chụp gọn cho Streamlit Community Cloud: bảng vật chất hóa + view KPI trong một file DuckDB, không cần extension
+# delta và không chứa PDF. Dashboard đọc file này khi không có data/gold (repo không commit data/gold).
+SNAPSHOT_PATH = ROOT / "dashboard" / "snapshot" / "mwg.duckdb"
+MANIFEST_COLS = ["sha256", "title", "path", "url", "published", "assurance_level", "lang", "doc_type", "period"]
 CONSOLIDATED = ("MWG_TOTAL", "consolidated")
 FACT_CONSTRAINTS = {
     "scope_ok": "scope IN ('consolidated', 'segment')",
@@ -146,10 +150,14 @@ SELECT q.fiscal_year, q.fiscal_quarter, q.quarter_label, q.period_end, coalesce(
        q.net_revenue, q.gross_profit, q.npat, q.npat_parent, q.cogs, q.has_derived,
        q.gross_profit / NULLIF(q.net_revenue, 0) AS gross_margin,
        q.npat / NULLIF(q.net_revenue, 0) AS net_margin,
-       -- năm hóa ×4; bình quân đầu kỳ/cuối kỳ, thiếu một đầu thì NULL (không lấp)
-       4 * q.npat / NULLIF((b.owners_equity + bp.owners_equity) / 2, 0) AS roe_annualized,
-       4 * q.npat / NULLIF((b.total_assets + bp.total_assets) / 2, 0) AS roa_annualized,
-       ((b.inventory + bp.inventory) / 2) / NULLIF(abs(q.cogs), 0) * 91.25 AS inventory_days,
+       -- năm hóa ×4; bình quân đầu kỳ/cuối kỳ, thiếu số đầu kỳ thì dùng số dư cuối kỳ (kpi_method), thiếu cuối kỳ: NULL
+       4 * q.npat / NULLIF(coalesce((b.owners_equity + bp.owners_equity) / 2, b.owners_equity), 0) AS roe_annualized,
+       4 * q.npat / NULLIF(coalesce((b.total_assets + bp.total_assets) / 2, b.total_assets), 0) AS roa_annualized,
+       coalesce((b.inventory + bp.inventory) / 2, b.inventory) / NULLIF(abs(q.cogs), 0) * 91.25 AS inventory_days,
+       CASE WHEN bp.owners_equity IS NOT NULL AND bp.total_assets IS NOT NULL AND bp.inventory IS NOT NULL
+                 AND b.owners_equity IS NOT NULL AND b.total_assets IS NOT NULL AND b.inventory IS NOT NULL THEN 'average'
+            WHEN b.owners_equity IS NOT NULL OR b.total_assets IS NOT NULL OR b.inventory IS NOT NULL THEN 'ending_balance'
+       END AS kpi_method,
        q.net_revenue / NULLIF(y.net_revenue, 0) - 1 AS revenue_yoy,
        q.npat / NULLIF(y.npat, 0) - 1 AS npat_yoy,
        q.net_revenue / NULLIF(p.net_revenue, 0) - 1 AS revenue_qoq,
@@ -173,9 +181,13 @@ CREATE OR REPLACE VIEW v_kpi_year AS
 SELECT i.fiscal_year, coalesce(b.regime, i.regime) AS regime, i.net_revenue, i.gross_profit, i.npat, i.npat_parent, i.cogs,
        i.gross_profit / NULLIF(i.net_revenue, 0) AS gross_margin,
        i.npat / NULLIF(i.net_revenue, 0) AS net_margin,
-       i.npat / NULLIF((b.owners_equity + bp.owners_equity) / 2, 0) AS roe,
-       i.npat / NULLIF((b.total_assets + bp.total_assets) / 2, 0) AS roa,
-       ((b.inventory + bp.inventory) / 2) / NULLIF(abs(i.cogs), 0) * 365 AS inventory_days,
+       i.npat / NULLIF(coalesce((b.owners_equity + bp.owners_equity) / 2, b.owners_equity), 0) AS roe,
+       i.npat / NULLIF(coalesce((b.total_assets + bp.total_assets) / 2, b.total_assets), 0) AS roa,
+       coalesce((b.inventory + bp.inventory) / 2, b.inventory) / NULLIF(abs(i.cogs), 0) * 365 AS inventory_days,
+       CASE WHEN bp.owners_equity IS NOT NULL AND bp.total_assets IS NOT NULL AND bp.inventory IS NOT NULL
+                 AND b.owners_equity IS NOT NULL AND b.total_assets IS NOT NULL AND b.inventory IS NOT NULL THEN 'average'
+            WHEN b.owners_equity IS NOT NULL OR b.total_assets IS NOT NULL OR b.inventory IS NOT NULL THEN 'ending_balance'
+       END AS kpi_method,
        i.net_revenue / NULLIF(y.net_revenue, 0) - 1 AS revenue_yoy,
        i.npat / NULLIF(y.npat, 0) - 1 AS npat_yoy,
        b.total_assets, b.current_assets / NULLIF(b.total_assets, 0) AS current_assets_share,
@@ -269,10 +281,40 @@ def build_duckdb(gold_dir: Path = GOLD_DIR, silver_table: Path = SILVER_TABLE,
     tmp.replace(db_path)
 
 
+def export_snapshot(gold_dir: Path = GOLD_DIR, silver_table: Path = SILVER_TABLE,
+                    manifest: Path = ROOT / "data" / "_state" / "manifest.parquet",
+                    db_path: Path = SNAPSHOT_PATH) -> int:
+    """Gold + Silver + danh sách tài liệu -> một file DuckDB tự chứa (bảng thật, cùng view KPI). Trả số byte."""
+    tables = {name: pl.read_delta(str(Path(gold_dir) / name))
+              for name in ("fact_financial", "dim_date", "dim_account", "dim_chain")}
+    tables["silver_fin_statement_long"] = pl.read_delta(str(silver_table)).drop("row_hash", "loaded_at", strict=False)
+    docs = pl.read_parquet(manifest)
+    tables["documents"] = docs.select([c for c in MANIFEST_COLS if c in docs.columns])
+    db_path = Path(db_path)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = db_path.with_suffix(".tmp.duckdb")
+    tmp.unlink(missing_ok=True)
+    con = duckdb.connect(str(tmp))
+    try:
+        for name, df in tables.items():
+            con.register("_src", df.to_arrow())
+            con.execute(f"CREATE TABLE {name} AS SELECT * FROM _src")
+            con.unregister("_src")
+        con.execute(KPI_SQL)
+        con.execute("SELECT count(*) FROM v_kpi_quarter").fetchall()  # view hỏng thì lỗi trước khi thay file
+        con.execute("CHECKPOINT")
+    finally:
+        con.close()
+    tmp.replace(db_path)
+    return db_path.stat().st_size
+
+
 def run() -> dict:
     silver = pl.read_delta(str(SILVER_TABLE))
     res = write_gold(silver)
     build_duckdb()
+    size = export_snapshot()
+    print(f"[gold] snapshot dashboard: {SNAPSHOT_PATH.relative_to(ROOT)} ({size / 1e6:.1f} MB)")
     print(f"[gold] fact_financial v{res['version']}: {res['fact']} dòng; {DUCKDB_PATH.relative_to(ROOT)} đã tạo lại")
     return res
 

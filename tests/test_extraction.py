@@ -442,3 +442,46 @@ def test_monthly_khong_goi_y_khi_bctc_nhieu_tai_lieu_khop(monkeypatch):
                         "amount_vnd": 73_755_000_000_000}]}
             for p, sha, k in (("2025-H1", "h", "current"), ("2025-Q2", "q", "ytd_current"))]
     assert R.cross_doc_cells(docs) == {("h", "10", "current"), ("q", "10", "ytd_current")}
+
+
+def _six_month_docs(h1_ok=True, q2_ok=True):
+    def cell(code, kind, v):
+        return {"statement": "B02", "account_code": code, "canonical_code": code, "period_kind": kind, "amount_vnd": v}
+
+    def chk(kind, ok):
+        return {"kind": kind, "ok": ok, "check": "60 = 61 + 62",
+                "equation": {"statement": "B02", "lhs": "60", "terms": [(1, "61"), (1, "62")]}}
+    h1 = {"period": "2026-H1", "sha256": "h1", "lang": "vi-VN", "period_check_ok": True, "columns_ok": True,
+          "cells": [cell("60", "current", 6_112_454_741_865), cell("10", "current", 95), cell("02", "current", 5)],
+          "checks": [chk("current", h1_ok)], "eligible_labels": {"60 = 61 + 62"}}
+    q2 = {"period": "2026-Q2", "sha256": "q2", "lang": "vi-VN", "period_check_ok": True, "columns_ok": True,
+          "cells": [cell("60", "ytd_current", 6_112_454_741_144), cell("10", "ytd_current", 95),
+                    cell("60", "q_current", 3_354_897_720_617), cell("02", "ytd_current", -5)],  # chỉ khác dấu: không lệch
+          "checks": [chk("ytd_current", q2_ok), {"kind": "ytd_current", "ok": False, "check": "60 = 50 - 51 - 52",
+                                                 "equation": {"statement": "B02", "lhs": "60", "terms": [(1, "50")]}}],
+          "eligible_labels": {"60 = 61 + 62"}}  # 60 = 50 - 51 - 52 không đánh giá được (52 chưa có sign): bỏ qua
+    return [h1, q2]
+
+
+def test_luy_ke_6t_ban_dung_phuong_trinh_thang():
+    from src.extraction import run_extraction as R
+    docs = _six_month_docs(h1_ok=True, q2_ok=False)
+    rows, sugg = R.resolve_six_month_conflicts(docs, [])
+    assert rows[0]["codes"] == ["60"] and rows[0]["winner"] == "BCTC bán niên" and not sugg
+    # bản Q2 thua: cả cột lũy kế lẫn cột quý này (quý = lũy kế − Q1 trong cùng báo cáo) của mã lệch; mã khớp giữ nguyên
+    lost = {(c["account_code"], c["period_kind"]) for c in docs[1]["cells"] if c.get("conflict_lost")}
+    assert lost == {("60", "ytd_current"), ("60", "q_current")}
+    assert not any(c.get("conflict_lost") for c in docs[0]["cells"])
+
+
+def test_luy_ke_6t_hoa_thi_pending_ca_hai_xac_nhan_thi_thang():
+    from src.extraction import run_extraction as R
+    docs = _six_month_docs()
+    rows, sugg = R.resolve_six_month_conflicts(docs, [])
+    assert rows[0]["winner"].startswith("hòa") and sorted(d["sha256"] for d, _ in sugg) == ["h1", "q2"]
+    assert {s["amount_vnd"] for _, s in sugg} == {6_112_454_741_865, 6_112_454_741_144}
+    assert not any(c.get("conflict_lost") for d in docs for c in d["cells"])
+    confirmed = [{"source_doc_sha256": "h1", "suggested_by": "doc_conflict", "status": "confirmed"}]
+    rows, sugg = R.resolve_six_month_conflicts(docs, confirmed)
+    assert rows[0]["winner"] == "BCTC bán niên" and not sugg
+    assert any(c.get("conflict_lost") for c in docs[1]["cells"])

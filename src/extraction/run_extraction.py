@@ -511,6 +511,7 @@ def _evaluate(d: dict, ctx: dict) -> None:
         checks += check_q1_columns(values)
     eligible = {e["label"] for e in eligible_equations(ctx["equations"], signs)}
     d["checks"] = checks
+    d["eligible_labels"] = eligible
     # phương trình (dq_equations) sai -> PaddleOCR; cả phương trình lẫn tổng dòng con sai -> gợi ý sửa một ô
     d["eq_failed"] = [c for c in checks if not c["ok"] and c["check"] in eligible]
     d["eligible_failed"] = [c for c in checks if not c["ok"] and (c["check"] in eligible or "Σ" in c["check"])]
@@ -622,6 +623,99 @@ def digit_suggestions(restated: dict, closing_doc: dict[int, dict]) -> list[tupl
     return out
 
 
+def _column_checks(d: dict, kind: str, codes: set[str]) -> list[dict]:
+    """Phương trình B02 đánh giá được (vế trừ đã có sign, hoặc tổng dòng con) của cột `kind` trong báo cáo d có chứa
+    một trong các mã in `codes`. Phương trình có vế trừ chưa rõ dấu (vd. 52 thuế hoãn lại) không dùng để phân xử:
+    hai báo cáo in dấu khác nhau sẽ làm một bên "trượt" oan."""
+    ok_labels = d.get("eligible_labels", set())
+    return [c for c in d.get("checks", []) if c.get("kind") == kind and c.get("equation", {}).get("statement") == "B02"
+            and (c["check"] in ok_labels or "Σ" in c["check"])
+            and codes & {c["equation"]["lhs"], *(t for _, t in c["equation"]["terms"])}]
+
+
+def resolve_six_month_conflicts(docs: list[dict], override_rows: list[dict]) -> tuple[list[dict], list[tuple[dict, dict]]]:
+    """Lũy kế 6 tháng in trên BCTC bán niên (cột năm nay) và BCTC Q2 (cột lũy kế) khác nhau ở một số mã B02:
+    bản mà mọi phương trình B02 nội bộ chứa các mã đó đều đúng thì thắng; ô của bản thua gắn conflict_lost (Silver bỏ),
+    kể cả cột "quý này" của BCTC Q2 thua (quý = lũy kế - Q1 trong cùng báo cáo). Hòa: dòng doc_conflict đã confirmed
+    trong manual_overrides quyết định; chưa có thì sinh pending cho cả hai tài liệu (trang duyệt có crop cả hai PDF).
+    -> (dòng báo cáo, gợi ý pending)."""
+    def pick(period: str) -> dict | None:
+        cands = [d for d in docs if d["period"] == period and d.get("period_check_ok") and d.get("columns_ok")]
+        return sorted(cands, key=lambda d: d["lang"] != "vi-VN")[0] if cands else None
+
+    def column(d: dict, kind: str) -> dict[str, dict]:
+        return {c["canonical_code"]: c for c in d["cells"] if c["statement"] == "B02" and c["period_kind"] == kind
+                and c["amount_vnd"] is not None and c.get("canonical_code")}
+
+    confirmed = {r["source_doc_sha256"] for r in override_rows
+                 if r.get("suggested_by") == "doc_conflict" and (r.get("status") or "").strip() == "confirmed"}
+    report, suggestions = [], []
+    for year in sorted({d["period"][:4] for d in docs if d["period"][:4].isdigit()}):
+        h1, q2 = pick(f"{year}-H1"), pick(f"{year}-Q2")
+        if not (h1 and q2):
+            continue
+        side = {"H1": (h1, "current"), "Q2": (q2, "ytd_current")}
+        cols = {k: column(d, kind) for k, (d, kind) in side.items()}
+        # so trị tuyệt đối: TT99 bán niên in khoản giảm trừ dương, BCTC Q2 in âm (cách trình bày, không phải lệch số)
+        diff = sorted(c for c in cols["H1"].keys() & cols["Q2"].keys()
+                      if abs(abs(cols["H1"][c]["amount_vnd"]) - abs(cols["Q2"][c]["amount_vnd"])) > 1)
+        if not diff:
+            continue
+        ok, detail = {}, {}
+        for k, (d, kind) in side.items():
+            checks = _column_checks(d, kind, {cols[k][c]["account_code"] for c in diff})
+            ok[k] = bool(checks) and all(c["ok"] for c in checks)
+            detail[k] = f"{sum(c['ok'] for c in checks)}/{len(checks)}"
+        names = {"H1": "BCTC bán niên", "Q2": "BCTC Q2"}
+        winner, reason = None, ""
+        if ok["H1"] != ok["Q2"]:
+            winner = "H1" if ok["H1"] else "Q2"
+            loser = "Q2" if winner == "H1" else "H1"
+            reason = (f"{names[winner]} đúng mọi phương trình B02 chứa các mã lệch ({detail[winner]}); "
+                      f"{names[loser]} trượt ({detail[loser]})")
+        else:
+            picked = [k for k, (d, _) in side.items() if d["sha256"] in confirmed]
+            if len(picked) == 1:
+                winner, reason = picked[0], f"hòa phương trình ({detail['H1']} / {detail['Q2']}); người dùng xác nhận {names[picked[0]]} trên PDF"
+            else:
+                verdict = ("không phương trình nào chứa mã lệch" if detail["H1"] == detail["Q2"] == "0/0"
+                           else "cả hai đều đúng phương trình nội bộ" if ok["H1"] else "cả hai đều trượt phương trình nội bộ")
+                reason = (f"hòa: {verdict} ({detail['H1']} / {detail['Q2']}); chờ người dùng xác nhận "
+                          "(pending, suggested_by = doc_conflict)")
+                code = "60" if "60" in diff else diff[0]
+                for k, (d, kind) in side.items():
+                    other = cols["Q2" if k == "H1" else "H1"][code]["amount_vnd"]
+                    suggestions.append((d, {
+                        "statement": "B02", "account_code": cols[k][code]["account_code"], "period_kind": kind,
+                        "amount_vnd": cols[k][code]["amount_vnd"], "ocr_value": other,
+                        "reason": f"Mâu thuẫn lũy kế 6T {year}: {names['H1']} và {names['Q2']} lệch ở mã {', '.join(diff)}; "
+                                  f"{verdict}. Xem crop cả hai PDF; "
+                                  f"đổi status thành confirmed ở dòng của tài liệu đúng (áp dụng cho mọi mã trên)"}))
+        if winner:
+            loser_doc, loser_kind = side["Q2" if winner == "H1" else "H1"]
+            lost_kinds = {loser_kind} | ({"q_current"} if loser_doc is q2 else set())
+            for c in loser_doc["cells"]:
+                if c["statement"] == "B02" and c.get("canonical_code") in diff and c["period_kind"] in lost_kinds:
+                    c["conflict_lost"] = True
+        report.append({"year": year, "codes": diff, "h1": detail["H1"], "q2": detail["Q2"],
+                       "winner": names[winner] if winner else "hòa – chờ xác nhận", "reason": reason,
+                       "values": {c: (cols["H1"][c]["amount_vnd"], cols["Q2"][c]["amount_vnd"]) for c in diff}})
+    return report, suggestions
+
+
+def _six_month_lines(rows: list[dict]) -> list[str]:
+    if not rows:
+        return ["Không có năm nào lệch.", ""]
+    out = ["| Năm | Mã lệch | Ví dụ (bán niên / Q2, VND) | Phương trình đúng: bán niên / Q2 | Bản thắng | Lý do |",
+           "|---|---|---|---|---|---|"]
+    for r in rows:
+        c = "60" if "60" in r["codes"] else r["codes"][0]
+        a, b = r["values"][c]
+        out.append(f"| {r['year']} | {', '.join(r['codes'])} | {c}: {a:,} / {b:,} | {r['h1']} / {r['q2']} | "
+                   f"{r['winner']} | {r['reason']} |")
+    return out + [""]
+
+
 def _paddle_fallback(docs: list[dict], ctx: dict) -> tuple[int, int]:
     """PaddleOCR riêng các báo cáo (B01/B02) còn sai phương trình đánh giá được; giữ kết quả nếu ít lỗi hơn."""
     pages_run = replaced = 0
@@ -693,6 +787,9 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
             _evaluate(d, ctx)
     for d in docs:
         stats["suggested"] += write_suggestions(OVERRIDES, d, suggest_fixes(d, d["eligible_failed"], d["values"], d["signs"]))
+    stats["six_month"], conflicts = resolve_six_month_conflicts(docs, _read_overrides())
+    stats["conflict_suggested"] = sum(write_suggestions(OVERRIDES, d, [s], suggested_by="doc_conflict")
+                                      for d, s in conflicts)
 
     # Số đầu năm N = số cuối năm N-1 (ưu tiên bản vi-VN như ở Silver)
     closing_by_year: dict[int, dict] = {}
@@ -767,6 +864,7 @@ def _write_raw(docs: list[dict]) -> None:
              "is_trusted": c.get("is_trusted", False), "passed_critical": d["passed_critical"],
              "passed_critical_b01": d["passed_critical_b01"], "passed_critical_b02": d["passed_critical_b02"],
              "gold_eligible": c.get("gold_eligible", False), "semantic_break": c.get("semantic_break", False),
+             "conflict_lost": c.get("conflict_lost", False),
              "ocr_value": c.get("ocr_value"),
              "row_y0": c.get("row_y0"), "row_y1": c.get("row_y1"),
              "ocr_engine": d["engine"], "dq_balance_ok": d["dq_balance_ok"], "columns_ok": d["columns_ok"],
@@ -936,6 +1034,11 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
     lines += _breakdown(docs, lambda d: d["period"][:4], "Năm")
     lines += ["### Top 10 phương trình trượt nhiều nhất", ""] + _top_failures(docs)
     lines += ["### Phương trình cha–con: số báo cáo trượt", ""] + _parent_stats(docs)
+    lines += ["### Lũy kế 6 tháng: BCTC bán niên và BCTC Q2", "",
+              "Cùng lũy kế 6 tháng in trên hai tài liệu mà khác nhau: bản đúng mọi phương trình B02 nội bộ chứa các mã "
+              "lệch thắng; ô của bản thua (`conflict_lost`) không vào Silver. Hòa thì chờ người dùng xác nhận "
+              f"(gợi ý mới lần này: {stats.get('conflict_suggested', 0)}).", ""]
+    lines += _six_month_lines(stats.get("six_month", []))
     lines += ["### Đối soát B02 mã 10, 60 với báo cáo tháng lũy kế (thay vnstock)", "",
               "Số BCTC làm tròn về tỷ đồng có xuất hiện (±1 tỷ) trong báo cáo KQKD tháng 3/6/9/12 cùng kỳ lũy kế "
               "không (`src/quality/monthly_check.py`). Chỉ ghi lại, không ghi vào Gold.", ""]

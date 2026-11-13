@@ -613,10 +613,55 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
   lượt chạy của phiên này.
 - Cách xử lý: (1) Gold ghi với `schema_mode="overwrite"` (Gold dựng lại toàn bộ); Silver MERGE với `merge_schema=True`
   (giữ lịch sử time travel); (2) `v_income` lấy `regime`, `semantic_break` của tài liệu nguồn, view KPI dùng
-  `coalesce`; (3) chạy lại Silver + Gold bằng code hiện tại.
-- Kiểm chứng: Gold v16 3.886 dòng; mọi quý trong `v_kpi_quarter` có `regime`; 538 test qua.
+  `coalesce`; (3) chạy lại Silver + Gold bằng code hiện tại; sau đó (13/11, commit thêm DBG-42) `run_pipeline.py` giữ
+  khóa `data/_state/pipeline.lock` (PID + thời điểm, tạo bằng `O_EXCL`): lượt sau thấy khóa của tiến trình còn sống thì
+  dừng mã 2, khóa của PID đã chết thì gỡ (Windows kiểm PID bằng `OpenProcess` vì `os.kill(pid, 0)` trên Windows kết
+  thúc tiến trình); `--force` không còn crawl (lượt chồng hôm 13/11 là `--backfill` gọi mwg.vn), muốn crawl kèm thì
+  `--force --crawl` (GitHub Actions dùng cách này); tải lại Bronze thiếu cũng chỉ khi crawl.
+- Kiểm chứng: Gold v16 3.886 dòng; mọi quý trong `v_kpi_quarter` có `regime`; `tests/test_pipeline.py` (khóa sống chặn,
+  khóa chết gỡ, không gỡ khóa của tiến trình khác, `--force` không crawl / `--force --crawl` có crawl); chạy thật: lượt
+  thứ hai trong lúc lượt đầu đang chạy in "Dừng: pipeline đang chạy (PID …)" và thoát mã 2.
+- Commit: commit `079fed6` (1)(2); commit thêm DBG-42 (khóa, cờ `--crawl`).
+- Bài học / hạn chế còn lại: PID có thể bị hệ điều hành dùng lại sau khi tiến trình cũ chết (khóa cũ bị coi là còn
+  sống): xóa tay file khóa; các lệnh chạy riêng từng bước (`python -m src.transform...`) không giữ khóa.
+
+### DBG-42 – Lũy kế 6 tháng Q2/2026: BCTC bán niên và BCTC Q2 in khác nhau 721 đồng
+- Giai đoạn / tầng: bóc tách → Silver
+- Triệu chứng: LNST Q2/2026 không vào Gold. Lũy kế 6 tháng mã 60: BCTC bán niên 6.112.454.741.865, BCTC Q2
+  6.112.454.741.144; lệch 721 đồng lan qua 21 (TT99 22), 30, 50, 60 (61 cũng lệch 721 nhưng chưa có mã chuẩn).
+- Nguyên nhân gốc: hai tài liệu MWG công bố thật sự in khác nhau (đã xem ảnh crop cả hai trang: OCR đọc đúng), mỗi bản
+  tự cân đối. Không phải lỗi OCR.
+- Cách phát hiện: truy vì sao Q2/2026 trống sau DBG-37 (không tài liệu thứ ba xác nhận số nào).
+- Cách xử lý: `run_extraction.resolve_six_month_conflicts`: mã lệch (so trị tuyệt đối: TT99 bán niên in khoản giảm trừ
+  dương, BCTC Q2 in âm) → kiểm các phương trình B02 **đánh giá được** của từng cột chứa mã lệch; bản đúng hết thắng, ô
+  của bản thua gắn `conflict_lost` và không vào Silver (Q2 thua thì cả cột "quý này"); hòa thì dòng `doc_conflict`
+  confirmed trong `manual_overrides.csv` quyết định, chưa có thì sinh pending cho cả hai tài liệu, trang
+  `review/overrides_review.html` có crop của cả hai. Mục "Lũy kế 6 tháng" trong `docs/dq_report.md` ghi lý do.
+  Lần cài đặt đầu dùng mọi phương trình nên BCTC bán niên "thắng" 11/11 so với 10/11 chỉ vì BCTC Q2 trượt
+  `60 = 50 − 51 − 52` do in mã 52 (thuế hoãn lại, chưa có sign) khác dấu; đã giới hạn ở phương trình đánh giá được.
+- Kiểm chứng: `tests/test_extraction.py::test_luy_ke_6t_ban_dung_phuong_trinh_thang`,
+  `test_luy_ke_6t_hoa_thi_pending_ca_hai_xac_nhan_thi_thang`; lượt chạy: 2026 hòa (4/4 / 4/4) → 2 pending; 2025 mã 71
+  (lãi suy giảm trên cổ phiếu: 2 / 2.175, không phương trình nào) hòa → 2 pending. Ô chờ xác nhận 15 → 19.
 - Commit: commit thêm mục này.
-- Bài học / hạn chế còn lại: (3) chưa có khóa (lock file) cho `run_pipeline.py`; không chạy hai lượt cùng lúc.
+- Bài học / hạn chế còn lại: Q2/2026 vẫn trống tới khi người dùng chọn tài liệu; 2025 mã 71 = 2 ở BCTC bán niên nhiều
+  khả năng là OCR đọc rác (cột này không có phương trình nào kiểm).
+
+### DBG-43 – KPI trống khi thiếu số dư đầu kỳ; ROE 2026 trống vì dim_account TT99 thiếu mã 410
+- Giai đoạn / tầng: Gold (view KPI)
+- Triệu chứng: ROE/ROA/số ngày tồn kho NULL khi thiếu B01 đầu kỳ (vd. quý đầu sau một quý không có B01 trong Gold):
+  23/43 quý đủ KPI. Q1–Q3/2026 vẫn không có ROE dù có B01.
+- Nguyên nhân gốc: view chia cho số dư bình quân và để NULL khi thiếu một đầu. 2026: `config/dim_account.csv` (dựng
+  từ bản scan PL IV TT99) không có dòng TT99 410 "I. Vốn chủ sở hữu", nên mã 410 in trên BCTC 2026 nằm trong
+  `unmapped_items.csv` và Gold không có vốn chủ sở hữu 2026.
+- Cách phát hiện: đếm quý đủ KPI; truy `v_balance` 2026 (`owners_equity` NULL).
+- Cách xử lý: thiếu số đầu kỳ thì dùng số dư cuối kỳ, cột `kpi_method` (`average` / `ending_balance`) trong
+  `v_kpi_quarter`, `v_kpi_year`; dashboard ghi chú phương pháp (tooltip ROE/ROA, chú thích trang Biên lợi nhuận). Mã
+  TT99 410: **chưa sửa** (CLAUDE.md: dim_account chỉ dựng từ văn bản gốc; cần sửa bộ đọc PL IV hoặc bản PL IV rõ hơn).
+- Kiểm chứng: `tests/test_gold.py::test_kpi_thieu_dau_ky_tinh_theo_so_du_cuoi_ky`; quý đủ KPI 23 → 27 (23 `average`,
+  4 `ending_balance`); năm đủ KPI 11.
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: KPI theo số dư cuối kỳ không so sánh trực tiếp được với KPI theo bình quân; ROE/ROA 2026
+  chờ dim_account TT99 410.
 
 ---
 
@@ -664,7 +709,9 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 | DBG-38 | Silver | cao nếu lọt (số sai thành trusted) | đã chặn |
 | DBG-39 | map TT99 / Silver | trung bình | đã sửa; 110/112/310 chưa kết luận |
 | DBG-40 | bóc tách | trung bình (mất 7 mã B02 Q3/2026) | đã sửa, có test |
-| DBG-41 | Gold / hạ tầng | trung bình | đã sửa (1)(2); (3) chưa có khóa |
+| DBG-41 | Gold / hạ tầng | trung bình | đã sửa (gồm khóa pipeline, `--force` không crawl) |
+| DBG-42 | bóc tách → Silver | trung bình (Q2/2026 LNST trống) | cơ chế xong; chờ người dùng chọn tài liệu |
+| DBG-43 | Gold (KPI) | trung bình | đã sửa phần số dư; TT99 410 thiếu trong dim_account chưa sửa |
 
 ## Chỉ số chất lượng qua các lượt chạy
 
@@ -681,6 +728,7 @@ chính lượt đó (báo cáo có mọi phép kiểm phương trình B01 đúng
 | commit thêm file này (12/11) | 50/52 (96%) | 34/52 (65%) | 7/52 | 25/52 (48%) | 50/52 (96%) / 25/52 (48%) | 8.004/11.950 (67%) | B01 5.807, B02 950 (chặn theo từng báo cáo) |
 | Phần A–D (13/11 01:40, `run_pipeline.py --force`) | 50/52 (96%) | 34/52 (65%) | 7/52 | 25/52 (48%) | 50/52 (96%) / 25/52 (48%); cột B02: 90/128 | 8.004/11.950 (67%) | B01 5.807, B02 1.446 (chặn theo cột, DBG-30); Gold fact 3.204 dòng |
 | DBG-36…41 (13/11 14:45, `run_pipeline.py --force --no-crawl`; Silver/Gold dựng lại 14:5x) | 50/52 (96%) | 34/52 (65%) | 7/52 | 26/52 (50%) | 50/52 (96%) / 26/52 (50%) | 8.024/11.979 (67%) | Gold fact 3.886 dòng (B01 2.355, B02 1.531; critical 3.037, cross_doc_consensus 427, derived 422); `v_kpi_quarter` 43 quý, 42 có doanh thu + LN gộp + LNST, 23 đủ mọi KPI |
+| DBG-42…43 (13/11 15:5x, `run_pipeline.py --force`, không crawl) | 50/52 (96%) | 34/52 (65%) | 7/52 | 26/52 (50%) | 50/52 (96%) / 26/52 (50%) | 8.024/11.979 (67%) | Gold fact 3.886 dòng (B01 2.355, B02 1.531); `v_kpi_quarter` 43 quý, 27 đủ mọi KPI (23 bình quân, 4 số dư cuối kỳ); 19 ô chờ xác nhận |
 
 Ghi chú: "qua DQ toàn bộ" 0/52 ở hai lượt đầu là tiêu chí cũ (DBG-27); "qua critical" có từ `399ed86`. Qua critical cả hai báo cáo giảm 54% → 48% ở lượt cuối vì B02 critical chặt hơn: thêm `60 = 61 + 62` và `30 = ...` (trước đó TT200 B02 30 và 60 không kiểm được, coi như không trượt). Ô vào Gold tăng 3.917 → 6.757 vì chặn theo từng báo cáo (DBG-27) và đồng nhất thức 440 (DBG-12).
 

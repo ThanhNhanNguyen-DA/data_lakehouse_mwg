@@ -50,7 +50,7 @@ jobs:
           restore-keys: lakehouse-data-
 
       - name: Chạy pipeline
-        run: python run_pipeline.py ${{ inputs.force && '--force' || '' }}
+        run: python run_pipeline.py ${{ inputs.force && '--force --crawl' || '' }}   # --force một mình không crawl
 
       - name: Kiểm thử (gồm KPI khớp số đọc trên PDF gốc)
         run: pytest -q
@@ -71,7 +71,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           git add data/_state/manifest.parquet data/_state/*.csv data/bronze \
-                  data/silver/fin_statement_long data/gold docs/dq_report.md config/manual_overrides.csv
+                  data/silver/fin_statement_long dashboard/snapshot docs/dq_report.md config/manual_overrides.csv
           if git diff --cached --quiet; then
             echo "[pipeline] Không có thay đổi để commit"
           else

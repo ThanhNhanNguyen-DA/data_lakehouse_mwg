@@ -47,9 +47,14 @@ tesseract --list-langs
 ```bash
 python run_pipeline.py --backfill    # lần đầu: crawl toàn bộ lịch sử (chậm, có nghỉ giữa request) -> bóc tách -> Silver -> Gold
 python run_pipeline.py               # incremental: không có tài liệu mới thì dừng ("Không có tài liệu mới")
-python run_pipeline.py --force       # chạy lại bóc tách/Silver/Gold (vd. sau khi xác nhận ô trong manual_overrides.csv)
-python run_pipeline.py --no-crawl --force   # máy offline: dựng lại từ Bronze sẵn có
+python run_pipeline.py --force       # dựng lại bóc tách/Silver/Gold từ Bronze sẵn có, KHÔNG gọi mwg.vn
+                                     # (vd. sau khi xác nhận ô trong manual_overrides.csv)
+python run_pipeline.py --force --crawl   # crawl incremental rồi dựng lại toàn bộ
 ```
+
+Chỉ khi crawl mới gọi mạng (kể cả tải lại PDF Bronze thiếu theo manifest). `--no-crawl` vẫn dùng được (bỏ crawl kể cả
+khi không có `--force`). Hai lượt không chạy cùng lúc được: lượt sau thấy `data/_state/pipeline.lock` của tiến trình còn
+sống thì dừng (mã 2); khóa của tiến trình đã chết được gỡ tự động.
 
 Từng bước riêng:
 
@@ -105,8 +110,10 @@ rồi `export LD_LIBRARY_PATH=<thư mục>/usr/lib/x86_64-linux-gnu`.
 
 ## 5. Tự động hóa (GitHub Actions) và deploy dashboard (Streamlit Community Cloud)
 
-**Dữ liệu nào nằm trong git:** manifest + `*.meta.json` của Bronze, `data/silver/fin_statement_long`, `data/gold`
-(kể cả `mwg.duckdb`, chỉ chứa view) — khoảng 13 MB. **Không** có PDF Bronze (~800 MB), cache OCR và
+**Dữ liệu nào nằm trong git:** manifest + `*.meta.json` của Bronze, `data/silver/fin_statement_long` (giữ lịch sử
+time travel) và **bản chụp Gold cho dashboard** `dashboard/snapshot/mwg.duckdb` (bảng Gold + Silver + danh sách tài
+liệu, kèm view KPI; không cần extension delta, không chứa PDF). `data/gold` **không** còn trong git: dựng lại bằng
+`python -m src.transform.silver_to_gold` (bước này cũng xuất lại bản chụp). **Không** có PDF Bronze (~800 MB), cache OCR và
 `data/silver/fs_extracted_raw`. Clone mới muốn chạy lại pipeline thì tải lại PDF theo manifest (kiểm sha256, chỉ ghi
 khi khớp; tự chạy trong `run_pipeline.py`):
 
@@ -119,16 +126,22 @@ có tài liệu mới thì tải lại Bronze còn thiếu, OCR (Tesseract 5.3.4
 Silver, Gold, chạy `pytest` (gồm KPI khớp số đọc trên PDF gốc), rồi commit dữ liệu bằng `GITHUB_TOKEN`. PDF và cache
 OCR được giữ giữa các lần chạy bằng `actions/cache`; lần chạy đầu cache trống nên lâu (tải ~800 MB có nghỉ giữa
 request + OCR toàn bộ, giới hạn 340 phút). Chạy tay: tab **Actions → crawl → Run workflow** (tick `force` để dựng lại
-Silver/Gold). Lịch cron chỉ chạy trên **nhánh mặc định** (`master`): cần merge nhánh này vào `master`.
+Silver/Gold; workflow chạy `--force --crawl`). Lịch cron chỉ chạy trên **nhánh mặc định** (`master`): cần merge nhánh
+này vào `master`. Workflow commit bản chụp `dashboard/snapshot` thay cho `data/gold`.
 
-**Streamlit Community Cloud:**
-1. Đẩy code lên GitHub và merge vào `master`.
-2. Vào <https://share.streamlit.io>, đăng nhập bằng GitHub → **Create app** → **Deploy a public app from GitHub**.
-3. Repository `<tài khoản>/data_lakehouse_mwg`, branch `master`, main file path `dashboard/app.py`.
-4. **Advanced settings → Python 3.11**. Cloud tự dùng `dashboard/requirements.txt` (cạnh `app.py`, không kèm
-   OCR/Paddle). Không cần secret.
-5. Deploy. Mỗi lần Actions commit Gold mới, app tự cập nhật. Trang Lineage trên Cloud không có ảnh PDF (Bronze không
-   lên git), chỉ hiện link gốc.
+**Streamlit Community Cloud** (dashboard đọc `dashboard/snapshot/mwg.duckdb` khi repo không có `data/gold`). Các bước
+phải tự làm (cần tài khoản GitHub của chủ repo, Claude không làm thay):
+1. Push nhánh lên GitHub, mở PR và merge vào `master` (repo **public**: Community Cloud miễn phí cho repo public).
+2. Kiểm tra trên GitHub: `master` có `dashboard/app.py`, `dashboard/requirements.txt`, `dashboard/snapshot/mwg.duckdb`.
+3. Vào <https://share.streamlit.io>, đăng nhập bằng GitHub, cấp quyền cho Streamlit đọc repo khi được hỏi.
+4. **Create app → Deploy a public app from GitHub**: Repository `<tài khoản>/data_lakehouse_mwg`, Branch `master`,
+   Main file path `dashboard/app.py`, App URL tùy chọn (vd. `mwg-lakehouse`).
+5. **Advanced settings → Python version 3.11**. Không cần secret. Cloud tự cài `dashboard/requirements.txt` (cạnh
+   `app.py`, không kèm OCR/Paddle).
+6. **Deploy**, chờ build (vài phút), mở app: sidebar ghi "Nguồn: bản chụp Gold (dashboard/snapshot)". Duyệt 6 trang.
+7. Lỗi build/chạy: xem **Manage app → Logs** ở góc phải dưới. App ngủ sau vài ngày không ai mở: bấm "Wake up".
+8. Cập nhật: mỗi lần Actions (hoặc bạn) commit bản chụp mới lên `master`, app tự tải lại. Trang Lineage trên Cloud
+   không có ảnh PDF (Bronze không lên git), chỉ hiện link gốc.
 
 ## 6. Sửa tay khi OCR sai
 

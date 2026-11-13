@@ -27,3 +27,10 @@ review/
 # Bảng ô thô (sinh lại từ Bronze + cache OCR mỗi lần bóc tách, lớn dần theo phiên bản): không đưa lên git.
 # Silver fin_statement_long và Gold (data/gold) được commit để dashboard trên Streamlit Cloud đọc được.
 data/silver/fs_extracted_raw/
+
+# Khóa chống chạy pipeline đồng thời (run_pipeline.py)
+data/_state/pipeline.lock
+
+# Gold dựng lại mỗi lần chạy; Streamlit Cloud đọc bản chụp dashboard/snapshot/mwg.duckdb (được commit)
+data/gold/*
+!data/gold/.gitkeep

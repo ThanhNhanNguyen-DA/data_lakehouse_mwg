@@ -130,6 +130,10 @@ def build_long(raw: pl.DataFrame, manifest: pl.DataFrame, dim_codes: set[tuple[s
     # nhãn cột B02 TT99 không chứng minh được: bỏ B02 của báo cáo đó, B01/B03 không phụ thuộc nhãn cột B02
     keep &= ~((pl.col("statement") == "B02") & ~pl.col("columns_ok"))
     stats["dq_excluded"] = df.filter(~keep).height
+    # bản thua khi hai tài liệu in khác nhau cùng một lũy kế 6 tháng (run_extraction.resolve_six_month_conflicts)
+    lost = pl.col("conflict_lost").fill_null(False) if "conflict_lost" in df.columns else pl.lit(False)
+    stats["conflict_lost"] = df.filter(keep & lost).height
+    keep &= ~lost
     df = df.filter(keep)
     # mã chuẩn: TT99 qua bảng map; B01/B02 phải có trong dim_account (mã OCR sai không được bịa thành mã thật)
     known = pl.struct("statement", "canonical_code").map_elements(
@@ -364,7 +368,8 @@ def write_report(restated: pl.DataFrame, stats: dict, audit: pl.DataFrame | None
              f"lệch > 0,1%: {restated.height} ô. Silver giữ số gốc. Ô chưa trusted không so (lệch có thể do OCR).", "",
              f"Silver: {stats['rows']} dòng; loại {stats['null']} ô rỗng, {stats['dq_excluded']} ô của báo cáo không qua "
              f"kiểm tra kỳ/nhãn cột B02, {stats['unmapped_cells']} ô không ánh xạ được mã ({stats['unmapped']} mã, "
-             f"`data/_state/unmapped_items.csv`), {stats['semantic_break_dropped']} ô TT99 đổi nội dung rơi vào ngày "
+             f"`data/_state/unmapped_items.csv`), {stats.get('conflict_lost', 0)} ô thua khi hai tài liệu in khác nhau cùng lũy kế 6 tháng, "
+             f"{stats['semantic_break_dropped']} ô TT99 đổi nội dung rơi vào ngày "
              f"theo TT200; thêm {stats['derived']} ô suy ra (Q2 = H1 − Q1, Q3 = 9T − H1, Q4 = năm − 9T).", ""]
     if restated.height:  # một dòng mỗi ô: gộp các tài liệu so sánh in cùng một số
         restated = (restated.with_columns(pl.format("{} {}", "source_period_c", pl.col("source_lang_c").str.slice(0, 2)).alias("c"))

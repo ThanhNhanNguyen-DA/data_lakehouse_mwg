@@ -104,3 +104,15 @@ Mỗi mục: quyết định, lý do, cách đảo lại nếu cần.
 - **semantic_break cho TT99 135**; mã đã ghép biến động > 20% giữa 31/12/2025 và đầu năm 2026 vào danh sách chờ duyệt
   (`docs/dim_account_notes.md`).
 
+## Quyết định của người dùng 13/11/2026 (DBG-41…43, deploy)
+
+- **Khóa pipeline** `data/_state/pipeline.lock`; `--force` không crawl, `--force --crawl` để crawl kèm.
+- **Lũy kế 6 tháng lệch giữa BCTC bán niên và BCTC Q2:** phân xử bằng phương trình B02 đánh giá được của từng tài liệu;
+  hòa thì người dùng chọn (pending `doc_conflict`, crop cả hai PDF). Không tự chọn theo `source_priority` khi hòa.
+- **KPI theo số dư cuối kỳ khi thiếu đầu kỳ** (`kpi_method = ending_balance`), dashboard ghi chú.
+- **Streamlit Community Cloud đọc bản chụp** `dashboard/snapshot/mwg.duckdb` (bảng Gold + Silver + danh sách tài liệu
+  vật chất hóa, view KPI, 1,8 MB, không cần extension delta, không chứa PDF), do `silver_to_gold.run()` xuất mỗi lần.
+  Vì vậy **bỏ theo dõi `data/gold`** (`git rm --cached`, file vẫn ở máy; `.gitignore`), workflow commit
+  `dashboard/snapshot` thay `data/gold`. Silver `fin_statement_long` vẫn commit (giữ lịch sử time travel giữa các lần
+  chạy CI). Đảo lại: bỏ dòng `data/gold/*` trong `.gitignore` và thêm `data/gold` vào bước commit của workflow.
+

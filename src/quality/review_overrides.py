@@ -82,7 +82,9 @@ def build() -> int:
                   ("Mã số", r["account_code"] + (f" – {cell['item_name']}" if cell and cell["item_name"] else "")),
                   ("Giá trị OCR", f"<span class='n'>{_fmt(r['ocr_value'])}</span>"),
                   ("Giá trị gợi ý", f"<span class='n'><b>{_fmt(r['amount_vnd'])}</b></span>"),
-                  ("Loại lỗi nghi ngờ", error_kind(r["ocr_value"], r["amount_vnd"])),
+                  ("Loại lỗi nghi ngờ", "mâu thuẫn giữa hai tài liệu (không phải lỗi OCR): Giá trị gợi ý = số tài liệu "
+                   "này in, Giá trị OCR = số tài liệu kia in" if r.get("suggested_by") == "doc_conflict"
+                   else error_kind(r["ocr_value"], r["amount_vnd"])),
                   ("Lý do", r["reason"]),
                   ("Tài liệu", f"{r['source_doc_sha256'][:12]}… trang {r['page']}"
                                + (f" · {html.escape(cell['url'])}" if cell else ""))]
