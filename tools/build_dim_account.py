@@ -5,6 +5,11 @@
 
 TT200/TT202 đọc từ text chuyển từ file .doc; TT99 (PDF scan) lấy từ tools/tt99_forms.py (chép tay từ bản scan,
 công thức lấy từ phần hướng dẫn lập). Mã không chắc: parent_code để trống, ghi lý do ở cột source.
+
+config/dim_account_overrides.csv (regime, statement, code, name, parent_code, sign, source_file, page, verified_by):
+dòng người dùng tự đọc trên văn bản gốc (vd. mã bộ đọc bỏ sót trên bản scan), chỉ áp dụng khi có source_file và
+verified_by; thêm mã mới hoặc thay tên/mã cha/dấu của mã có sẵn, áp dụng trước khi dựng bảng map TT99 -> TT200.
+Sau khi dựng lại thì chạy tools/map_tt99_numeric.py --ref 2025 (bảng map được ghi lại từ đầu).
 """
 import csv, re, sys
 from collections import Counter, defaultdict
@@ -112,6 +117,42 @@ DEDUCTIONS = {"TT200": {("B02", c) for c in ("02", "11", "22", "23", "25", "26",
 # Có thể âm hoặc dương ("Chi phí thuế TNDN hoãn lại" có thể là thu nhập): không gán sign
 NO_SIGN = {"TT200": {("B02", "52")}, "TT99": {("B02", "52")}}
 
+OVERRIDES = Path(__file__).resolve().parents[1] / "config" / "dim_account_overrides.csv"
+
+
+def apply_dim_overrides(rows: list[dict], path: Path = OVERRIDES) -> list[str]:
+    """Áp dụng dim_account_overrides.csv vào rows (sửa tại chỗ). Trả danh sách mã đã áp dụng."""
+    if not Path(path).exists():
+        return []
+    applied = []
+    with Path(path).open(encoding="utf-8", newline="") as fh:
+        for o in csv.DictReader(fh):
+            if not (o.get("code", "").strip() and o.get("source_file", "").strip() and o.get("verified_by", "").strip()):
+                continue  # chưa có nguồn hoặc chưa người xác nhận: không dùng
+            key = (o["regime"].strip(), o["statement"].strip(), o["code"].strip())
+            src = f"override: {o['source_file'].strip()} tr. {o.get('page', '').strip()}, xác nhận: {o['verified_by'].strip()}"
+            row = next((r for r in rows if (r["regime"], r["statement"], r["account_code"]) == key), None)
+            if row is None:
+                row = {"regime": key[0], "statement": key[1], "account_code": key[2], "name_vi": "", "name_en": "",
+                       "level": "", "parent_code": "", "is_subtotal": "", "is_additive": "", "sign": "", "source": ""}
+                rows.append(row)
+            if o.get("name", "").strip():
+                row["name_vi"], row["level"] = o["name"].strip(), level_of(o["name"])
+            if o.get("parent_code", "").strip():
+                row["parent_code"] = o["parent_code"].strip()
+                row["is_additive"] = row["is_additive"] or "1"
+            if o.get("sign", "").strip() in ("1", "-1"):
+                row["sign"] = o["sign"].strip()
+            row["source"] = src
+            applied.append("/".join(key))
+    for regime in {o.split("/")[0] for o in applied}:  # mã cha mới có thể đổi is_subtotal (chỉ regime có override)
+        has_child = {(r["statement"], r["parent_code"]) for r in rows if r["regime"] == regime and r["parent_code"]}
+        for r in rows:
+            if r["regime"] == regime:
+                r["is_subtotal"] = "1" if (r["statement"], r["account_code"]) in has_child else "0"
+    return applied
+
+
 def main(ref: Path, out: Path) -> None:
     """ref: thư mục text đã chuyển từ .doc; out: thư mục config."""
     REF, OUT = Path(ref), Path(out)
@@ -143,6 +184,10 @@ def main(ref: Path, out: Path) -> None:
             r["parent_code"], r["is_additive"] = "23", "0"
         if r["regime"] == "TT200" and r["statement"] == "B02" and r["account_code"] == "23":
             r["parent_code"], r["is_additive"] = "22", "0"
+
+    applied = apply_dim_overrides(rows)
+    if applied:
+        print("override:", applied)
 
     fields = ["regime", "statement", "account_code", "name_vi", "name_en", "level", "parent_code", "is_subtotal",
               "is_additive", "sign", "source"]
@@ -186,4 +231,5 @@ def main(ref: Path, out: Path) -> None:
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1]), Path(sys.argv[2]))
+    from src.common.lock import run_locked
+    sys.exit(run_locked(main, Path(sys.argv[1]), Path(sys.argv[2])))

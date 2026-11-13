@@ -31,7 +31,7 @@ from src.extraction.pdf_extractor import (
     eligible_equations, expected_end, load_dim_account, load_equations, load_overrides, locate_statement_pages,
     parse_statement_page, report_end_date, signs_of, to_number, unit_multiplier,
 )
-from src.extraction.self_correct import apply_consensus, suggest_fixes, write_suggestions
+from src.extraction.self_correct import apply_consensus, prune_suggestions, suggest_fixes, write_suggestions
 from src.quality.monthly_check import TOL_BILLION, monthly_crosscheck, one_digit_off
 from src.quality.monthly_check import report_lines as monthly_report_lines
 from src.ingestion.mwg_crawler import PENDING, load_manifest, parse_period, resolve_period
@@ -623,6 +623,37 @@ def digit_suggestions(restated: dict, closing_doc: dict[int, dict]) -> list[tupl
     return out
 
 
+PAR_VALUE_VND = 10_000  # mệnh giá cổ phiếu (Luật Chứng khoán): số cổ phiếu ≈ vốn góp của chủ sở hữu (B01 411) / mệnh giá
+EPS_CODES = ("70", "71")
+EPS_MAX_RATIO = 5  # "cùng bậc": EPS in / EPS ước tính trong [1/5, 5] (số CP bình quân ≠ cuối kỳ, có thể thưởng CP)
+
+
+def eps_plausibility(docs: list[dict]) -> list[dict]:
+    """EPS (B02 70, 71) ≈ LNST công ty mẹ (61, thiếu thì 60) cùng cột / (vốn góp 411 cuối kỳ / mệnh giá).
+    Lệch bậc (ngoài [1/5, 5]) -> ô gắn implausible, không vào Silver (thường là OCR đọc rác, vd. "2" thay "2.175")."""
+    out = []
+    for d in docs:
+        cap = next((c["amount_vnd"] for c in d["cells"] if c["statement"] == "B01" and c.get("canonical_code") == "411"
+                    and c["period_kind"] == "closing" and c["amount_vnd"]), None)
+        if not cap:
+            continue
+        b02 = {(c.get("canonical_code"), c["period_kind"]): c for c in d["cells"] if c["statement"] == "B02"}
+        for (code, kind), c in b02.items():
+            if code not in EPS_CODES or not c["amount_vnd"]:
+                continue
+            prof = next((b02[(k, kind)]["amount_vnd"] for k in ("61", "60")
+                         if (k, kind) in b02 and b02[(k, kind)]["amount_vnd"]), None)
+            if prof is None:
+                continue
+            expected = prof / (cap / PAR_VALUE_VND)
+            ratio = abs(c["amount_vnd"] / expected)
+            if not 1 / EPS_MAX_RATIO <= ratio <= EPS_MAX_RATIO:
+                c["implausible"] = True
+                out.append({"period": d["period"], "lang": d["lang"], "code": code, "kind": kind,
+                            "value": c["amount_vnd"], "expected": round(expected)})
+    return out
+
+
 def _column_checks(d: dict, kind: str, codes: set[str]) -> list[dict]:
     """Phương trình B02 đánh giá được (vế trừ đã có sign, hoặc tổng dòng con) của cột `kind` trong báo cáo d có chứa
     một trong các mã in `codes`. Phương trình có vế trừ chưa rõ dấu (vd. 52 thuế hoãn lại) không dùng để phân xử:
@@ -659,6 +690,8 @@ def resolve_six_month_conflicts(docs: list[dict], override_rows: list[dict]) -> 
         # so trị tuyệt đối: TT99 bán niên in khoản giảm trừ dương, BCTC Q2 in âm (cách trình bày, không phải lệch số)
         diff = sorted(c for c in cols["H1"].keys() & cols["Q2"].keys()
                       if abs(abs(cols["H1"][c]["amount_vnd"]) - abs(cols["Q2"][c]["amount_vnd"])) > 1)
+        # ô lệch bậc (EPS) đã bị loại: không phải mâu thuẫn giữa hai tài liệu, không coi là hòa
+        diff = [c for c in diff if not (cols["H1"][c].get("implausible") or cols["Q2"][c].get("implausible"))]
         if not diff:
             continue
         ok, detail = {}, {}
@@ -675,8 +708,13 @@ def resolve_six_month_conflicts(docs: list[dict], override_rows: list[dict]) -> 
                       f"{names[loser]} trượt ({detail[loser]})")
         else:
             picked = [k for k, (d, _) in side.items() if d["sha256"] in confirmed]
+            pri = {k: int(d.get("assurance_level") or 0) for k, (d, _) in side.items()}
             if len(picked) == 1:
                 winner, reason = picked[0], f"hòa phương trình ({detail['H1']} / {detail['Q2']}); người dùng xác nhận {names[picked[0]]} trên PDF"
+            elif pri["H1"] != pri["Q2"]:  # thứ tự ưu tiên CLAUDE.md: kiểm toán (3) > soát xét (2) > tự lập (1)
+                winner = "H1" if pri["H1"] > pri["Q2"] else "Q2"
+                reason = (f"hòa phương trình ({detail['H1']} / {detail['Q2']}); theo thứ tự ưu tiên CLAUDE.md "
+                          f"{names[winner]} (mức đảm bảo {pri[winner]}) thắng (mức {pri['Q2' if winner == 'H1' else 'H1']})")
             else:
                 verdict = ("không phương trình nào chứa mã lệch" if detail["H1"] == detail["Q2"] == "0/0"
                            else "cả hai đều đúng phương trình nội bộ" if ok["H1"] else "cả hai đều trượt phương trình nội bộ")
@@ -699,6 +737,7 @@ def resolve_six_month_conflicts(docs: list[dict], override_rows: list[dict]) -> 
                     c["conflict_lost"] = True
         report.append({"year": year, "codes": diff, "h1": detail["H1"], "q2": detail["Q2"],
                        "winner": names[winner] if winner else "hòa – chờ xác nhận", "reason": reason,
+                       "priority": {k: d.get("assurance_level") for k, (d, _) in side.items()},
                        "values": {c: (cols["H1"][c]["amount_vnd"], cols["Q2"][c]["amount_vnd"]) for c in diff}})
     return report, suggestions
 
@@ -714,6 +753,17 @@ def _six_month_lines(rows: list[dict]) -> list[str]:
         out.append(f"| {r['year']} | {', '.join(r['codes'])} | {c}: {a:,} / {b:,} | {r['h1']} / {r['q2']} | "
                    f"{r['winner']} | {r['reason']} |")
     return out + [""]
+
+
+def _review_adjustment_lines(rows: list[dict]) -> list[str]:
+    """Chênh lệch giữa BCTC Q2 (lũy kế 6T) và BCTC bán niên cùng kỳ, theo từng mã (tương tự điều chỉnh kiểm toán)."""
+    out = ["| Năm | Mã | BCTC Q2 lũy kế 6T (VND) | BCTC bán niên (VND) | Chênh (bán niên − Q2) | Bản dùng ở Silver |",
+           "|---|---|---|---|---|---|"]
+    for r in rows:
+        for c in r["codes"]:
+            h1, q2 = r["values"][c]
+            out.append(f"| {r['year']} | {c} | {q2:,} | {h1:,} | {abs(h1) - abs(q2):,} | {r['winner']} |")
+    return (out if len(out) > 2 else ["Không có chênh lệch."]) + [""]
 
 
 def _paddle_fallback(docs: list[dict], ctx: dict) -> tuple[int, int]:
@@ -787,9 +837,14 @@ def run(only: list[str] | None = None, workers: int = 4, monthly: bool = True, p
             _evaluate(d, ctx)
     for d in docs:
         stats["suggested"] += write_suggestions(OVERRIDES, d, suggest_fixes(d, d["eligible_failed"], d["values"], d["signs"]))
+    stats["eps_implausible"] = eps_plausibility(docs)
     stats["six_month"], conflicts = resolve_six_month_conflicts(docs, _read_overrides())
     stats["conflict_suggested"] = sum(write_suggestions(OVERRIDES, d, [s], suggested_by="doc_conflict")
                                       for d, s in conflicts)
+    # mâu thuẫn đã phân xử được (phương trình, ưu tiên, EPS lệch bậc) thì bỏ pending doc_conflict cũ của nó
+    stats["conflict_pruned"] = prune_suggestions(OVERRIDES, "doc_conflict",
+                                                 {(d["sha256"], s["statement"], s["account_code"], s["period_kind"])
+                                                  for d, s in conflicts})
 
     # Số đầu năm N = số cuối năm N-1 (ưu tiên bản vi-VN như ở Silver)
     closing_by_year: dict[int, dict] = {}
@@ -864,7 +919,7 @@ def _write_raw(docs: list[dict]) -> None:
              "is_trusted": c.get("is_trusted", False), "passed_critical": d["passed_critical"],
              "passed_critical_b01": d["passed_critical_b01"], "passed_critical_b02": d["passed_critical_b02"],
              "gold_eligible": c.get("gold_eligible", False), "semantic_break": c.get("semantic_break", False),
-             "conflict_lost": c.get("conflict_lost", False),
+             "conflict_lost": c.get("conflict_lost", False), "implausible": c.get("implausible", False),
              "ocr_value": c.get("ocr_value"),
              "row_y0": c.get("row_y0"), "row_y1": c.get("row_y1"),
              "ocr_engine": d["engine"], "dq_balance_ok": d["dq_balance_ok"], "columns_ok": d["columns_ok"],
@@ -1039,6 +1094,18 @@ def _write_report(docs: list[dict], monthly_docs: list[dict], stats: dict) -> di
               "lệch thắng; ô của bản thua (`conflict_lost`) không vào Silver. Hòa thì chờ người dùng xác nhận "
               f"(gợi ý mới lần này: {stats.get('conflict_suggested', 0)}).", ""]
     lines += _six_month_lines(stats.get("six_month", []))
+    lines += ["### Điều chỉnh soát xét (tự sinh)", "",
+              "Lũy kế 6 tháng in trên BCTC Q2 (tự lập) so với BCTC bán niên (soát xét), các mã lệch. Bản dùng ở Silver theo "
+              "phân xử ở bảng trên.", ""]
+    lines += _review_adjustment_lines(stats.get("six_month", []))
+    eps = stats.get("eps_implausible", [])
+    lines += ["### EPS lệch bậc (tự sinh)", "",
+              f"EPS (B02 70, 71) so với LNST công ty mẹ / (vốn góp 411 / mệnh giá {PAR_VALUE_VND:,}): ngoài [1/{EPS_MAX_RATIO}, "
+              f"{EPS_MAX_RATIO}] lần thì loại khỏi Silver ({len(eps)} ô)." + ("" if eps else " Không có ô nào."), ""]
+    if eps:
+        lines += ["| Kỳ | Lang | Mã | Cột | EPS đọc được | EPS ước tính |", "|---|---|---|---|---|---|"]
+        lines += [f"| {e['period']} | {e['lang'][:2]} | {e['code']} | {e['kind']} | {e['value']:,} | {e['expected']:,} |"
+                  for e in eps] + [""]
     lines += ["### Đối soát B02 mã 10, 60 với báo cáo tháng lũy kế (thay vnstock)", "",
               "Số BCTC làm tròn về tỷ đồng có xuất hiện (±1 tỷ) trong báo cáo KQKD tháng 3/6/9/12 cùng kỳ lũy kế "
               "không (`src/quality/monthly_check.py`). Chỉ ghi lại, không ghi vào Gold.", ""]
@@ -1107,4 +1174,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    from src.common.lock import run_locked
+    sys.exit(run_locked(main, sys.argv[1:]))

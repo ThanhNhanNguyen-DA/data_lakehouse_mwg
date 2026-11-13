@@ -320,5 +320,5 @@ def run() -> dict:
 
 
 if __name__ == "__main__":
-    run()
-    sys.exit(0)
+    from src.common.lock import run_locked
+    sys.exit(run_locked(run))

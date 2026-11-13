@@ -156,4 +156,5 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
+    from src.common.lock import run_locked
+    sys.exit(run_locked(main, sys.argv[1:]))

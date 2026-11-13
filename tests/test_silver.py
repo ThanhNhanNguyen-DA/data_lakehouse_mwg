@@ -212,3 +212,29 @@ def test_xac_nhan_cheo_khong_thang_so_da_qua_critical():
                     source_doc_sha256="b" * 64, **blocked)])
     out = S.apply_cross_doc(df)
     assert out.filter(pl.col("amount_vnd") == 4_435)["gold_eligible"].to_list() == [False, False]
+
+
+def test_o_thua_mau_thuan_6t_lam_bang_chung_nhung_khong_thang():
+    blocked = dict(is_trusted=False, gold_eligible=False, gold_basis=None)
+    rows = [row(fiscal_quarter=1, period_kind="quarter", amount_vnd=400, source_doc_sha256="1" * 64, **blocked),
+            row(amount_vnd=1001, source_doc_sha256="h" * 64),                                    # H1 (thắng)
+            row(amount_vnd=1000, source_doc_sha256="q" * 64, source_period="2025-Q2", **blocked),  # Q2 lũy kế (thua)
+            row(fiscal_quarter=2, period_kind="quarter", amount_vnd=600, source_doc_sha256="q" * 64,
+                source_period="2025-Q2", **blocked)]                                             # Q2 quý này (thua)
+    df = frame(rows).with_columns(pl.Series("conflict_lost", [False, False, True, True]))
+    final, _ = S.build_silver(df)
+    got = {(r["fiscal_quarter"], r["period_kind"]): r for r in final.iter_rows(named=True)}
+    assert got[(1, "quarter")]["gold_basis"] == "cross_doc_consensus"  # 1000 − 600 (cùng tài liệu thua) = 400
+    assert got[(2, "ytd")]["amount_vnd"] == 1001
+    assert got[(2, "quarter")]["amount_vnd"] == 601 and got[(2, "quarter")]["is_derived"]  # H1 − Q1, không lấy 600
+    assert "conflict_lost" not in final.columns
+
+
+def test_dung_lai_toan_bo_thay_ban_hang_cao_da_bi_loai(tmp_path):
+    path = tmp_path / "silver"
+    S.merge_silver(frame([row(amount_vnd=600)]), path)                          # bản in (hạng cao) lần trước
+    derived = row(amount_vnd=601, is_derived=True, value_origin="derived")      # lần này bản in bị loại, chỉ còn suy ra
+    S.merge_silver(frame([derived]), path, full=False)                          # nạp một phần: không đè hạng cao
+    assert pl.read_delta(str(path))["amount_vnd"].to_list() == [600]
+    S.merge_silver(frame([derived]), path)                                      # dựng lại toàn bộ: nguồn là sự thật
+    assert pl.read_delta(str(path))["amount_vnd"].to_list() == [601]

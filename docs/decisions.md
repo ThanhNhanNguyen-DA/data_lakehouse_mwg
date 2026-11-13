@@ -116,3 +116,16 @@ Mỗi mục: quyết định, lý do, cách đảo lại nếu cần.
   `dashboard/snapshot` thay `data/gold`. Silver `fin_statement_long` vẫn commit (giữ lịch sử time travel giữa các lần
   chạy CI). Đảo lại: bỏ dòng `data/gold/*` trong `.gitignore` và thêm `data/gold` vào bước commit của workflow.
 
+## Quyết định 13/11/2026 (chiều): dữ liệu và khóa (DBG-44, DBG-45)
+
+- **Hòa phương trình giữa BCTC bán niên và BCTC Q2 → thứ tự ưu tiên CLAUDE.md** (soát xét 2 > tự lập 1), không chờ người
+  dùng; chỉ cùng mức đảm bảo mới sinh pending. Chênh lệch ghi ở mục "Điều chỉnh soát xét".
+- **EPS lệch bậc thì loại** (ngưỡng [1/5, 5] lần so với LNST công ty mẹ / số cổ phiếu ước từ vốn góp / mệnh giá).
+- **Ô thua mâu thuẫn là bằng chứng, không là bản thắng.**
+- **MERGE dựng lại toàn bộ ghi đè theo nội dung**, nạp một phần giữ điều kiện hạng.
+- **`config/dim_account_overrides.csv`**: thêm cột `statement` ngoài các cột người dùng nêu (mã như 410 có ở cả B01 và
+  B02 của mẫu khác, cần biết thuộc báo cáo nào). File để trống chờ người dùng điền TT99 410; builder chỉ dùng dòng có
+  `source_file` + `verified_by`. Đã kiểm: chạy builder với file trống cho ra `dim_account.csv` giống hệt bản đang dùng.
+- **Khóa chung cho mọi entrypoint** (`src/common/lock.py`); `run_pipeline` gọi thẳng `run()` các bước bên trong khi đang
+  giữ khóa. Công cụ chỉ đọc (`review_overrides`, `demo_time_travel` ghi thư mục tạm, `screenshot_dashboard`) không khóa.
+

@@ -623,7 +623,10 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
   thứ hai trong lúc lượt đầu đang chạy in "Dừng: pipeline đang chạy (PID …)" và thoát mã 2.
 - Commit: commit `079fed6` (1)(2); commit thêm DBG-42 (khóa, cờ `--crawl`).
 - Bài học / hạn chế còn lại: PID có thể bị hệ điều hành dùng lại sau khi tiến trình cũ chết (khóa cũ bị coi là còn
-  sống): xóa tay file khóa; các lệnh chạy riêng từng bước (`python -m src.transform...`) không giữ khóa.
+  sống): xóa tay file khóa. Từ commit thêm DBG-44, khóa nằm ở `src/common/lock.py` và mọi entrypoint ghi dữ liệu/config
+  đều giữ khóa (`python -m src.extraction.run_extraction`, `src.transform.*`, `src.ingestion.mwg_crawler`,
+  `tools/map_tt99_numeric.py`, `tools/build_dim_account.py`, `tools/probe_b02_formula.py`); đã thử: trong lúc một tiến
+  trình giữ khóa, `python -m src.transform.bronze_to_silver` và `tools/map_tt99_numeric.py` đều dừng mã 2.
 
 ### DBG-42 – Lũy kế 6 tháng Q2/2026: BCTC bán niên và BCTC Q2 in khác nhau 721 đồng
 - Giai đoạn / tầng: bóc tách → Silver
@@ -643,8 +646,12 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
   `test_luy_ke_6t_hoa_thi_pending_ca_hai_xac_nhan_thi_thang`; lượt chạy: 2026 hòa (4/4 / 4/4) → 2 pending; 2025 mã 71
   (lãi suy giảm trên cổ phiếu: 2 / 2.175, không phương trình nào) hòa → 2 pending. Ô chờ xác nhận 15 → 19.
 - Commit: commit thêm mục này.
-- Bài học / hạn chế còn lại: Q2/2026 vẫn trống tới khi người dùng chọn tài liệu; 2025 mã 71 = 2 ở BCTC bán niên nhiều
-  khả năng là OCR đọc rác (cột này không có phương trình nào kiểm).
+- Bài học / hạn chế còn lại: (cập nhật 13/11, quyết định người dùng) hòa phương trình mà mức đảm bảo khác nhau thì theo
+  thứ tự ưu tiên CLAUDE.md: BCTC bán niên soát xét (2) thắng BCTC Q2 tự lập (1); chênh 721 đồng ghi ở mục "Điều chỉnh
+  soát xét"; pending `doc_conflict` không còn sinh lại thì tự xóa (`self_correct.prune_suggestions`, chỉ xóa dòng còn
+  pending). 2025 mã 71 = 2 bị loại vì EPS lệch bậc (DBG-44), không còn là hòa. Ô của bản thua vẫn dùng làm bằng chứng
+  xác nhận chéo (Q1/2026 = lũy kế Q2 − quý 2 của chính BCTC Q2), chỉ không được chọn làm bản thắng; Q2/2026 LNST =
+  H1 − Q1 = 3.354,9 tỷ (`is_derived`).
 
 ### DBG-43 – KPI trống khi thiếu số dư đầu kỳ; ROE 2026 trống vì dim_account TT99 thiếu mã 410
 - Giai đoạn / tầng: Gold (view KPI)
@@ -662,6 +669,37 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 - Commit: commit thêm mục này.
 - Bài học / hạn chế còn lại: KPI theo số dư cuối kỳ không so sánh trực tiếp được với KPI theo bình quân; ROE/ROA 2026
   chờ dim_account TT99 410.
+
+### DBG-44 – EPS (B02 70, 71) đọc rác lọt vào Silver
+- Giai đoạn / tầng: bóc tách → Silver
+- Triệu chứng: lãi suy giảm trên cổ phiếu H1/2025 đọc ra 2 (BCTC Q2 in 2.175), FY2024 ra 4, 2022-Q1 ra 20.262; mã
+  70/71 không có phương trình nào kiểm, nên mâu thuẫn H1/Q2 2025 mã 71 bị coi là "hòa" và sinh pending.
+- Nguyên nhân gốc: dòng EPS in số nhỏ (4 chữ số) dưới dòng tổng đậm, OCR hay đọc thiếu/thừa chữ số; không có ràng buộc.
+- Cách phát hiện: mâu thuẫn lũy kế 6T 2025 mã 71 (DBG-42).
+- Cách xử lý: `run_extraction.eps_plausibility`: EPS ước tính = LNST công ty mẹ (61, thiếu thì 60) cùng cột / (vốn góp
+  411 cuối kỳ / mệnh giá 10.000 đồng); EPS in nằm ngoài [1/5, 5] lần → `implausible`, Silver loại; mâu thuẫn 6T bỏ qua
+  mã đã loại (không coi là hòa). Mục "EPS lệch bậc" trong `docs/dq_report.md`.
+- Kiểm chứng: `tests/test_extraction.py::test_eps_lech_bac_bi_loai_va_khong_coi_la_hoa`; lượt chạy: 17 ô bị loại
+  (vd. 2025-H1 71 = 2 so với ước tính 2.159; 2022-Q1 71 = 20.262 so với 2.026).
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: 2 ô BCTC 2014-Q3 bị đánh dấu nhầm (mẫu trước TT200, mã 61 khác nghĩa) nhưng 2014 không vào
+  Silver (chưa có bảng map); số cổ phiếu ước từ vốn góp cuối kỳ, không phải bình quân gia quyền.
+
+### DBG-45 – Dựng lại Silver giữ dòng hạng cao đã bị loại (MERGE chặn ghi đè)
+- Giai đoạn / tầng: Silver
+- Triệu chứng: sau khi BCTC Q2/2026 thua mâu thuẫn 6T, Silver vẫn giữ Q2/2026 mã 60 = 3.354.897.720.617 (số in, bản
+  thua) thay vì H1 − Q1 = 3.354.897.721.338; LNST Q2/2026 vẫn trống.
+- Nguyên nhân gốc: `merge_silver` chỉ cập nhật khi `s.rank_score >= t.rank_score`; bản cũ (số in, hạng 1111) còn trong
+  bảng, bản mới (suy ra, hạng 1012) không được ghi đè, dù bản cũ đã không còn trong nguồn. Điều kiện này đúng cho nạp
+  một phần nhưng sai khi dựng lại toàn bộ.
+- Cách phát hiện: truy Silver sau lượt chạy, so `fs_extracted_raw` (ô đã `conflict_lost`).
+- Cách xử lý: `full=True` (dựng lại toàn bộ, nguồn đã chọn bản thắng trên mọi ứng viên) → ghi đè khi nội dung khác;
+  `full=False` (nạp một phần, vd. demo time travel) vẫn giữ điều kiện hạng.
+- Kiểm chứng: `tests/test_silver.py::test_dung_lai_toan_bo_thay_ban_hang_cao_da_bi_loai`; lượt chạy: MERGE sửa 16 dòng
+  cũ (gồm các ô bị loại ở các lượt trước), Q2/2026 LNST 3.354,9 tỷ.
+- Commit: commit thêm mục này.
+- Bài học / hạn chế còn lại: quy tắc "không để hạng thấp đè hạng cao" áp giữa các ứng viên cùng một lượt nạp, không áp
+  với dòng cũ đã bị loại khỏi nguồn.
 
 ---
 
@@ -710,7 +748,9 @@ Mục do commit hiện tại thêm vào ghi `Commit: commit thêm mục này` (t
 | DBG-39 | map TT99 / Silver | trung bình | đã sửa; 110/112/310 chưa kết luận |
 | DBG-40 | bóc tách | trung bình (mất 7 mã B02 Q3/2026) | đã sửa, có test |
 | DBG-41 | Gold / hạ tầng | trung bình | đã sửa (gồm khóa pipeline, `--force` không crawl) |
-| DBG-42 | bóc tách → Silver | trung bình (Q2/2026 LNST trống) | cơ chế xong; chờ người dùng chọn tài liệu |
+| DBG-42 | bóc tách → Silver | trung bình (Q2/2026 LNST trống) | đã xử lý (hòa → thứ tự ưu tiên) |
+| DBG-44 | bóc tách → Silver | thấp (17 ô EPS) | đã sửa |
+| DBG-45 | Silver | cao (giữ số đã biết sai) | đã sửa |
 | DBG-43 | Gold (KPI) | trung bình | đã sửa phần số dư; TT99 410 thiếu trong dim_account chưa sửa |
 
 ## Chỉ số chất lượng qua các lượt chạy

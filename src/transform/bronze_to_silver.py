@@ -131,9 +131,14 @@ def build_long(raw: pl.DataFrame, manifest: pl.DataFrame, dim_codes: set[tuple[s
     keep &= ~((pl.col("statement") == "B02") & ~pl.col("columns_ok"))
     stats["dq_excluded"] = df.filter(~keep).height
     # bản thua khi hai tài liệu in khác nhau cùng một lũy kế 6 tháng (run_extraction.resolve_six_month_conflicts)
+    # bản thua khi hai tài liệu in khác nhau cùng lũy kế 6T: giữ trong ứng viên làm bằng chứng xác nhận chéo
+    # (phép tính giữa các ô của chính nó vẫn đúng, vd. Q1 = lũy kế Q2 − quý 2), loại trước khi chọn bản thắng
     lost = pl.col("conflict_lost").fill_null(False) if "conflict_lost" in df.columns else pl.lit(False)
     stats["conflict_lost"] = df.filter(keep & lost).height
-    keep &= ~lost
+    # EPS lệch bậc so với LNST công ty mẹ / số cổ phiếu (run_extraction.eps_plausibility): OCR đọc rác
+    bad = pl.col("implausible").fill_null(False) if "implausible" in df.columns else pl.lit(False)
+    stats["implausible"] = df.filter(keep & bad).height
+    keep &= ~bad
     df = df.filter(keep)
     # mã chuẩn: TT99 qua bảng map; B01/B02 phải có trong dim_account (mã OCR sai không được bịa thành mã thật)
     known = pl.struct("statement", "canonical_code").map_elements(
@@ -169,7 +174,8 @@ def build_long(raw: pl.DataFrame, manifest: pl.DataFrame, dim_codes: set[tuple[s
         "page", "value_origin", "dq_balance_ok", "is_trusted", "gold_eligible",
         # TT99 mã đổi nội dung: đánh dấu mọi kỳ TT99 để Gold/KPI không nối chuỗi qua mốc đổi chuẩn
         ((pl.col("regime") == "TT99") & pl.col("account_code").is_in(_break_codes())).alias("semantic_break"),
-        pl.lit(None, pl.Utf8).alias("derived_from"))
+        pl.lit(None, pl.Utf8).alias("derived_from"),
+        (pl.col("conflict_lost").fill_null(False) if "conflict_lost" in df.columns else pl.lit(False)).alias("conflict_lost"))
     out = out.with_columns(_rank_expr().alias("rank_score"),
                            pl.when(pl.col("gold_eligible")).then(pl.lit("critical")).otherwise(None).alias("gold_basis"))
     return out, unmapped, stats
@@ -316,9 +322,12 @@ def to_arrow(df: pl.DataFrame) -> pa.Table:
 
 
 def merge_silver(df: pl.DataFrame, path=SILVER_TABLE, full: bool = True) -> dict:
-    """Delta MERGE theo KEY: bản mới chỉ ghi đè khi rank_score >= bản cũ và nội dung khác (row_hash).
+    """Delta MERGE theo KEY.
 
-    full=True: nguồn là toàn bộ Silver -> xóa khóa không còn trong nguồn. full=False: nạp lại một phần (vd. một kỳ)."""
+    full=False (nạp một phần, vd. một kỳ): bản mới chỉ ghi đè khi rank_score >= bản cũ và nội dung khác (row_hash), để
+    bản hạng thấp không đè bản hạng cao đang có. full=True (dựng lại toàn bộ): nguồn đã chọn bản thắng trên MỌI ứng viên
+    nên là sự thật đầy đủ -> ghi đè khi nội dung khác, kể cả khi hạng thấp hơn (bản hạng cao cũ đã bị loại, vd. ô thua
+    mâu thuẫn hay EPS lệch bậc; giữ lại là giữ số đã biết sai), và xóa khóa không còn trong nguồn."""
     src = to_arrow(df)
     if not DeltaTable.is_deltatable(str(path)):
         write_deltalake(str(path), src, mode="overwrite")
@@ -327,7 +336,8 @@ def merge_silver(df: pl.DataFrame, path=SILVER_TABLE, full: bool = True) -> dict
     on = " AND ".join(f"t.{k} = s.{k}" for k in KEY)
     # merge_schema: thêm cột mới (vd. gold_basis) mà không tạo lại bảng, giữ lịch sử time travel
     m = (DeltaTable(str(path)).merge(source=src, predicate=on, source_alias="s", target_alias="t", merge_schema=True)
-         .when_matched_update_all(predicate="s.rank_score >= t.rank_score AND s.row_hash <> t.row_hash")
+         .when_matched_update_all(predicate="s.row_hash <> t.row_hash" if full
+                                  else "s.rank_score >= t.rank_score AND s.row_hash <> t.row_hash")
          .when_not_matched_insert_all())
     if full:
         m = m.when_not_matched_by_source_delete()
@@ -421,9 +431,16 @@ def build_candidates() -> tuple[pl.DataFrame, pl.DataFrame, dict]:
 
 def build_silver(cands: pl.DataFrame) -> tuple[pl.DataFrame, pl.DataFrame]:
     """-> (Silver đã chọn bản thắng, các ô suy ra). Xác nhận chéo trước khi chọn bản thắng và suy quý."""
-    cands = apply_cross_doc(cands)
+    cands = _without_lost(apply_cross_doc(cands))
     derived = derive_quarters(pick_winners(cands))
     return pick_winners(pl.concat([cands, derived])), derived
+
+
+def _without_lost(cands: pl.DataFrame) -> pl.DataFrame:
+    """Bỏ ô thua mâu thuẫn lũy kế 6T (chỉ dùng làm bằng chứng xác nhận chéo) và cột đánh dấu."""
+    if "conflict_lost" not in cands.columns:
+        return cands
+    return cands.filter(~pl.col("conflict_lost")).drop("conflict_lost")
 
 
 def run() -> dict:
@@ -434,8 +451,8 @@ def run() -> dict:
                  cross_doc=final.filter(pl.col("gold_basis") == "cross_doc_consensus").height,
                  audited_q4=final.filter(pl.col("rank_score") >= 1000 + AUDITED_Q4_BONUS).height)
     res = merge_silver(final)
-    restated = restatements(apply_cross_doc(cands))
-    write_report(restated, stats, audit_adjustments(cands))
+    restated = restatements(_without_lost(apply_cross_doc(cands)))
+    write_report(restated, stats, audit_adjustments(_without_lost(cands)))
     v = DeltaTable(str(SILVER_TABLE)).version()
     print(f"[silver] fin_statement_long v{v}: {final.height} dòng ({stats['derived']} suy ra); "
           f"MERGE: thêm {res.get('num_target_rows_inserted', 0)}, sửa {res.get('num_target_rows_updated', 0)}, "
@@ -444,5 +461,5 @@ def run() -> dict:
 
 
 if __name__ == "__main__":
-    run()
-    sys.exit(0)
+    from src.common.lock import run_locked
+    sys.exit(run_locked(run))

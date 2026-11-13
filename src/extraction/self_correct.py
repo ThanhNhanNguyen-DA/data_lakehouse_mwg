@@ -163,3 +163,21 @@ def write_suggestions(path: Path, doc: dict, suggestions: list[dict], suggested_
         w.writeheader()
         w.writerows({k: r.get(k, "") for k in OVERRIDE_FIELDS} for r in rows)
     return added
+
+
+def prune_suggestions(path: Path, suggested_by: str, keep: set[tuple[str, str, str, str]]) -> int:
+    """Xóa dòng pending do `suggested_by` sinh ra mà lượt này không sinh lại (vấn đề đã tự phân xử được).
+    Dòng người dùng đã đổi status (confirmed, rejected...) giữ nguyên. Trả số dòng đã xóa."""
+    if not Path(path).exists():
+        return 0
+    with Path(path).open(encoding="utf-8", newline="") as f:
+        rows = list(csv.DictReader(f))
+    out = [r for r in rows if not (r.get("suggested_by") == suggested_by and (r.get("status") or "") == "pending"
+                                   and (r["source_doc_sha256"], r["statement"], r["account_code"], r["period_kind"]) not in keep)]
+    if len(out) != len(rows):
+        with Path(path).open("w", encoding="utf-8", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=OVERRIDE_FIELDS)
+            w.writeheader()
+            w.writerows({k: r.get(k, "") for k in OVERRIDE_FIELDS} for r in out)
+    return len(rows) - len(out)
+

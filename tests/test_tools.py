@@ -110,3 +110,19 @@ def test_match_numeric_du_phong_q4_va_bien_dong_20():
     by = {r["account_code"]: r for r in rows}
     assert by["135"]["semantic_break"] == "true" and by["135"]["canonical_code"] == "136"
     assert [(c, h[0]) for c, _, h in result[M.SHIFT_KEY]] == [("135", "136")]  # 111: +10% không vào danh sách
+
+
+def test_dim_account_overrides_chi_ap_dung_dong_da_xac_nhan(tmp_path):
+    import csv
+    path = tmp_path / "o.csv"
+    with path.open("w", encoding="utf-8", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["regime", "statement", "code", "name", "parent_code", "sign", "source_file", "page", "verified_by"])
+        w.writerow(["TT99", "B01", "410", "I. Vốn chủ sở hữu", "400", "1", "phu-luc-4-thong-tu-99.pdf", "5", "người dùng"])
+        w.writerow(["TT99", "B01", "999", "Mã chưa xác nhận", "400", "1", "phu-luc-4-thong-tu-99.pdf", "5", ""])
+    rows = [{"regime": "TT99", "statement": "B01", "account_code": "411", "name_vi": "1. Vốn góp", "name_en": "",
+             "level": 3, "parent_code": "410", "is_subtotal": "0", "is_additive": "1", "sign": "1", "source": "x"}]
+    assert B.apply_dim_overrides(rows, path) == ["TT99/B01/410"]
+    by = {r["account_code"]: r for r in rows}
+    assert by["410"]["parent_code"] == "400" and by["410"]["level"] == 2 and by["410"]["is_subtotal"] == "1"
+    assert "người dùng" in by["410"]["source"] and "999" not in by  # dòng chưa xác nhận không áp dụng

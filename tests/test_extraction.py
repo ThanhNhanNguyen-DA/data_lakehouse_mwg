@@ -485,3 +485,48 @@ def test_luy_ke_6t_hoa_thi_pending_ca_hai_xac_nhan_thi_thang():
     rows, sugg = R.resolve_six_month_conflicts(docs, confirmed)
     assert rows[0]["winner"] == "BCTC bán niên" and not sugg
     assert any(c.get("conflict_lost") for c in docs[1]["cells"])
+
+
+def test_luy_ke_6t_hoa_thi_theo_thu_tu_uu_tien():
+    from src.extraction import run_extraction as R
+    docs = _six_month_docs()
+    docs[0]["assurance_level"], docs[1]["assurance_level"] = 2, 1  # bán niên soát xét, Q2 tự lập
+    rows, sugg = R.resolve_six_month_conflicts(docs, [])
+    assert rows[0]["winner"] == "BCTC bán niên" and "thứ tự ưu tiên" in rows[0]["reason"] and not sugg
+    assert {(c["account_code"], c["period_kind"]) for c in docs[1]["cells"] if c.get("conflict_lost")} == {
+        ("60", "ytd_current"), ("60", "q_current")}
+
+
+def test_eps_lech_bac_bi_loai_va_khong_coi_la_hoa():
+    from src.extraction import run_extraction as R
+
+    def c(st, code, kind, v):
+        return {"statement": st, "account_code": code, "canonical_code": code, "period_kind": kind, "amount_vnd": v}
+    h1 = {"period": "2025-H1", "sha256": "h1", "lang": "vi-VN", "period_check_ok": True, "columns_ok": True, "checks": [],
+          "cells": [c("B01", "411", "closing", 14_796_931_770_000), c("B02", "61", "current", 3_194_083_337_645),
+                    c("B02", "71", "current", 2)]}
+    q2 = {"period": "2025-Q2", "sha256": "q2", "lang": "vi-VN", "period_check_ok": True, "columns_ok": True, "checks": [],
+          "cells": [c("B01", "411", "closing", 14_796_931_770_000), c("B02", "61", "ytd_current", 3_194_083_337_645),
+                    c("B02", "71", "ytd_current", 2_175)]}
+    bad = R.eps_plausibility([h1, q2])
+    assert [(b["period"], b["value"]) for b in bad] == [("2025-H1", 2)]  # 2.175 ≈ 3.194 tỷ / 1,48 tỷ CP: hợp lý
+    rows, sugg = R.resolve_six_month_conflicts([h1, q2], [])
+    assert rows == [] and sugg == []
+
+
+def test_bo_pending_khong_con_sinh_lai(tmp_path):
+    from src.extraction.self_correct import OVERRIDE_FIELDS, prune_suggestions
+    import csv
+    path = tmp_path / "o.csv"
+    base = {k: "" for k in OVERRIDE_FIELDS}
+    rows = [{**base, "source_doc_sha256": "a", "statement": "B02", "account_code": "60", "period_kind": "current",
+             "suggested_by": "doc_conflict", "status": "pending"},
+            {**base, "source_doc_sha256": "b", "statement": "B02", "account_code": "60", "period_kind": "ytd_current",
+             "suggested_by": "doc_conflict", "status": "confirmed"},
+            {**base, "source_doc_sha256": "c", "statement": "B01", "account_code": "440", "period_kind": "closing",
+             "suggested_by": "equation", "status": "pending"}]
+    with path.open("w", encoding="utf-8", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=OVERRIDE_FIELDS); w.writeheader(); w.writerows(rows)
+    assert prune_suggestions(path, "doc_conflict", set()) == 1
+    left = list(csv.DictReader(path.open(encoding="utf-8")))
+    assert [r["source_doc_sha256"] for r in left] == ["b", "c"]  # đã xác nhận và gợi ý loại khác: giữ

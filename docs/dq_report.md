@@ -38,11 +38,11 @@ Khi cùng một ô (kỳ, báo cáo, mã số) có cả số gốc (báo cáo c�
 
 <!-- silver:start -->
 
-### Kỳ bị trình bày lại – Silver (tự sinh, 2026-11-13 15:39)
+### Kỳ bị trình bày lại – Silver (tự sinh, 2026-11-13 15:58)
 
 Ô có cả số gốc (báo cáo của chính kỳ đó) và số so sánh (cột kỳ trước của báo cáo kỳ sau), **cả hai trusted**, lệch > 0,1%: 13 ô. Silver giữ số gốc. Ô chưa trusted không so (lệch có thể do OCR).
 
-Silver: 6658 dòng; loại 340 ô rỗng, 0 ô của báo cáo không qua kiểm tra kỳ/nhãn cột B02, 447 ô không ánh xạ được mã (88 mã, `data/_state/unmapped_items.csv`), 0 ô thua khi hai tài liệu in khác nhau cùng lũy kế 6 tháng, 12 ô TT99 đổi nội dung rơi vào ngày theo TT200; thêm 1563 ô suy ra (Q2 = H1 − Q1, Q3 = 9T − H1, Q4 = năm − 9T).
+Silver: 6655 dòng; loại 340 ô rỗng, 0 ô của báo cáo không qua kiểm tra kỳ/nhãn cột B02, 447 ô không ánh xạ được mã (88 mã, `data/_state/unmapped_items.csv`), 8 ô thua khi hai tài liệu in khác nhau cùng lũy kế 6 tháng, 12 ô TT99 đổi nội dung rơi vào ngày theo TT200; thêm 1563 ô suy ra (Q2 = H1 − Q1, Q3 = 9T − H1, Q4 = năm − 9T).
 
 | Kỳ | Báo cáo | Kỳ cột | Mã | Số gốc (VND) | Số so sánh (VND) | Chênh lệch | Tài liệu gốc | Tài liệu so sánh |
 |---|---|---|---|---|---|---|---|---|
@@ -55,7 +55,7 @@ Silver: 6658 dòng; loại 340 ô rỗng, 0 ô của báo cáo không qua kiểm
 | 2025-4 | B01 | instant | 112 | 39,550,000,000 | 39,784,301,712 | 234,301,712 (0.59%) | 2025 vi | 2026-H1 vi, 2026-Q3 vi |
 | 2025-4 | B01 | instant | 310 | 50,769,502,237,457 | 50,380,613,547,353 | -388,888,690,104 (-0.77%) | 2025 vi | 2026-H1 vi, 2026-Q2 vi, 2026-Q3 vi |
 
-Xác nhận chéo giữa tài liệu: 427 ô vào Gold nhờ >= 2 tài liệu đọc khớp hoặc tài liệu + phép tính lũy kế từ tài liệu khác (`gold_basis = cross_doc_consensus`); Q4 B02 = BCTC năm − 9T thay Q4 tự lập: 176 ô.
+Xác nhận chéo giữa tài liệu: 430 ô vào Gold nhờ >= 2 tài liệu đọc khớp hoặc tài liệu + phép tính lũy kế từ tài liệu khác (`gold_basis = cross_doc_consensus`); Q4 B02 = BCTC năm − 9T thay Q4 tự lập: 176 ô.
 
 ### Điều chỉnh kiểm toán (tự sinh)
 
@@ -73,7 +73,6 @@ Lũy kế 12 tháng trên BCTC Q4 (tự lập) so với BCTC năm (kiểm toán)
 | 2024 | 51 | 16. Chi phí thuế TNDN hiện hành | -1,125,699,984,550 | -1,282,537,116,919 | -156,837,132,369 (13.93%) | – |
 | 2024 | 52 | 17. Chí phí thuế TNDN hoãn lại | 33,225,200,192 | 190,062,332,561 | 156,837,132,369 (472.04%) | – |
 | 2024 | 62 | 20. Loi nhuan sau thué cua cỗ đông không kiểm | 111,419,787,059 | 11,419,787,059 | -100,000,000,000 (-89.75%) | – |
-| 2024 | 71 | 22. Lãi suy yg giảm trên cổ p phiếu | 2,546 | 4 | -2,542 (-99.84%) | – |
 | 2025 | 01 | 1. Doanh thu ban hang và cung câp dịch vụ | 157,365,796,389,314 | 156,836,115,054,975 | -529,681,334,339 (-0.34%) | ✓ |
 | 2025 | 10 | 3. Doanh thu thuần về bán hàng và cung câp dị | 156,457,826,953,706 | 155,928,145,619,367 | -529,681,334,339 (-0.34%) | ✓ |
 | 2025 | 11 | 4. Giá vốn hàng bán và dịch vụ cung cấp | -126,164,283,912,183 | -124,926,268,219,546 | 1,238,015,692,637 (-0.98%) | ✓ |
@@ -85,7 +84,6 @@ Lũy kế 12 tháng trên BCTC Q4 (tự lập) so với BCTC năm (kiểm toán)
 | 2025 | 52 | 17. Chí phí thuế TNDN hoãn lại | 161,138,587,134 | 161,114,825,617 | -23,761,517 (-0.01%) | – |
 | 2025 | 61 | 19. Lợi nhuận sau thuế của công ty mẹ | 7,036,628,523,122 | 7,033,730,770,169 | -2,897,752,953 (-0.04%) | – |
 | 2025 | 70 | 21. Lãi cơ bản trên cổ phiếu | 4,936 | 4,774 | -162 (-3.28%) | – |
-| 2025 | 71 | 22. Lãi suy giảm trên cổ phiếu | -4 | 4,774 | 4,778 (-119450.00%) | – |
 
 <!-- silver:end -->
 
@@ -97,9 +95,9 @@ Chưa thực hiện. Gói `vnstock` không còn trên PyPI, xem ghi chú trong `
 
 <!-- extraction:start -->
 
-## 5. Bóc tách và DQ theo kỳ (tự sinh, 2026-11-13 15:39)
+## 5. Bóc tách và DQ theo kỳ (tự sinh, 2026-11-13 15:58)
 
-**B01 cân đối: 50/52 (96%). BCTC qua DQ toàn bộ: 7/52 (13%).** Chưa áp dụng gợi ý sửa tay nào; **19 ô đang chờ xác nhận** trong `config/manual_overrides.csv` (`status=pending`).
+**B01 cân đối: 50/52 (96%). BCTC qua DQ toàn bộ: 7/52 (13%).** Chưa áp dụng gợi ý sửa tay nào; **15 ô đang chờ xác nhận** trong `config/manual_overrides.csv` (`status=pending`).
 
 **Độ chính xác OCR thô** (trước mọi bước tự sửa): B01 cân đối 34/52 (65%); 82/108 (76%) phép kiểm phương trình B01 đúng. **Sau tự sửa**: B01 cân đối 50/52 (96%).
 
@@ -164,10 +162,10 @@ Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa c
 |---|---|---|---|
 | TT200 | 224 = Σ con | 1/1 | 100% |
 | TT99 | 40 = Σ con | 2/4 | 50% |
-| TT99 | 227 = Σ con | 1/4 | 25% |
-| TT99 | 420 = Σ con | 1/4 | 25% |
-| TT99 | 221 = Σ con | 1/4 | 25% |
 | TT99 | 310 = Σ con | 1/4 | 25% |
+| TT99 | 227 = Σ con | 1/4 | 25% |
+| TT99 | 221 = Σ con | 1/4 | 25% |
+| TT99 | 420 = Σ con | 1/4 | 25% |
 | TT99 | 20 = Σ con | 1/4 | 25% |
 | TT200 | 20 = Σ con | 11/45 | 24% |
 | TT200 | 421 = Σ con | 11/46 | 24% |
@@ -175,9 +173,9 @@ Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa c
 | TT200 | 310 = Σ con | 10/48 | 21% |
 | TT200 | 411 = Σ con | 8/47 | 17% |
 | TT200 | 130 = Σ con | 7/48 | 15% |
-| TT200 | 200 = Σ con | 6/48 | 12% |
 | TT200 | 260 = Σ con | 6/48 | 12% |
 | TT200 | 150 = Σ con | 6/48 | 12% |
+| TT200 | 200 = Σ con | 6/48 | 12% |
 | TT200 | 40 = Σ con | 5/45 | 11% |
 | TT200 | 227 = Σ con | 5/48 | 10% |
 | TT200 | 221 = Σ con | 5/48 | 10% |
@@ -191,37 +189,71 @@ Tự sửa lỗi OCR lần này: 271 ô sửa/điền theo bỏ phiếu giữa c
 | TT200 | 400 = Σ con | 2/48 | 4% |
 | TT200 | 330 = Σ con | 1/33 | 3% |
 | TT200 | 240 = Σ con | 1/47 | 2% |
-| TT200 | 140 = Σ con | 1/48 | 2% |
 | TT200 | 220 = Σ con | 1/48 | 2% |
+| TT200 | 140 = Σ con | 1/48 | 2% |
 | TT200 | 210 = Σ con | 0/47 | 0% |
 | TT200 | 120 = Σ con | 0/40 | 0% |
-| TT99 | 270 = Σ con | 0/4 | 0% |
-| TT99 | 140 = Σ con | 0/4 | 0% |
-| TT99 | 200 = Σ con | 0/4 | 0% |
-| TT99 | 330 = Σ con | 0/3 | 0% |
-| TT99 | 120 = Σ con | 0/4 | 0% |
-| TT99 | 411 = Σ con | 0/4 | 0% |
-| TT99 | 110 = Σ con | 0/4 | 0% |
-| TT99 | 300 = Σ con | 0/4 | 0% |
-| TT99 | 160 = Σ con | 0/4 | 0% |
-| TT99 | 260 = Σ con | 0/4 | 0% |
-| TT99 | 250 = Σ con | 0/4 | 0% |
-| TT99 | 210 = Σ con | 0/4 | 0% |
-| TT99 | 10 = Σ con | 0/4 | 0% |
-| TT99 | 280 = Σ con | 0/4 | 0% |
-| TT99 | 50 = Σ con | 0/4 | 0% |
-| TT99 | 100 = Σ con | 0/4 | 0% |
-| TT99 | 130 = Σ con | 0/4 | 0% |
 | TT99 | 220 = Σ con | 0/4 | 0% |
+| TT99 | 50 = Σ con | 0/4 | 0% |
+| TT99 | 160 = Σ con | 0/4 | 0% |
+| TT99 | 130 = Σ con | 0/4 | 0% |
+| TT99 | 110 = Σ con | 0/4 | 0% |
+| TT99 | 100 = Σ con | 0/4 | 0% |
+| TT99 | 411 = Σ con | 0/4 | 0% |
+| TT99 | 270 = Σ con | 0/4 | 0% |
+| TT99 | 300 = Σ con | 0/4 | 0% |
+| TT99 | 140 = Σ con | 0/4 | 0% |
+| TT99 | 250 = Σ con | 0/4 | 0% |
+| TT99 | 330 = Σ con | 0/3 | 0% |
+| TT99 | 260 = Σ con | 0/4 | 0% |
+| TT99 | 10 = Σ con | 0/4 | 0% |
+| TT99 | 120 = Σ con | 0/4 | 0% |
+| TT99 | 280 = Σ con | 0/4 | 0% |
+| TT99 | 210 = Σ con | 0/4 | 0% |
+| TT99 | 200 = Σ con | 0/4 | 0% |
 
 ### Lũy kế 6 tháng: BCTC bán niên và BCTC Q2
 
-Cùng lũy kế 6 tháng in trên hai tài liệu mà khác nhau: bản đúng mọi phương trình B02 nội bộ chứa các mã lệch thắng; ô của bản thua (`conflict_lost`) không vào Silver. Hòa thì chờ người dùng xác nhận (gợi ý mới lần này: 4).
+Cùng lũy kế 6 tháng in trên hai tài liệu mà khác nhau: bản đúng mọi phương trình B02 nội bộ chứa các mã lệch thắng; ô của bản thua (`conflict_lost`) không vào Silver. Hòa thì chờ người dùng xác nhận (gợi ý mới lần này: 0).
 
 | Năm | Mã lệch | Ví dụ (bán niên / Q2, VND) | Phương trình đúng: bán niên / Q2 | Bản thắng | Lý do |
 |---|---|---|---|---|---|
-| 2025 | 71 | 71: 2 / 2,175 | 0/0 / 0/0 | hòa – chờ xác nhận | hòa: không phương trình nào chứa mã lệch (0/0 / 0/0); chờ người dùng xác nhận (pending, suggested_by = doc_conflict) |
-| 2026 | 21, 30, 50, 60 | 60: 6,112,454,741,865 / 6,112,454,741,144 | 4/4 / 4/4 | hòa – chờ xác nhận | hòa: cả hai đều đúng phương trình nội bộ (4/4 / 4/4); chờ người dùng xác nhận (pending, suggested_by = doc_conflict) |
+| 2026 | 21, 30, 50, 60 | 60: 6,112,454,741,865 / 6,112,454,741,144 | 4/4 / 4/4 | BCTC bán niên | hòa phương trình (4/4 / 4/4); theo thứ tự ưu tiên CLAUDE.md BCTC bán niên (mức đảm bảo 2) thắng (mức 1) |
+
+### Điều chỉnh soát xét (tự sinh)
+
+Lũy kế 6 tháng in trên BCTC Q2 (tự lập) so với BCTC bán niên (soát xét), các mã lệch. Bản dùng ở Silver theo phân xử ở bảng trên.
+
+| Năm | Mã | BCTC Q2 lũy kế 6T (VND) | BCTC bán niên (VND) | Chênh (bán niên − Q2) | Bản dùng ở Silver |
+|---|---|---|---|---|---|
+| 2026 | 21 | 1,815,260,017,957 | 1,815,260,018,678 | 721 | BCTC bán niên |
+| 2026 | 30 | 7,381,560,921,075 | 7,381,560,921,796 | 721 | BCTC bán niên |
+| 2026 | 50 | 7,360,580,797,203 | 7,360,580,797,924 | 721 | BCTC bán niên |
+| 2026 | 60 | 6,112,454,741,144 | 6,112,454,741,865 | 721 | BCTC bán niên |
+
+### EPS lệch bậc (tự sinh)
+
+EPS (B02 70, 71) so với LNST công ty mẹ / (vốn góp 411 / mệnh giá 10,000): ngoài [1/5, 5] lần thì loại khỏi Silver (17 ô).
+
+| Kỳ | Lang | Mã | Cột | EPS đọc được | EPS ước tính |
+|---|---|---|---|---|---|
+| 2014-Q3 | vi | 70 | q_current | 2,794 | 18 |
+| 2014-Q3 | vi | 70 | ytd_prior | 2,363 | 25 |
+| 2016 | en | 71 | current | 6 | 10,246 |
+| 2017-Q3 | en | 71 | current | 51,555 | 5,308 |
+| 2018 | en | 71 | current | 4 | 6,491 |
+| 2019 | en | 71 | current | 6 | 8,645 |
+| 2020 | en | 70 | current | 86 | 8,644 |
+| 2020 | en | 71 | current | 386 | 8,644 |
+| 2020-Q3 | en | 70 | current | 5 | 6,566 |
+| 2021 | vi | 71 | current | 3 | 6,870 |
+| 2021-H1 | vi | 71 | current | 2 | 5,366 |
+| 2021-Q1 | vi | 71 | current | 2 | 2,870 |
+| 2022-Q1 | vi | 71 | current | 20,262 | 2,026 |
+| 2024 | vi | 71 | current | 4 | 2,545 |
+| 2024-H1 | vi | 71 | current | 1 | 1,419 |
+| 2025-H1 | vi | 71 | current | 2 | 2,159 |
+| 2025-Q4 | vi | 71 | ytd_current | -4 | 4,788 |
 
 ### Đối soát B02 mã 10, 60 với báo cáo tháng lũy kế (thay vnstock)
 
